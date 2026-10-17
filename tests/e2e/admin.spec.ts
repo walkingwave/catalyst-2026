@@ -125,3 +125,56 @@ test.describe("Admin console", () => {
     }
   });
 });
+
+test.describe("Admin station mode", () => {
+  test("full-screen station: scan, read, reset, back", async ({ page, request }) => {
+    const r = await request.post("/api/admin/events", {
+      headers: adminHeaders,
+      data: { name: `E2E Station ${Date.now()}`, venue: "V", date: "2026-10-21", activities: [{ name: "Entry", points: 50 }, { name: "Merch", points: 100 }] },
+    });
+    const ev = (await r.json()).event;
+    const uid = testUid();
+    try {
+      await unlock(page);
+      await page.getByRole("combobox").first().selectOption(ev.id);
+      await page.getByRole("button", { name: /^merch \+100/i }).click();
+      await page.getByRole("button", { name: /open station/i }).click();
+      const station = page.getByTestId("station");
+      await expect(station).toBeVisible();
+      await expect(station.getByText(/^merch$/i)).toBeVisible();
+
+      // scan via manual entry inside the station
+      await station.getByPlaceholder("Band UID").fill(uid);
+      await station.getByRole("button", { name: /^tap$/i }).click();
+      const plus = page.getByRole("paragraph").filter({ hasText: /^\+100$/ });
+      await expect(plus).toBeVisible();
+      await plus.click();
+      await expect(station.getByText(new RegExp(`last: ${uid} · \\+100`, "i"))).toBeVisible();
+
+      // read mode shows points + history
+      await station.getByRole("button", { name: /^read$/i }).click();
+      await station.getByPlaceholder("Band UID").fill(uid);
+      await station.getByRole("button", { name: /^tap$/i }).click();
+      await expect(station.getByText(/unclaimed · /i)).toBeVisible();
+      await expect(station.getByText("100", { exact: true })).toBeVisible();
+      await expect(station.getByText(/^merch$/i).last()).toBeVisible();
+
+      // reset mode wipes it
+      await station.getByRole("button", { name: /^reset$/i }).click();
+      await expect(station.getByText(/tapped bands lose their scans/i)).toBeVisible();
+      await station.getByPlaceholder("Band UID").fill(uid);
+      await station.getByRole("button", { name: /^tap$/i }).click();
+      await expect(page.getByText(/scans cleared, unclaimed/i)).toBeVisible();
+      await page.getByText(/scans cleared, unclaimed/i).click();
+      const look = await (await request.get(`/api/admin/bands?uid=${uid}`, { headers: adminHeaders })).json();
+      expect(look.band.scans).toHaveLength(0);
+
+      // back returns to admin
+      await station.getByRole("button", { name: /back to admin/i }).click();
+      await expect(station).toBeHidden();
+      await expect(page.getByRole("button", { name: /open station/i })).toBeVisible();
+    } finally {
+      await deleteEvent(request, ev.id);
+    }
+  });
+});

@@ -56,6 +56,7 @@ export async function startNfc(opts: {
   reader.onreadingerror = () => opts.onError("Couldn't read that tag. Hold it still against the top-back of the phone.");
 
   await reader.scan({ signal: ctrl.signal });
+  ctrl.signal.addEventListener("abort", () => window.dispatchEvent(new Event("cc:nfc-stopped")), { once: true });
   try {
     wake = await (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } }).wakeLock?.request("screen") ?? null;
   } catch {}

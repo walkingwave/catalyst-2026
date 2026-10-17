@@ -85,7 +85,7 @@ export type Reward = {
 
 export type ScanResult = {
   ok: boolean;
-  status: "scanned" | "duplicate" | "error";
+  status: "scanned" | "duplicate" | "error" | "reset";
   message: string;
   points?: number;
   activity?: string;

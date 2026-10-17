@@ -157,6 +157,7 @@ body {
 .hscroll { scrollbar-width: none; -ms-overflow-style: none; }
 .hscroll::-webkit-scrollbar { display: none; }
 
+.mono-caps { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
 .press { transition: transform 120ms ease, opacity 120ms ease; }
 .press:active { transform: scale(0.98); opacity: 0.9; }
 
