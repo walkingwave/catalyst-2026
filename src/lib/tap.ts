@@ -51,8 +51,13 @@ export async function recordSelfTap(uid: string): Promise<TapOutcome> {
   }
 
   if (band.user_id) {
-    const { data: owner } = await db.from("users").select("phone").eq("id", band.user_id).maybeSingle();
-    if (owner?.phone) void sendSms(owner.phone, `+${act.points} pts at ${act.name}.`);
+    const [{ data: owner }, { data: c }] = await Promise.all([
+      db.from("users").select("phone").eq("id", band.user_id).maybeSingle(),
+      db.from("concerts").select("artist_id").eq("id", band.concert_id).maybeSingle(),
+    ]);
+    const text = `+${act.points} pts at ${act.name}.`;
+    if (c?.artist_id) void db.from("messages").insert({ artist_id: c.artist_id, user_id: band.user_id, channel: "inbox", body: text });
+    if (owner?.phone) void sendSms(owner.phone, text);
   }
   return { kind: "scanned", activity: act.name, points: act.points };
 }

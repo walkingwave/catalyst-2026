@@ -12,7 +12,7 @@ const RESULT_MS = 2200;
 
 type EventRow = Concert & { activities: Activity[]; bands: { total: number; claimed: number } };
 type ArtistRow = { id: string; slug: string; name: string; kind: "artist" | "team" };
-type Tab = "events" | "tap" | "write" | "bands";
+type Tab = "events" | "tap" | "write" | "bands" | "phones";
 
 export function AdminConsole() {
   const [pin, setPin] = useState<string | null>(() => {
@@ -103,6 +103,7 @@ export function AdminConsole() {
     { id: "write", label: "Write" },
     { id: "bands", label: "Bands" },
     { id: "events", label: "Events" },
+    { id: "phones", label: "Phones" },
   ];
 
   return (
@@ -173,7 +174,8 @@ export function AdminConsole() {
           }}
         />
       )}
-      {!event && tab !== "events" && <Panel className="mt-4"><Empty>No events yet. Create one in the Events tab.</Empty></Panel>}
+      {tab === "phones" && <PhonesTab headers={headers} flash={flash} />}
+      {!event && tab !== "events" && tab !== "phones" && <Panel className="mt-4"><Empty>No events yet. Create one in the Events tab.</Empty></Panel>}
 
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>}
     </main>
@@ -811,6 +813,78 @@ function EventsTab({
             />
           ))}
         </List>
+      )}
+    </>
+  );
+}
+
+/* ---------------- Phones: demo numbers that sign in with a fixed code (no SMS) ---------------- */
+
+type DemoPhones = { ok: boolean; configured: boolean; message?: string; otps?: { phone: string; code: string }[]; valid_until?: string | null; phone_enabled?: boolean };
+
+function PhonesTab({ headers, flash }: { headers: () => HeadersInit; flash: (m: string) => void }) {
+  const [data, setData] = useState<DemoPhones | null>(null);
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/admin/demo-phones", { headers: headers() });
+    setData(await r.json());
+  }, [headers]);
+  useEffect(() => {
+    queueMicrotask(() => void load());
+  }, [load]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const r = await fetch("/api/admin/demo-phones", { method: "POST", headers: headers(), body: JSON.stringify({ phone }) });
+    const j = await r.json();
+    setBusy(false);
+    if (!r.ok || !j.ok) return flash(j.message ?? "Could not add");
+    flash(`${j.phone} signs in with code ${j.code}`);
+    setPhone("");
+    void load();
+  }
+  async function remove(p: string) {
+    await fetch(`/api/admin/demo-phones?phone=${encodeURIComponent(p)}`, { method: "DELETE", headers: headers() });
+    void load();
+  }
+
+  return (
+    <>
+      <SectionHeader>Demo phones</SectionHeader>
+      <Panel invert className="p-4">
+        <p className="label text-invert-fg/70">No SMS provider needed</p>
+        <p className="t-sub mt-2">
+          Numbers on this list sign in with code <span className="font-mono">123456</span>. Supabase skips the text entirely. Add a judge&apos;s phone here, they log in on the spot.
+        </p>
+      </Panel>
+      {data && !data.configured && (
+        <Panel className="p-4 mt-3">
+          <p className="t-sub">
+            Needs <span className="font-mono">SUPABASE_ACCESS_TOKEN</span> in the server env. Create one at supabase.com/dashboard/account/tokens. Until then, edit the list in Supabase → Authentication → Phone → Test OTPs.
+          </p>
+        </Panel>
+      )}
+      {data && data.configured && !data.ok && <p className="t-foot text-danger mt-3">{data.message}</p>}
+      {data?.configured && data.ok && (
+        <>
+          <form onSubmit={add} className="flex gap-2 mt-4">
+            <Input type="tel" inputMode="tel" placeholder="(555) 010-0099" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <button type="submit" disabled={busy || !phone} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
+              {busy ? "…" : "Add"}
+            </button>
+          </form>
+          <p className="t-foot text-ink-2 mt-2">
+            {data.otps?.length ?? 0} numbers · valid until {data.valid_until ? new Date(data.valid_until).toLocaleDateString() : "—"} · adding extends to 90 days
+          </p>
+          <List className="mt-3">
+            {(data.otps ?? []).map((t) => (
+              <Row key={t.phone} title={<span className="font-mono">+{t.phone}</span>} subtitle={`code ${t.code}`} value={<button onClick={() => remove(t.phone)} className="label underline underline-offset-4 normal-case">Remove</button>} />
+            ))}
+          </List>
+        </>
       )}
     </>
   );

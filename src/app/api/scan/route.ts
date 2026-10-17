@@ -109,23 +109,24 @@ export async function POST(req: Request) {
   };
 
   if (band.user_id) {
-    const [{ data: owner }, { data: lb }] = await Promise.all([
+    const [{ data: owner }, { data: lb }, { data: concert }] = await Promise.all([
       db.from("users").select("name, phone").eq("id", band.user_id).maybeSingle(),
-      db
-        .from("leaderboard_concert")
-        .select("user_id, rank")
-        .eq("concert_id", activity.concert_id),
+      db.from("leaderboard_concert").select("user_id, rank").eq("concert_id", activity.concert_id),
+      db.from("concerts").select("artist_id").eq("id", activity.concert_id).maybeSingle(),
     ]);
     const me = lb?.find((r) => r.user_id === band.user_id);
     result.owner_name = owner?.name ?? undefined;
     result.rank = me?.rank ?? null;
     result.total_tonight = lb?.length ?? 0;
 
-    if (owner?.phone) {
-      const rankText = me?.rank ? ` You're #${me.rank} tonight.` : "";
-      // Fire and forget; never block the scan on SMS.
-      void sendSms(owner.phone, `+${activity.points} pts at ${activity.name}.${rankText}`);
+    const rankText = me?.rank ? ` You're #${me.rank} tonight.` : "";
+    const text = `+${activity.points} pts at ${activity.name}.${rankText}`;
+    // In-app inbox always (no SMS provider needed); SMS only when enabled. Never block the scan.
+    if (concert?.artist_id) {
+      const live = process.env.SMS_NOTIFICATIONS === "true" && !!owner?.phone;
+      void db.from("messages").insert({ artist_id: concert.artist_id, user_id: band.user_id, channel: live ? "sms" : "inbox", body: text, sms_status: live ? "sent" : null });
     }
+    if (owner?.phone) void sendSms(owner.phone, text);
   }
 
   return reply(result);

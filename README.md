@@ -77,6 +77,11 @@ Live project: **concertconnect** (`ivjrbaiiphqfvoynxwuc`, ca-central-1, org "wav
 
 Still needed once: **Settings -> API Keys -> Legacy -> service_role** into `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Band pages, staff scans and claims use it.
 
+**No SMS provider at all?** Everything still works:
+
+- Sign-in: Supabase *test OTP* numbers log in with code `123456`, no text sent. `/admin` → **Phones** adds any number on the spot (needs `SUPABASE_ACCESS_TOKEN`, a personal access token from supabase.com/dashboard/account/tokens; no signup, you're already logged in). Without the token, edit the list in Authentication → Phone → Test OTPs.
+- Notifications: every scan on a claimed band writes "+100 pts at Merch Booth. You're #3 tonight." to the fan's in-app inbox. Artist messages do the same. SMS is an optional extra on top.
+
 Demo sign-in without Twilio: the Phone provider has test numbers registered (valid until 2026-11-30). Enter `555 010 0099` (new fan) or `555 010 0001`..`0006` (seeded fans) on the login screen, code `123456`. No SMS is sent. Any other number goes to Twilio, which currently holds placeholder credentials, so real SMS fails until you paste real Twilio creds in Authentication -> Sign In / Providers -> Phone.
 
 Fresh project instead: run `supabase/migrations/*.sql` in order in the SQL editor, then `npm run seed`.
