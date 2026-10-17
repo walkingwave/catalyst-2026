@@ -7,7 +7,7 @@ test.describe("Fan pages", () => {
   test("dashboard shows points, fandoms, latest show, activity, nav", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page.getByText(/^demo$/i)).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^fandoms$/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^events$/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /^activity$/i })).toBeVisible();
     for (const t of ["Home", "Shows", "Ranks", "Rewards", "Me"]) {
       await expect(page.getByRole("navigation").getByRole("link", { name: t, exact: true })).toBeVisible();
@@ -44,7 +44,7 @@ test.describe("Fan pages", () => {
     await expect(page.getByText(/^you$/i)).toBeVisible();
     await page.getByRole("link", { name: /toronto marl/i }).click();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/marlies/i);
-    await expect(page.getByRole("paragraph").filter({ hasText: /^all-time$/i })).toBeVisible();
+    await expect(page.getByRole("paragraph").filter({ hasText: /^all shows$/i })).toBeVisible();
     await page.getByRole("link", { name: /our lady peace/i }).click();
     await page.getByRole("link", { name: /oct \d+, 2026/i }).first().click();
     await expect(page.getByText(/oct \d+, 2026/i).first()).toBeVisible();
@@ -108,16 +108,16 @@ test.describe("Fan pages", () => {
       expect((await page.request.post("/api/claim", { data: { uid } })).ok()).toBeTruthy();
       await scan(request, uid, ev.activities.find((a) => a.name === "Entry")!.id); // +50 in this artist's pool
 
-      await page.goto("/marketplace");
-      const section = page.locator("section").filter({ hasText: ev.artist });
-      await expect(section.getByText(/50 pts/)).toBeVisible();
+      await page.goto(`/marketplace?artist=${ev.artist_id}`);
+      const section = page.locator("main");
+      await expect(section.getByText(/50 pts with/)).toBeVisible();
       await expect(section.getByRole("button", { name: /9,950 more points needed/i })).toBeDisabled();
 
       const card = section.locator("div").filter({ hasText: cheap.name }).first();
       await card.getByRole("button", { name: /^redeem$/i }).click();
       await card.getByRole("button", { name: /spend 50 pts/i }).click();
       await expect(card.getByText(code)).toBeVisible();
-      await expect(section.getByText(/0 pts/)).toBeVisible();
+      await expect(section.getByText(/^0 pts with/)).toBeVisible();
 
       await expect(page.getByRole("heading", { name: /^redeemed$/i })).toBeVisible();
       await expect(page.getByText(code)).toHaveCount(2); // card + redemptions list
