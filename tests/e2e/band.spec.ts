@@ -24,7 +24,8 @@ test.describe("Band tap page", () => {
       await page.goto(`/b/${uid}`);
       await expect(page.getByText(/band points/i)).toBeVisible();
       await expect(page.getByText("150", { exact: true })).toBeVisible();
-      await expect(page.getByText(/^2 activities$/i)).toBeVisible();
+      await expect(page.getByText(/^activities$/i)).toBeVisible();
+      await expect(page.getByText("2", { exact: true })).toBeVisible();
       await expect(page.getByText("Merch Booth")).toBeVisible();
 
       await page.getByPlaceholder("Name").fill("E2E Fan");

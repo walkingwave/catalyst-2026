@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUser } from "@/lib/supabase/server";
 import { normalizeUid, isValidUid } from "@/lib/uid";
-import { Page, Panel, LinkButton, Points, List, Row, SectionHeader, Headline, Banner } from "@/components/ui";
+import { Page, LinkButton, Points, List, Row, SectionHeader, Headline, Banner, Ticket, TicketField } from "@/components/ui";
 import { recordSelfTap, type TapOutcome } from "@/lib/tap";
 import { Header } from "@/components/Header";
 import { ClaimFlow } from "./ClaimFlow";
@@ -96,14 +96,31 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
         </div>
       )}
 
-      <Panel invert className="p-5 mt-3">
-        <p className="label text-invert-fg/70">Band points</p>
-        <div className="flex items-end gap-3 mt-3">
-          <Points value={points} className="display text-[72px] leading-[0.85]" />
-          <span className="display d-md pb-1">pts</span>
-        </div>
-        <p className="t-foot text-invert-fg/70 mt-3">{count} {count === 1 ? "activity" : "activities"}</p>
-      </Panel>
+      <div className="mt-3">
+        <Ticket
+          invert
+          rail="Wristband"
+          serial={uid}
+          main={
+            <>
+              <div className="flex items-start justify-between">
+                <p className="mono-caps text-[10px] opacity-70">Band points</p>
+                {concert && <p className="mono-caps text-[10px] opacity-70">{concert.date}</p>}
+              </div>
+              <div className="flex items-end gap-3 mt-5">
+                <Points value={points} className="display text-[76px] leading-[0.8]" />
+                <span className="display d-md pb-1">pts</span>
+              </div>
+            </>
+          }
+          stub={
+            <div className="grid grid-cols-2 gap-2">
+              <TicketField label="Activities" value={count} />
+              <TicketField label="Status" value="Unclaimed" />
+            </div>
+          }
+        />
+      </div>
 
       {scans && scans.length > 0 && (
         <List className="mt-3">
