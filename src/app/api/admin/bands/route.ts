@@ -84,7 +84,7 @@ export async function POST(req: Request) {
   });
 }
 
-/** PATCH: { uid, action: "unclaim" | "archive" | "restore" | "clear_scans" } */
+/** PATCH: { uid, action: "unclaim" | "archive" | "restore" | "clear_scans" | "reset" } (reset = clear scans + unclaim + unarchive) */
 export async function PATCH(req: Request) {
   if (!checkStaffPin(staffPinFromRequest(req))) return NextResponse.json({ ok: false }, { status: 401 });
   const b = (await req.json().catch(() => ({}))) as { uid?: string; action?: string };
@@ -105,6 +105,12 @@ export async function PATCH(req: Request) {
     case "clear_scans":
       ({ error } = await db.from("scans").delete().eq("band_uid", uid));
       break;
+    case "reset": {
+      const { error: e1 } = await db.from("scans").delete().eq("band_uid", uid);
+      const { error: e2 } = await db.from("bands").update({ user_id: null, claimed_at: null, archived: false }).eq("uid", uid);
+      error = e1 ?? e2;
+      break;
+    }
     default:
       return NextResponse.json({ ok: false, message: "Unknown action" }, { status: 400 });
   }

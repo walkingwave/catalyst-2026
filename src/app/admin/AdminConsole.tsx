@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge } from "@/components/ui";
-import { IconCheck, IconLock, IconNfc, IconX } from "@/components/icons";
+import { IconCheck, IconChevron, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, writeUrl, type NfcSession } from "@/lib/nfc";
 import type { Activity, Concert, ScanResult } from "@/lib/types";
@@ -183,6 +183,72 @@ export function AdminConsole() {
   );
 }
 
+/* ---------------- Band info (used by Read mode + Write tab test) ---------------- */
+
+type BandInfo = {
+  uid: string;
+  found: boolean;
+  owner: string | null;
+  event: string | null;
+  points: number;
+  scans: { name: string; points: number; at: string }[];
+  archived: boolean;
+};
+
+async function fetchBandInfo(uid: string, headers: () => HeadersInit): Promise<BandInfo> {
+  const r = await fetch(`/api/admin/bands?uid=${encodeURIComponent(uid)}`, { headers: headers() });
+  const j = (await r.json()) as {
+    uid: string;
+    band: null | {
+      archived: boolean;
+      owner: { name: string } | null;
+      concert: { name: string; artist: string } | null;
+      scans: { scanned_at: string; activity: { name: string; points: number } | null }[];
+    };
+  };
+  if (!j.band) return { uid: j.uid, found: false, owner: null, event: null, points: 0, scans: [], archived: false };
+  const scans = j.band.scans.map((s) => ({ name: s.activity?.name ?? "?", points: s.activity?.points ?? 0, at: s.scanned_at }));
+  return {
+    uid: j.uid,
+    found: true,
+    owner: j.band.owner?.name ?? null,
+    event: j.band.concert ? `${j.band.concert.artist} · ${j.band.concert.name}` : null,
+    points: scans.reduce((n, s) => n + s.points, 0),
+    scans,
+    archived: j.band.archived,
+  };
+}
+
+function BandInfoCard({ info, invert = false }: { info: BandInfo; invert?: boolean }) {
+  const muted = invert ? "opacity-70" : "text-ink-2";
+  return (
+    <div className={`text-left w-full ${invert ? "bg-invert-fg/10" : "bg-surface-2"} p-4`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono t-sub">{info.uid}</p>
+          <p className={`t-foot mt-1 ${muted}`}>
+            {!info.found ? "Not registered" : `${info.owner ?? "Unclaimed"} · ${info.event ?? "No event"}${info.archived ? " · archived" : ""}`}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="display d-lg t-num">{info.points}</p>
+          <p className={`t-foot ${muted}`}>pts</p>
+        </div>
+      </div>
+      {info.scans.length > 0 && (
+        <ul className={`mt-3 space-y-1 border-t ${invert ? "border-invert-fg/20" : "border-line-soft"} pt-3`}>
+          {info.scans.map((s, i) => (
+            <li key={i} className="flex justify-between t-sub">
+              <span>{s.name}</span>
+              <span className="t-num">+{s.points}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Tap: simulate scans at the current event ---------------- */
 
 function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; headers: () => HeadersInit; nfcSupported: boolean; onChanged: () => void }) {
@@ -204,6 +270,14 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
   const [result, setResult] = useState<ScanResult | null>(null);
   const [log, setLog] = useState<ScanResult[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [station, setStation] = useState(false); // full-screen station mode
+  const [mode, setMode] = useState<"scan" | "reset" | "read">("scan");
+  const [readInfo, setReadInfo] = useState<BandInfo | null>(null);
+  const modeRef = useRef(mode);
+  const stationRef = useRef(false);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
   const [nfcError, setNfcError] = useState<string | null>(null);
   const sessionRef = useRef<NfcSession | null>(null);
   const activityRef = useRef(activityId);
@@ -225,11 +299,34 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
   async function scan(raw: string, opts: { manual?: boolean } = {}) {
       const uid = normalizeUid(raw);
       const act = activityRef.current;
-      if (!uid || !act) return;
+      if (!uid) return;
       const now = Date.now();
       // NFC fires repeatedly while a tag sits on the phone; manual entry is always intentional.
       if (!opts.manual && lastRef.current.uid === uid && now - lastRef.current.at < 2500) return;
       lastRef.current = { uid, at: now };
+      if (modeRef.current === "read") {
+        try {
+          setReadInfo(await fetchBandInfo(uid, headers));
+          try {
+            navigator.vibrate?.(40);
+          } catch {}
+        } catch {
+          show({ ok: false, status: "error", message: "Network error", band_uid: uid });
+        }
+        return;
+      }
+      if (modeRef.current === "reset") {
+        try {
+          const r = await fetch("/api/admin/bands", { method: "PATCH", headers: headers(), body: JSON.stringify({ uid, action: "reset" }) });
+          const j = (await r.json()) as { ok: boolean; message?: string };
+          show(j.ok ? { ok: true, status: "reset", message: "Band reset", band_uid: uid } : { ok: false, status: "error", message: j.message ?? "Reset failed", band_uid: uid });
+          if (j.ok) onChanged();
+        } catch {
+          show({ ok: false, status: "error", message: "Network error", band_uid: uid });
+        }
+        return;
+      }
+      if (!act) return;
       try {
         const r = await fetch("/api/scan", { method: "POST", headers: headers(), body: JSON.stringify({ band_uid: uid, activity_id: act }) });
         const j = (await r.json()) as ScanResult;
@@ -242,6 +339,9 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
 
   async function startScanning() {
     setNfcError(null);
+    setStation(true); // the station screen opens even without NFC (manual entry still works)
+    stationRef.current = true;
+    if (!nfcSupported) return;
     try {
       sessionRef.current = await startNfc({
         onTag: (serial) => void scan(serial),
@@ -257,6 +357,32 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
     sessionRef.current = null;
     setScanning(false);
   }
+  function exitStation() {
+    stationRef.current = false;
+    stopNfc();
+    setStation(false);
+    setMode("scan");
+  }
+  // Keep a scan session alive while the station is open. Without one, Android itself opens the
+  // band's URL on tap (which is why a tap used to land on the sign-in page).
+  useEffect(() => {
+    if (!station || !nfcSupported) return;
+    const restart = () => {
+      if (stationRef.current && document.visibilityState === "visible" && !sessionRef.current) void startScanning();
+    };
+    document.addEventListener("visibilitychange", restart);
+    const stopped = () => {
+      sessionRef.current = null;
+      setScanning(false);
+      setTimeout(restart, 300);
+    };
+    window.addEventListener("cc:nfc-stopped", stopped);
+    return () => {
+      document.removeEventListener("visibilitychange", restart);
+      window.removeEventListener("cc:nfc-stopped", stopped);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [station, nfcSupported]);
 
   return (
     <>
@@ -301,22 +427,12 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
         </div>
       </Panel>
 
-      {nfcSupported ? (
-        <div className="mb-3">
-          {scanning ? (
-            <Button variant="outline" onClick={stopNfc}>
-              <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Scanning
-            </Button>
-          ) : (
-            <Button onClick={startScanning} disabled={!activityId}>
-              <IconNfc size={20} /> Scan
-            </Button>
-          )}
-          {nfcError && <p className="t-foot text-danger mt-2">{nfcError}</p>}
-        </div>
-      ) : (
-        <p className="t-foot text-ink-2 mb-3">No NFC in this browser. Enter a UID instead.</p>
-      )}
+      <div className="mb-3">
+        <Button onClick={startScanning} disabled={!activityId}>
+          <IconNfc size={20} /> Open station
+        </Button>
+        {!nfcSupported && <p className="t-foot text-ink-2 mt-2">No NFC in this browser. Enter a UID instead.</p>}
+      </div>
 
       <form
         className="flex gap-2"
@@ -338,16 +454,163 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
             <Row
               key={i}
               title={<span className="font-mono t-sub">{r.band_uid}</span>}
-              subtitle={r.ok ? `${r.activity} · ${r.owner_name ?? "unclaimed"}` : r.message}
-              value={r.ok ? `+${r.points}` : r.status === "duplicate" ? "Done" : "Error"}
+              subtitle={r.status === "reset" ? "Reset" : r.ok ? `${r.activity} · ${r.owner_name ?? "unclaimed"}` : r.message}
+              value={r.status === "reset" ? "Reset" : r.ok ? `+${r.points}` : r.status === "duplicate" ? "Done" : "Error"}
               valueTone={r.ok ? "success" : "muted"}
             />
           ))}
         </List>
       )}
 
+      {station && (
+        <StationScreen
+          event={event}
+          activity={activity ?? null}
+          scanning={scanning}
+          nfcSupported={nfcSupported}
+          nfcError={nfcError}
+          isLive={isLive}
+          log={log}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            setReadInfo(null);
+          }}
+          readInfo={readInfo}
+          onExit={exitStation}
+          onManual={(uid) => void scan(uid, { manual: true })}
+          onRetry={() => void startScanning()}
+        />
+      )}
       {result && <Overlay result={result} activityName={activity?.name} onClose={() => setResult(null)} />}
     </>
+  );
+}
+
+/* ---------------- Station: full-screen tap mode ---------------- */
+
+function StationScreen({
+  event,
+  activity,
+  scanning,
+  nfcSupported,
+  nfcError,
+  isLive,
+  log,
+  mode,
+  onMode,
+  readInfo,
+  onExit,
+  onManual,
+  onRetry,
+}: {
+  event: EventRow;
+  activity: Activity | null;
+  scanning: boolean;
+  nfcSupported: boolean;
+  nfcError: string | null;
+  isLive: boolean;
+  log: ScanResult[];
+  mode: "scan" | "reset" | "read";
+  onMode: (m: "scan" | "reset" | "read") => void;
+  readInfo: BandInfo | null;
+  onExit: () => void;
+  onManual: (uid: string) => void;
+  onRetry: () => void;
+}) {
+  const [uid, setUid] = useState("");
+  const last = log[0];
+  return (
+    <div className="fixed inset-0 z-40 bg-invert-bg text-invert-fg flex flex-col" data-testid="station">
+      <div className="flex items-center justify-between px-4 h-14 pt-[env(safe-area-inset-top)]">
+        <button onClick={onExit} className="h-11 px-2 -ml-2 label flex items-center gap-1 press" aria-label="Back to admin">
+          <IconChevron size={18} className="rotate-180" /> Back
+        </button>
+        <div className="flex gap-1 bg-invert-fg/10 p-1">
+          <button onClick={() => onMode("scan")} className={`h-8 px-3 label ${mode === "scan" ? "bg-invert-fg text-invert-bg" : "opacity-70"}`}>
+            {isLive ? "Live" : "Scan"}
+          </button>
+          <button onClick={() => onMode("read")} className={`h-8 px-3 label ${mode === "read" ? "bg-invert-fg text-invert-bg" : "opacity-70"}`}>
+            Read
+          </button>
+          <button onClick={() => onMode("reset")} className={`h-8 px-3 label ${mode === "reset" ? "bg-warning text-black" : "opacity-70"}`}>
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+        <p className="mono-caps text-[11px] opacity-70">{event.artist} · {event.venue}</p>
+        {mode === "reset" ? (
+          <>
+            <p className="display d-hero mt-3 text-warning">Reset</p>
+            <p className="t-sub opacity-70 mt-2 max-w-xs">Tapped bands lose their scans and owner.</p>
+          </>
+        ) : mode === "read" ? (
+          <>
+            <p className="display d-hero mt-3">Read</p>
+            {readInfo ? <div className="mt-6 w-full max-w-sm"><BandInfoCard info={readInfo} invert /></div> : <p className="t-sub opacity-70 mt-2">Tap a band to see its points and history.</p>}
+          </>
+        ) : (
+          <>
+            <p className="display d-hero mt-3">{activity?.name ?? "Pick an activity"}</p>
+            {activity && <p className="display d-md opacity-70 mt-2">+{activity.points} pts</p>}
+          </>
+        )}
+
+        <div className="mt-10 flex flex-col items-center">
+          {nfcSupported ? (
+            scanning ? (
+              <>
+                <div className="relative w-28 h-28 flex items-center justify-center">
+                  <span className="absolute inset-0 bg-invert-fg/10 animate-ping" />
+                  <span className="absolute inset-3 bg-invert-fg/10" />
+                  <IconNfc size={48} />
+                </div>
+                <p className="label mt-5">Hold band here</p>
+              </>
+            ) : (
+              <>
+                {nfcError && <p className="t-sub text-danger max-w-xs">{nfcError}</p>}
+                <button onClick={onRetry} className="mt-4 h-12 px-6 bg-invert-fg text-invert-bg display d-sm press">
+                  Start NFC
+                </button>
+              </>
+            )
+          ) : (
+            <p className="t-sub opacity-70">No NFC here. Enter a band UID below.</p>
+          )}
+        </div>
+
+        {last && (
+          <p className="mt-10 mono-caps text-[11px] opacity-70">
+            Last: {last.band_uid} · {last.status === "reset" ? "reset" : last.ok ? `+${last.points}` : last.status === "duplicate" ? "already done" : last.message}
+          </p>
+        )}
+      </div>
+
+      <form
+        className="px-4 pb-[max(env(safe-area-inset-bottom),16px)] flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!uid) return;
+          onManual(uid);
+          setUid("");
+        }}
+      >
+        <input
+          className="flex-1 h-12 bg-invert-fg/10 text-invert-fg px-4 t-body outline-none placeholder:text-invert-fg/40"
+          placeholder="Band UID"
+          value={uid}
+          onChange={(e) => setUid(e.target.value)}
+          autoCapitalize="characters"
+          autoCorrect="off"
+        />
+        <button type="submit" disabled={!uid} className="h-12 px-5 bg-invert-fg text-invert-bg display d-sm disabled:opacity-40 press">
+          Tap
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -362,7 +625,7 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
   const [manualUid, setManualUid] = useState("");
   const [flashUid, setFlashUid] = useState<WriteLog | null>(null);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ serial: string; records: { recordType: string; data: string | null }[] } | null>(null);
+  const [testResult, setTestResult] = useState<{ serial: string; records: { recordType: string; data: string | null }[]; info?: BandInfo } | null>(null);
   const sessionRef = useRef<NfcSession | null>(null);
   const lastRef = useRef({ uid: "", at: 0 });
   useEffect(() => () => sessionRef.current?.stop(), []);
@@ -419,7 +682,15 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
     setTestResult(null);
     try {
       sessionRef.current = await startNfc({
-        onTag: (serial, _reader, records) => setTestResult({ serial: normalizeUid(serial) || serial || "(none)", records }),
+        onTag: async (serial, _reader, records) => {
+          const uid = normalizeUid(serial);
+          setTestResult({ serial: uid || serial || "(none)", records });
+          if (uid) {
+            try {
+              setTestResult({ serial: uid, records, info: await fetchBandInfo(uid, headers) });
+            } catch {}
+          }
+        },
         onError: (message) => setError(message),
       });
       setTesting(true);
@@ -458,13 +729,16 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
               <Button variant="outline" size="md" onClick={startTest}>Read tag</Button>
             )}
             {testResult && (
-              <div className="bg-surface-2 p-3">
-                <p className="label text-ink-2">Last tag</p>
-                <p className="font-mono t-sub mt-1">{testResult.serial}</p>
-                <p className="t-foot text-ink-2 mt-1">
+              <div className="space-y-2">
+                {testResult.info ? (
+                  <BandInfoCard info={testResult.info} />
+                ) : (
+                  <div className="bg-surface-2 p-3"><p className="font-mono t-sub">{testResult.serial}</p></div>
+                )}
+                <p className="t-foot text-ink-2 px-1">
                   {testResult.records.length === 0
-                    ? "No NDEF records (blank tag)"
-                    : testResult.records.map((r) => `${r.recordType}: ${r.data ?? "(binary)"}`).join(" · ")}
+                    ? "Tag: no NDEF records (blank)"
+                    : "Tag: " + testResult.records.map((r) => `${r.recordType} ${r.data ?? "(binary)"}`).join(" · ")}
                 </p>
               </div>
             )}
@@ -645,6 +919,7 @@ function BandsTab({
                   <Button size="md" variant="outline" onClick={() => act("archive")}>Archive</Button>
                 )}
                 <Button size="md" variant="danger" onClick={() => act("clear_scans")}>Clear scans</Button>
+                <Button size="md" variant="danger" onClick={() => act("reset")}>Reset band</Button>
               </div>
             </>
           ) : (
@@ -916,16 +1191,18 @@ function Overlay({ result, activityName, onClose }: { result: ScanResult; activi
   return (
     <div
       onClick={onClose}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6 text-white ${
-        result.ok ? "bg-success" : result.status === "duplicate" ? "bg-warning" : "bg-danger"
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6 ${
+        result.status === "reset" ? "bg-warning text-black" : result.ok ? "bg-success text-white" : result.status === "duplicate" ? "bg-warning text-black" : "bg-danger text-white"
       }`}
     >
-      <div className="w-20 h-20 border-4 border-white flex items-center justify-center mb-6">
+      <div className="w-20 h-20 border-4 border-current flex items-center justify-center mb-6">
         {result.ok ? <IconCheck size={44} strokeWidth={3} /> : <IconX size={44} strokeWidth={3} />}
       </div>
-      <p className="display text-[96px] leading-[0.85] t-num">{result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "Error"}</p>
-      <p className="display d-lg mt-4">{result.ok ? activityName ?? result.activity : result.message}</p>
-      {result.ok && (
+      <p className="display text-[96px] leading-[0.85] t-num">
+        {result.status === "reset" ? "Reset" : result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "Error"}
+      </p>
+      <p className="display d-lg mt-4">{result.status === "reset" ? "Scans cleared, unclaimed" : result.ok ? activityName ?? result.activity : result.message}</p>
+      {result.ok && result.status !== "reset" && (
         <p className="t-body mt-3 opacity-90">
           {result.claimed ? `${result.owner_name || "Fan"}${result.rank ? ` · #${result.rank} tonight` : ""}` : "Unclaimed band · points saved"}
         </p>
