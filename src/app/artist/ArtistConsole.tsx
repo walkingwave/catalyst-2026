@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Badge, Empty } from "@/components/ui";
-import { IconCheck, IconX, IconLock } from "@/components/icons";
+import { IconCheck, IconX, IconLock, IconChevron } from "@/components/icons";
 import type { Artist } from "@/lib/types";
 
 const KEY = "cc_artist_code";
@@ -19,6 +19,7 @@ type Fan = {
   tiktok: string | null;
   x_handle: string | null;
 };
+type Template = { id: string; title: string; message: string; code_prefix: string | null };
 type Overview = {
   artist: Artist;
   stats: { fans: number; shows: number; pending_posts: number };
@@ -33,9 +34,28 @@ type Overview = {
   }[];
   messages: { id: string; channel: string; body: string; sms_status: string | null; created_at: string; user: { name: string } | null }[];
   drops: { id: string; title: string; code: string | null; claimed_at: string | null; created_at: string; user: { name: string } | null }[];
+  templates: Template[];
+};
+type FanDetail = {
+  id: string;
+  name: string;
+  phone_hint: string | null;
+  has_phone: boolean;
+  instagram: string | null;
+  tiktok: string | null;
+  x_handle: string | null;
+  since: string;
+  points: { earned: number; spent: number; balance: number };
+  shows: { id: string; name: string; venue: string; date: string; claimed_at: string | null }[];
+  scans: { name: string; points: number; at: string; show?: string }[];
+  messages: { id: string; channel: string; body: string; sms_status: string | null; created_at: string }[];
+  drops: { id: string; title: string; code: string | null; claimed_at: string | null; created_at: string }[];
 };
 
-type Tab = "fans" | "message" | "drop" | "social" | "log";
+type Tab = "fans" | "message" | "drop" | "review" | "log";
+
+const socialsOf = (f: Pick<Fan, "instagram" | "tiktok" | "x_handle">) =>
+  [f.instagram && `ig @${f.instagram}`, f.tiktok && `tt @${f.tiktok}`, f.x_handle && `x @${f.x_handle}`].filter(Boolean).join(" · ");
 
 export function ArtistConsole() {
   const [code, setCode] = useState<string | null>(() => {
@@ -50,6 +70,7 @@ export function ArtistConsole() {
   const [data, setData] = useState<Overview | null>(null);
   const [tab, setTab] = useState<Tab>("fans");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const headers = useCallback(() => ({ "x-artist-code": code ?? "", "content-type": "application/json" }), [code]);
@@ -68,7 +89,6 @@ export function ArtistConsole() {
   }, [code, headers]);
 
   useEffect(() => {
-    // Defer so the fetch (and its setState) happens outside the effect body.
     queueMicrotask(() => void load());
   }, [load]);
 
@@ -107,20 +127,36 @@ export function ArtistConsole() {
   if (!data) return <p className="t-sub text-ink-2 p-6">Loading…</p>;
 
   const recipients = [...selected];
+  const fanBy = new Map(data.top_fans.map((f) => [f.user_id, f]));
   const tabs: { id: Tab; label: string; count?: number }[] = [
-    { id: "fans", label: "Top fans" },
-    { id: "message", label: "Message", count: recipients.length || undefined },
-    { id: "drop", label: "Drop", count: recipients.length || undefined },
-    { id: "social", label: "Social", count: data.stats.pending_posts || undefined },
+    { id: "fans", label: "Fans", count: data.stats.fans || undefined },
+    { id: "message", label: "Message" },
+    { id: "drop", label: "Drop" },
+    { id: "review", label: "Review", count: data.stats.pending_posts || undefined },
     { id: "log", label: "Log" },
   ];
 
+  async function sendMessage(body: string, channel: "sms" | "inbox", ids: string[]) {
+    const r = await fetch("/api/artist/message", { method: "POST", headers: headers(), body: JSON.stringify({ body, channel, user_ids: ids }) });
+    const j = await r.json();
+    if (!r.ok) return j.message ?? "Failed";
+    flash(`Sent to ${j.sent} fan${j.sent === 1 ? "" : "s"}${channel === "sms" && !j.live ? " (SMS simulated)" : ""}`);
+    void load();
+  }
+  async function sendDrop(p: { title: string; message: string; code?: string }, ids: string[]) {
+    const r = await fetch("/api/artist/drop", { method: "POST", headers: headers(), body: JSON.stringify({ ...p, user_ids: ids, notify_sms: true }) });
+    const j = await r.json();
+    if (!r.ok) return j.message ?? "Failed";
+    flash(`Dropped to ${j.sent} fan${j.sent === 1 ? "" : "s"}`);
+    void load();
+  }
+
   return (
-    <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-10">
-      <div className="flex items-center justify-between h-14">
-        <div>
-          <p className="label text-ink-2">{data.artist.kind === "team" ? "Team console" : "Artist console"}</p>
-          <h1 className="display d-md">{data.artist.name}</h1>
+    <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-28">
+      <div className="flex items-center justify-between h-14 mb-2">
+        <div className="min-w-0">
+          <p className="label text-ink-2">{data.artist.kind === "team" ? "Team" : "Artist"}</p>
+          <h1 className="display d-md truncate">{data.artist.name}</h1>
         </div>
         <button
           className="label underline underline-offset-4 h-11 px-2"
@@ -135,13 +171,7 @@ export function ArtistConsole() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mt-4">
-        <Stat label="Fans" value={data.stats.fans} />
-        <Stat label="Shows" value={data.stats.shows} />
-        <Stat label="To review" value={data.stats.pending_posts} />
-      </div>
-
-      <div className="hscroll flex gap-1 overflow-x-auto mt-4 bg-surface-2 p-1">
+      <div className="hscroll flex gap-1 overflow-x-auto bg-surface-2 p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -158,302 +188,387 @@ export function ArtistConsole() {
         <FansTab
           fans={data.top_fans}
           selected={selected}
-          onToggle={(id) =>
-            setSelected((s) => {
-              const n = new Set(s);
-              if (n.has(id)) n.delete(id);
-              else n.add(id);
-              return n;
-            })
-          }
-          onSelectTop={(n) => setSelected(new Set(data.top_fans.slice(0, n).map((f) => f.user_id)))}
-          onClear={() => setSelected(new Set())}
+          onSelect={setSelected}
+          onOpen={(id) => setDetailId(id)}
         />
       )}
-
       {tab === "message" && (
-        <MessageTab
-          recipients={recipients}
-          fans={data.top_fans}
-          onSend={async (body, channel, top) => {
-            const r = await fetch("/api/artist/message", {
-              method: "POST",
-              headers: headers(),
-              body: JSON.stringify({ body, channel, user_ids: top ? undefined : recipients, top }),
-            });
-            const j = await r.json();
-            if (!r.ok) return j.message ?? "Failed";
-            flash(`Sent to ${j.sent} fan${j.sent === 1 ? "" : "s"}${channel === "sms" && !j.live ? " (SMS simulated, Twilio off)" : ""}`);
-            void load();
-          }}
-        />
+        <MessageTab recipients={recipients} fanBy={fanBy} fans={data.top_fans} onSelect={setSelected} onSend={sendMessage} onPickFans={() => setTab("fans")} />
       )}
-
       {tab === "drop" && (
         <DropTab
           recipients={recipients}
-          onSend={async (payload) => {
-            const r = await fetch("/api/artist/drop", {
-              method: "POST",
-              headers: headers(),
-              body: JSON.stringify({ ...payload, user_ids: payload.top ? undefined : recipients }),
-            });
-            const j = await r.json();
-            if (!r.ok) return j.message ?? "Failed";
-            flash(`Dropped to ${j.sent} fan${j.sent === 1 ? "" : "s"}`);
-            void load();
-          }}
+          fanBy={fanBy}
+          fans={data.top_fans}
+          templates={data.templates}
+          headers={headers}
+          onSelect={setSelected}
+          onSend={sendDrop}
+          onPickFans={() => setTab("fans")}
+          onTemplatesChanged={load}
+          flash={flash}
         />
       )}
-
-      {tab === "social" && (
-        <SocialTab
+      {tab === "review" && (
+        <ReviewTab
           posts={data.pending_posts}
           onReview={async (id, status) => {
             const r = await fetch("/api/artist/social", { method: "POST", headers: headers(), body: JSON.stringify({ id, status }) });
             const j = (await r.json().catch(() => ({}))) as { ok?: boolean; message?: string };
-            if (!r.ok || !j.ok) {
-              flash(`Could not ${status === "approved" ? "approve" : "reject"}: ${j.message ?? r.status}`);
-              return;
-            }
+            if (!r.ok || !j.ok) return flash(`Could not ${status === "approved" ? "approve" : "reject"}: ${j.message ?? r.status}`);
             flash(status === "approved" ? "Approved, points awarded" : "Rejected");
             void load();
           }}
         />
       )}
-
       {tab === "log" && <LogTab messages={data.messages} drops={data.drops} />}
 
-      {toast && (
-        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>
+      {/* Selection bar */}
+      {selected.size > 0 && tab === "fans" && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-invert-bg text-invert-fg pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-md mx-auto flex items-center gap-2 px-4 h-16">
+            <p className="label flex-1">{selected.size} selected</p>
+            <button onClick={() => setSelected(new Set())} className="label opacity-70 px-2 h-10">Clear</button>
+            <button onClick={() => setTab("message")} className="h-10 px-4 bg-invert-fg text-invert-bg label press">Message</button>
+            <button onClick={() => setTab("drop")} className="h-10 px-4 bg-invert-fg text-invert-bg label press">Drop</button>
+          </div>
+        </div>
       )}
+
+      {detailId && (
+        <FanSheet
+          id={detailId}
+          headers={headers}
+          onClose={() => setDetailId(null)}
+          onMessage={async (body, channel) => sendMessage(body, channel, [detailId])}
+          onDrop={async (p) => sendDrop(p, [detailId])}
+          templates={data.templates}
+        />
+      )}
+
+      {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>}
     </main>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <Panel className="p-3">
-      <p className="label text-ink-2">{label}</p>
-      <p className="display d-lg t-num mt-2">{value}</p>
-    </Panel>
-  );
-}
-
-function Socials({ f }: { f: Fan }) {
-  const parts = [f.instagram && `ig @${f.instagram}`, f.tiktok && `tt @${f.tiktok}`, f.x_handle && `x @${f.x_handle}`].filter(Boolean);
-  return <>{parts.length ? parts.join(" · ") : "No socials linked"}</>;
-}
+/* ---------------- Fans: search, checkboxes, top-N ---------------- */
 
 function FansTab({
   fans,
   selected,
-  onToggle,
-  onSelectTop,
-  onClear,
+  onSelect,
+  onOpen,
 }: {
   fans: Fan[];
   selected: Set<string>;
-  onToggle: (id: string) => void;
-  onSelectTop: (n: number) => void;
-  onClear: () => void;
+  onSelect: (s: Set<string>) => void;
+  onOpen: (id: string) => void;
 }) {
+  const [q, setQ] = useState("");
+  const [topN, setTopN] = useState("");
+  const [filter, setFilter] = useState<"all" | "phone" | "socials">("all");
+
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return fans.filter((f) => {
+      if (filter === "phone" && !f.has_phone) return false;
+      if (filter === "socials" && !(f.instagram || f.tiktok || f.x_handle)) return false;
+      if (!needle) return true;
+      return [f.name, f.instagram, f.tiktok, f.x_handle].some((v) => v?.toLowerCase().includes(needle));
+    });
+  }, [fans, q, filter]);
+
+  const allVisibleSelected = visible.length > 0 && visible.every((f) => selected.has(f.user_id));
+  const toggle = (id: string) => {
+    const n = new Set(selected);
+    if (n.has(id)) n.delete(id);
+    else n.add(id);
+    onSelect(n);
+  };
+
   return (
     <>
-      <SectionHeader action={selected.size ? <button onClick={onClear} className="underline">Clear {selected.size}</button> : "Tap to select"}>
-        Top fans
-      </SectionHeader>
-      <div className="flex gap-2 mb-3">
-        {[5, 10, 25].map((n) => (
-          <button key={n} onClick={() => onSelectTop(n)} className="h-10 px-3 bg-surface-2 label">
-            Top {n}
-          </button>
-        ))}
+      <div className="mt-4 space-y-2">
+        <Input placeholder="Search name or @handle" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="flex gap-2 items-center">
+          <div className="hscroll flex gap-1 overflow-x-auto">
+            {(["all", "phone", "socials"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={`h-9 px-3 label whitespace-nowrap ${filter === f ? "bg-invert-bg text-invert-fg" : "bg-surface-2 text-ink-2"}`}>
+                {f === "all" ? "All" : f === "phone" ? "Has phone" : "Has socials"}
+              </button>
+            ))}
+          </div>
+          <form
+            className="ml-auto flex items-center gap-1 shrink-0"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = Math.max(0, parseInt(topN, 10) || 0);
+              onSelect(new Set(fans.slice(0, n).map((f) => f.user_id)));
+            }}
+          >
+            <span className="label text-ink-2">Top</span>
+            <input className="w-14 h-9 bg-surface-2 px-2 t-sub text-center outline-none" inputMode="numeric" placeholder="10" value={topN} onChange={(e) => setTopN(e.target.value.replace(/\D/g, ""))} />
+            <button type="submit" className="h-9 px-3 bg-invert-bg text-invert-fg label">Go</button>
+          </form>
+        </div>
       </div>
-      {fans.length === 0 ? (
-        <Panel><Empty>No fans yet.</Empty></Panel>
+
+      <div className="flex items-center justify-between pt-6 pb-2">
+        <h2 className="display d-sm">{visible.length} {visible.length === 1 ? "fan" : "fans"}</h2>
+        <button
+          onClick={() => {
+            const n = new Set(selected);
+            if (allVisibleSelected) visible.forEach((f) => n.delete(f.user_id));
+            else visible.forEach((f) => n.add(f.user_id));
+            onSelect(n);
+          }}
+          className="label text-ink-2"
+        >
+          {allVisibleSelected ? "Unselect all" : "Select all"}
+        </button>
+      </div>
+
+      {visible.length === 0 ? (
+        <Empty>No fans match.</Empty>
       ) : (
         <List>
-          {fans.map((f) => (
-            <Row
-              key={f.user_id}
-              selected={selected.has(f.user_id)}
-              onClick={() => onToggle(f.user_id)}
-              leading={<span className="display d-md w-8 t-num">{f.rank}</span>}
-              title={
-                <>
-                  {f.name || "Fan"}
-                  {!f.has_phone && <span className="label ml-2 opacity-60">no phone</span>}
-                </>
-              }
-              subtitle={<><Socials f={f} /> · {f.shows} {f.shows === 1 ? "show" : "shows"}</>}
-              value={f.points}
-            />
-          ))}
+          {visible.map((f) => {
+            const on = selected.has(f.user_id);
+            return (
+              <div key={f.user_id} className="flex items-center min-h-[56px]">
+                <button onClick={() => toggle(f.user_id)} aria-label={on ? "Unselect" : "Select"} aria-pressed={on} className="w-11 h-11 flex items-center justify-center shrink-0 press">
+                  <span className={`w-6 h-6 flex items-center justify-center ${on ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}>{on && <IconCheck size={14} strokeWidth={3} />}</span>
+                </button>
+                <button onClick={() => onOpen(f.user_id)} className="flex-1 min-w-0 flex items-center gap-3 py-2 text-left press">
+                  <span className="display d-md w-8 t-num text-ink-2">{f.rank}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="t-body block truncate">{f.name || "Fan"}</span>
+                    <span className="t-foot text-ink-2 block truncate">{socialsOf(f) || "No socials"} · {f.shows} {f.shows === 1 ? "show" : "shows"}{f.has_phone ? "" : " · no phone"}</span>
+                  </span>
+                  <span className="display d-sm t-num">{f.points}</span>
+                  <IconChevron size={16} className="text-ink-3" />
+                </button>
+              </div>
+            );
+          })}
         </List>
       )}
     </>
   );
 }
 
-function MessageTab({
+/* ---------------- Recipient chips shared by Message + Drop ---------------- */
+
+function Recipients({
   recipients,
+  fanBy,
   fans,
-  onSend,
+  onSelect,
+  onPickFans,
 }: {
   recipients: string[];
+  fanBy: Map<string, Fan>;
   fans: Fan[];
-  onSend: (body: string, channel: "sms" | "inbox", top?: number) => Promise<string | void>;
+  onSelect: (s: Set<string>) => void;
+  onPickFans: () => void;
+}) {
+  const [topN, setTopN] = useState("10");
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="label text-ink-2">To · {recipients.length} {recipients.length === 1 ? "fan" : "fans"}</p>
+        <div className="flex items-center gap-1">
+          <span className="label text-ink-2">Top</span>
+          <input className="w-12 h-8 bg-surface-2 px-2 t-foot text-center outline-none" inputMode="numeric" value={topN} onChange={(e) => setTopN(e.target.value.replace(/\D/g, ""))} />
+          <button type="button" onClick={() => onSelect(new Set(fans.slice(0, parseInt(topN, 10) || 0).map((f) => f.user_id)))} className="h-8 px-2 bg-invert-bg text-invert-fg label">Set</button>
+          <button type="button" onClick={onPickFans} className="h-8 px-2 bg-surface-2 label">Pick</button>
+        </div>
+      </div>
+      {recipients.length === 0 ? (
+        <p className="t-foot text-ink-2">Nobody yet. Set a top N or pick fans.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {recipients.slice(0, 12).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                const n = new Set(recipients);
+                n.delete(id);
+                onSelect(n);
+              }}
+              className="h-8 pl-2 pr-1 bg-surface-2 t-foot flex items-center gap-1"
+            >
+              {fanBy.get(id)?.name || "Fan"} <IconX size={12} />
+            </button>
+          ))}
+          {recipients.length > 12 && <span className="h-8 px-2 t-foot text-ink-2 flex items-center">+{recipients.length - 12} more</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Message ---------------- */
+
+function MessageTab({
+  recipients,
+  fanBy,
+  fans,
+  onSelect,
+  onSend,
+  onPickFans,
+}: {
+  recipients: string[];
+  fanBy: Map<string, Fan>;
+  fans: Fan[];
+  onSelect: (s: Set<string>) => void;
+  onSend: (body: string, channel: "sms" | "inbox", ids: string[]) => Promise<string | void>;
+  onPickFans: () => void;
 }) {
   const [body, setBody] = useState("");
   const [channel, setChannel] = useState<"sms" | "inbox">("sms");
-  const [top, setTop] = useState<number | null>(recipients.length ? null : 10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const count = top ?? recipients.length;
-  const names = recipients.map((id) => fans.find((f) => f.user_id === id)?.name).filter(Boolean).slice(0, 3);
-
   return (
     <>
       <SectionHeader>Message</SectionHeader>
       <Panel className="p-4 space-y-4">
+        <Recipients recipients={recipients} fanBy={fanBy} fans={fans} onSelect={onSelect} onPickFans={onPickFans} />
         <div>
-          <p className="label text-ink-2 mb-2">To</p>
-          <div className="flex gap-2 flex-wrap">
-            {recipients.length > 0 && (
-              <Pick active={top === null} onClick={() => setTop(null)}>
-                {recipients.length} selected{names.length ? ` (${names.join(", ")}${recipients.length > 3 ? "…" : ""})` : ""}
-              </Pick>
-            )}
-            {[5, 10, 25].map((n) => (
-              <Pick key={n} active={top === n} onClick={() => setTop(n)}>
-                Top {n}
-              </Pick>
+          <p className="label text-ink-2 mb-2">Channel</p>
+          <div className="flex gap-1 bg-surface p-1">
+            {(["sms", "inbox"] as const).map((c) => (
+              <button key={c} type="button" onClick={() => setChannel(c)} className={`flex-1 h-9 label ${channel === c ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>
+                {c === "sms" ? "SMS + inbox" : "Inbox only"}
+              </button>
             ))}
           </div>
         </div>
-        <div>
-          <p className="label text-ink-2 mb-2">Channel</p>
-          <div className="flex gap-2">
-            <Pick active={channel === "sms"} onClick={() => setChannel("sms")}>SMS + inbox</Pick>
-            <Pick active={channel === "inbox"} onClick={() => setChannel("inbox")}>Inbox only</Pick>
-          </div>
-        </div>
         <Field label={`Message (${body.length}/320)`}>
-          <textarea
-            className="w-full min-h-28 bg-surface-2 p-3 t-body outline-none"
-            maxLength={320}
-            placeholder="Message"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
+          <textarea className="w-full min-h-28 bg-surface p-3 t-body outline-none" maxLength={320} placeholder="Message" value={body} onChange={(e) => setBody(e.target.value)} />
         </Field>
         {error && <p className="t-foot text-danger">{error}</p>}
         <Button
-          disabled={busy || !body.trim() || count === 0}
+          disabled={busy || !body.trim() || recipients.length === 0}
           onClick={async () => {
             setBusy(true);
             setError(null);
-            const err = await onSend(body, channel, top ?? undefined);
+            const err = await onSend(body, channel, recipients);
             setBusy(false);
             if (err) setError(err);
             else setBody("");
           }}
         >
-          {busy ? "Sending…" : `Send to ${count} fan${count === 1 ? "" : "s"}`}
+          {busy ? "Sending…" : `Send to ${recipients.length} fan${recipients.length === 1 ? "" : "s"}`}
         </Button>
       </Panel>
     </>
   );
 }
 
+/* ---------------- Drop (with saved templates) ---------------- */
+
 function DropTab({
   recipients,
+  fanBy,
+  fans,
+  templates,
+  headers,
+  onSelect,
   onSend,
+  onPickFans,
+  onTemplatesChanged,
+  flash,
 }: {
   recipients: string[];
-  onSend: (p: { title: string; message: string; code?: string; top?: number; notify_sms: boolean }) => Promise<string | void>;
+  fanBy: Map<string, Fan>;
+  fans: Fan[];
+  templates: Template[];
+  headers: () => HeadersInit;
+  onSelect: (s: Set<string>) => void;
+  onSend: (p: { title: string; message: string; code?: string }, ids: string[]) => Promise<string | void>;
+  onPickFans: () => void;
+  onTemplatesChanged: () => void;
+  flash: (m: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [code, setCode] = useState("");
-  const [top, setTop] = useState<number | null>(recipients.length ? null : 5);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const count = top ?? recipients.length;
-  const presets = [
-    { t: "Soundcheck pass", m: "Come to soundcheck before the next show. Stage door, 4:30.", c: "SOUNDCHECK" },
-    { t: "Signed poster", m: "A signed tour poster is waiting for you at the merch booth.", c: "" },
-    { t: "Early tickets", m: "Presale code for the next tour date, before anyone else.", c: "EARLY" },
-  ];
+
+  async function saveTemplate() {
+    if (!title.trim()) return;
+    const r = await fetch("/api/artist/templates", { method: "POST", headers: headers(), body: JSON.stringify({ title, message, code_prefix: code }) });
+    if (r.ok) {
+      flash("Saved as a drop");
+      onTemplatesChanged();
+    }
+  }
+  async function removeTemplate(id: string) {
+    await fetch(`/api/artist/templates?id=${id}`, { method: "DELETE", headers: headers() });
+    onTemplatesChanged();
+  }
 
   return (
     <>
       <SectionHeader>Drop</SectionHeader>
       <Panel className="p-4 space-y-4">
+        <Recipients recipients={recipients} fanBy={fanBy} fans={fans} onSelect={onSelect} onPickFans={onPickFans} />
+
         <div>
-          <p className="label text-ink-2 mb-2">To</p>
-          <div className="flex gap-2 flex-wrap">
-            {recipients.length > 0 && (
-              <Pick active={top === null} onClick={() => setTop(null)}>
-                {recipients.length} selected
-              </Pick>
-            )}
-            {[1, 3, 5, 10].map((n) => (
-              <Pick key={n} active={top === n} onClick={() => setTop(n)}>
-                Top {n}
-              </Pick>
-            ))}
-          </div>
+          <p className="label text-ink-2 mb-2">Your drops</p>
+          {templates.length === 0 ? (
+            <p className="t-foot text-ink-2">None saved yet. Fill in below and tap Save.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {templates.map((t) => (
+                <span key={t.id} className={`h-9 flex items-center ${title === t.title ? "bg-invert-bg text-invert-fg" : "bg-surface"}`}>
+                  <button type="button" onClick={() => { setTitle(t.title); setMessage(t.message); setCode(t.code_prefix ?? ""); }} className="pl-3 pr-2 h-full label">
+                    {t.title}
+                  </button>
+                  <button type="button" onClick={() => removeTemplate(t.id)} aria-label={`Delete ${t.title}`} className="pr-2 h-full opacity-60"><IconX size={12} /></button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <div>
-          <p className="label text-ink-2 mb-2">Quick picks</p>
-          <div className="flex gap-2 flex-wrap">
-            {presets.map((p) => (
-              <Pick key={p.t} active={title === p.t} onClick={() => { setTitle(p.t); setMessage(p.m); setCode(p.c); }}>
-                {p.t}
-              </Pick>
-            ))}
-          </div>
-        </div>
+
         <Field label="Title">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Soundcheck pass" maxLength={80} />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" maxLength={80} />
         </Field>
         <Field label="Message">
-          <textarea
-            className="w-full min-h-24 bg-surface-2 p-3 t-body outline-none"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            maxLength={500}
-          />
+          <textarea className="w-full min-h-24 bg-surface p-3 t-body outline-none" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={500} placeholder="Message" />
         </Field>
         <Field label="Code prefix">
-          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SOUNDCHECK" autoCapitalize="characters" />
+          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Optional, numbered per fan" autoCapitalize="characters" />
         </Field>
         {error && <p className="t-foot text-danger">{error}</p>}
-        <Button
-          disabled={busy || !title.trim() || count === 0}
-          onClick={async () => {
-            setBusy(true);
-            setError(null);
-            const err = await onSend({ title, message, code: code || undefined, top: top ?? undefined, notify_sms: true });
-            setBusy(false);
-            if (err) setError(err);
-            else {
-              setTitle("");
-              setMessage("");
-              setCode("");
-            }
-          }}
-        >
-          {busy ? "Sending…" : `Drop to ${count} fan${count === 1 ? "" : "s"}`}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="md" type="button" onClick={saveTemplate} disabled={!title.trim()}>Save</Button>
+          <Button
+            size="md"
+            disabled={busy || !title.trim() || recipients.length === 0}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              const err = await onSend({ title, message, code: code || undefined }, recipients);
+              setBusy(false);
+              if (err) setError(err);
+            }}
+          >
+            {busy ? "Sending…" : `Drop to ${recipients.length} fan${recipients.length === 1 ? "" : "s"}`}
+          </Button>
+        </div>
       </Panel>
     </>
   );
 }
 
-function SocialTab({
+/* ---------------- Review ---------------- */
+
+function ReviewTab({
   posts,
   onReview,
 }: {
@@ -464,7 +579,7 @@ function SocialTab({
     <>
       <SectionHeader>Review</SectionHeader>
       {posts.length === 0 ? (
-        <Panel><Empty>Nothing to review.</Empty></Panel>
+        <Empty>Nothing to review.</Empty>
       ) : (
         <div className="space-y-3">
           {posts.map((p) => (
@@ -473,22 +588,15 @@ function SocialTab({
                 <div className="min-w-0">
                   <p className="display d-sm">{p.user?.name || "Fan"}</p>
                   <p className="t-foot text-ink-2 mt-1">
-                    {p.activity?.name} · +{p.activity?.points} pts
-                    {p.user?.instagram ? ` · @${p.user.instagram}` : ""}
+                    {p.activity?.name} · +{p.activity?.points} pts{p.user?.instagram ? ` · @${p.user.instagram}` : ""}
                   </p>
-                  <a href={p.url} target="_blank" rel="noreferrer" className="t-foot underline break-all block mt-2">
-                    {p.url}
-                  </a>
+                  <a href={p.url} target="_blank" rel="noreferrer" className="t-foot underline break-all block mt-2">{p.url}</a>
                 </div>
                 <Badge>{p.activity?.social_network ?? "social"}</Badge>
               </div>
               <div className="flex gap-2 mt-4">
-                <Button size="md" variant="outline" onClick={() => onReview(p.id, "rejected")}>
-                  <IconX size={16} strokeWidth={3} /> Reject
-                </Button>
-                <Button size="md" onClick={() => onReview(p.id, "approved")}>
-                  <IconCheck size={16} strokeWidth={3} /> Approve
-                </Button>
+                <Button size="md" variant="outline" onClick={() => onReview(p.id, "rejected")}><IconX size={16} strokeWidth={3} /> Reject</Button>
+                <Button size="md" onClick={() => onReview(p.id, "approved")}><IconCheck size={16} strokeWidth={3} /> Approve</Button>
               </div>
             </Panel>
           ))}
@@ -498,36 +606,29 @@ function SocialTab({
   );
 }
 
+/* ---------------- Log ---------------- */
+
 function LogTab({ messages, drops }: { messages: Overview["messages"]; drops: Overview["drops"] }) {
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const m = messages.filter((x) => !needle || x.body.toLowerCase().includes(needle) || x.user?.name?.toLowerCase().includes(needle));
+  const d = drops.filter((x) => !needle || x.title.toLowerCase().includes(needle) || x.user?.name?.toLowerCase().includes(needle));
   return (
     <>
+      <div className="mt-4"><Input placeholder="Search log" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <SectionHeader>Drops</SectionHeader>
-      {drops.length === 0 ? (
-        <Panel><Empty>No drops yet.</Empty></Panel>
-      ) : (
+      {d.length === 0 ? <Empty>No drops yet.</Empty> : (
         <List>
-          {drops.map((d) => (
-            <Row
-              key={d.id}
-              title={d.title}
-              subtitle={`${d.user?.name ?? "Fan"}${d.code ? ` · ${d.code}` : ""}`}
-              value={d.claimed_at ? "Claimed" : "Sent"}
-              valueTone={d.claimed_at ? "success" : "muted"}
-            />
+          {d.map((x) => (
+            <Row key={x.id} title={x.title} subtitle={`${x.user?.name ?? "Fan"}${x.code ? ` · ${x.code}` : ""}`} value={x.claimed_at ? "Claimed" : "Sent"} valueTone={x.claimed_at ? "success" : "muted"} />
           ))}
         </List>
       )}
       <SectionHeader>Messages</SectionHeader>
-      {messages.length === 0 ? (
-        <Panel><Empty>No messages yet.</Empty></Panel>
-      ) : (
+      {m.length === 0 ? <Empty>No messages yet.</Empty> : (
         <List>
-          {messages.map((m) => (
-            <Row
-              key={m.id}
-              title={m.body}
-              subtitle={`${m.user?.name ?? "Fan"} · ${m.channel}${m.sms_status ? ` · ${m.sms_status}` : ""}`}
-            />
+          {m.map((x) => (
+            <Row key={x.id} title={x.body} subtitle={`${x.user?.name ?? "Fan"} · ${x.channel}${x.sms_status ? ` · ${x.sms_status}` : ""}`} />
           ))}
         </List>
       )}
@@ -535,14 +636,117 @@ function LogTab({ messages, drops }: { messages: Overview["messages"]; drops: Ov
   );
 }
 
-function Pick({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+/* ---------------- Fan sheet: one person ---------------- */
+
+function FanSheet({
+  id,
+  headers,
+  templates,
+  onClose,
+  onMessage,
+  onDrop,
+}: {
+  id: string;
+  headers: () => HeadersInit;
+  templates: Template[];
+  onClose: () => void;
+  onMessage: (body: string, channel: "sms" | "inbox") => Promise<string | void>;
+  onDrop: (p: { title: string; message: string; code?: string }) => Promise<string | void>;
+}) {
+  const [fan, setFan] = useState<FanDetail | null>(null);
+  const [mode, setMode] = useState<"info" | "message" | "drop">("info");
+  const [body, setBody] = useState("");
+  const [title, setTitle] = useState("");
+  const [msg, setMsg] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/artist/fan?id=${id}`, { headers: headers() });
+    const j = await r.json();
+    setFan(j.fan ?? null);
+  }, [id, headers]);
+  useEffect(() => {
+    queueMicrotask(() => void load());
+  }, [load]);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-10 px-3 label ${active ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}
-    >
-      {children}
-    </button>
+    <div className="fixed inset-0 z-50 bg-bg flex flex-col" data-testid="fan-sheet">
+      <div className="flex items-center justify-between px-4 h-14 pt-[env(safe-area-inset-top)]">
+        <button onClick={onClose} className="h-11 px-2 -ml-2 label flex items-center gap-1 press"><IconChevron size={18} className="rotate-180" /> Fans</button>
+        {fan && <span className="display d-sm t-num">{fan.points.balance} pts</span>}
+      </div>
+      {!fan ? (
+        <p className="t-sub text-ink-2 p-6">Loading…</p>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4 pb-10">
+          <h2 className="display d-xl">{fan.name || "Fan"}</h2>
+          <p className="t-foot text-ink-2 mt-1">
+            {socialsOf(fan) || "No socials"}{fan.phone_hint ? ` · ${fan.phone_hint}` : " · no phone"}
+          </p>
+
+          <div className="flex gap-1 bg-surface-2 p-1 mt-4">
+            {(["info", "message", "drop"] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)} className={`flex-1 h-10 label ${mode === m ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>
+                {m === "info" ? "History" : m === "message" ? "Message" : "Drop"}
+              </button>
+            ))}
+          </div>
+
+          {mode === "info" && (
+            <>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <Panel className="p-3"><p className="label text-ink-2">Earned</p><p className="display d-lg t-num mt-1">{fan.points.earned}</p></Panel>
+                <Panel className="p-3"><p className="label text-ink-2">Spent</p><p className="display d-lg t-num mt-1">{fan.points.spent}</p></Panel>
+                <Panel className="p-3"><p className="label text-ink-2">Shows</p><p className="display d-lg t-num mt-1">{fan.shows.length}</p></Panel>
+              </div>
+              <SectionHeader>Taps</SectionHeader>
+              {fan.scans.length === 0 ? <Empty>No taps yet.</Empty> : (
+                <List>{fan.scans.map((s, i) => <Row key={i} title={s.name} subtitle={`${s.show ?? ""} · ${new Date(s.at).toLocaleString()}`} value={`+${s.points}`} />)}</List>
+              )}
+              <SectionHeader>Drops sent</SectionHeader>
+              {fan.drops.length === 0 ? <Empty>None yet.</Empty> : (
+                <List>{fan.drops.map((d) => <Row key={d.id} title={d.title} subtitle={d.code ?? undefined} value={d.claimed_at ? "Claimed" : "Sent"} valueTone={d.claimed_at ? "success" : "muted"} />)}</List>
+              )}
+              <SectionHeader>Messages sent</SectionHeader>
+              {fan.messages.length === 0 ? <Empty>None yet.</Empty> : (
+                <List>{fan.messages.map((m) => <Row key={m.id} title={m.body} subtitle={`${m.channel}${m.sms_status ? ` · ${m.sms_status}` : ""} · ${new Date(m.created_at).toLocaleString()}`} />)}</List>
+              )}
+            </>
+          )}
+
+          {mode === "message" && (
+            <div className="mt-4 space-y-3">
+              <textarea className="w-full min-h-28 bg-surface-2 p-3 t-body outline-none" maxLength={320} placeholder={`Message ${fan.name || "this fan"}`} value={body} onChange={(e) => setBody(e.target.value)} />
+              {err && <p className="t-foot text-danger">{err}</p>}
+              <div className="flex gap-2">
+                <Button size="md" variant="outline" disabled={busy || !body.trim()} onClick={async () => { setBusy(true); const e = await onMessage(body, "inbox"); setBusy(false); if (e) setErr(e); else { setBody(""); void load(); } }}>Inbox</Button>
+                <Button size="md" disabled={busy || !body.trim() || !fan.has_phone} onClick={async () => { setBusy(true); const e = await onMessage(body, "sms"); setBusy(false); if (e) setErr(e); else { setBody(""); void load(); } }}>SMS + inbox</Button>
+              </div>
+            </div>
+          )}
+
+          {mode === "drop" && (
+            <div className="mt-4 space-y-3">
+              {templates.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {templates.map((t) => (
+                    <button key={t.id} type="button" onClick={() => { setTitle(t.title); setMsg(t.message); setCode(t.code_prefix ?? ""); }} className={`h-9 px-3 label ${title === t.title ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}>{t.title}</button>
+                  ))}
+                </div>
+              )}
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" maxLength={80} />
+              <textarea className="w-full min-h-20 bg-surface-2 p-3 t-body outline-none" value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={500} placeholder="Message" />
+              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code (optional)" autoCapitalize="characters" />
+              {err && <p className="t-foot text-danger">{err}</p>}
+              <Button disabled={busy || !title.trim()} onClick={async () => { setBusy(true); const e = await onDrop({ title, message: msg, code: code || undefined }); setBusy(false); if (e) setErr(e); else { setTitle(""); setMsg(""); setCode(""); setMode("info"); void load(); } }}>
+                Drop to {fan.name || "fan"}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
