@@ -34,3 +34,22 @@ export async function DELETE(req: Request) {
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, deleted: count ?? 0 });
 }
+
+/** PATCH { id, name?, kind?, bio?, image_url?, access_code? } */
+export async function PATCH(req: Request) {
+  if (!checkStaffPin(staffPinFromRequest(req))) return NextResponse.json({ ok: false }, { status: 401 });
+  const b = (await req.json().catch(() => ({}))) as { id?: string; name?: string; kind?: "artist" | "team"; bio?: string; image_url?: string | null; access_code?: string };
+  if (!b.id) return NextResponse.json({ ok: false, message: "id required" }, { status: 400 });
+  const fields: Record<string, unknown> = {};
+  if (b.name !== undefined) fields.name = String(b.name).trim().slice(0, 80);
+  if (b.kind !== undefined) fields.kind = b.kind === "team" ? "team" : "artist";
+  if (b.bio !== undefined) fields.bio = String(b.bio).trim().slice(0, 500);
+  if (b.image_url !== undefined) fields.image_url = b.image_url || null;
+  if (b.access_code !== undefined) fields.access_code = String(b.access_code).trim().toUpperCase().slice(0, 40) || null;
+  const db = createAdminClient();
+  const { data, error } = await db.from("artists").update(fields).eq("id", b.id).select("id, slug, name, kind, bio, image_url, access_code").single();
+  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
+  // keep concerts.artist (denormalised display name) in sync
+  if (fields.name) await db.from("concerts").update({ artist: fields.name as string }).eq("artist_id", b.id);
+  return NextResponse.json({ ok: true, artist: data });
+}

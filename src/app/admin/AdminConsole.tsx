@@ -4,16 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge } from "@/components/ui";
 import { IconCheck, IconChevron, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
+import { EventEditor, type EventRow } from "./EventEditor";
+import { RewardsTab } from "./RewardsTab";
+import type { Artist } from "@/lib/types";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, writeUrl, type NfcSession } from "@/lib/nfc";
-import type { Activity, Concert, ScanResult } from "@/lib/types";
+import type { Activity, ScanResult } from "@/lib/types";
 
 const PIN_KEY = "cc_staff_pin"; // shared with /staff
 const EVENT_KEY = "cc_admin_event";
 const RESULT_MS = 2200;
 
-type EventRow = Concert & { activities: Activity[]; bands: { total: number; claimed: number } };
-type ArtistRow = { id: string; slug: string; name: string; kind: "artist" | "team" };
-type Tab = "events" | "tap" | "write" | "bands" | "phones";
+type ArtistRow = Artist;
+type Tab = "events" | "tap" | "rewards" | "bands" | "phones";
 
 export function AdminConsole() {
   const [pin, setPin] = useState<string | null>(() => {
@@ -35,6 +37,7 @@ export function AdminConsole() {
     }
   });
   const [tab, setTab] = useState<Tab>("tap");
+  const [editEventId, setEditEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const nfcSupported = nfcOk();
 
@@ -99,11 +102,12 @@ export function AdminConsole() {
   }
 
   const event = events.find((e) => e.id === eventId) ?? null;
+  const editEvent = events.find((e) => e.id === editEventId) ?? null;
   const tabs: { id: Tab; label: string }[] = [
-    { id: "tap", label: "Tap" },
-    { id: "write", label: "Write" },
-    { id: "bands", label: "Bands" },
+    { id: "tap", label: "Station" },
     { id: "events", label: "Events" },
+    { id: "rewards", label: "Rewards" },
+    { id: "bands", label: "Bands" },
     { id: "phones", label: "Phones" },
   ];
 
@@ -156,7 +160,7 @@ export function AdminConsole() {
       </div>
 
       {tab === "tap" && event && <TapTab key={event.id} event={event} headers={headers} nfcSupported={nfcSupported} onChanged={load} />}
-      {tab === "write" && event && <WriteTab event={event} headers={headers} nfcSupported={nfcSupported} onDone={load} />}
+      {tab === "rewards" && <RewardsTab artists={artists} headers={headers} flash={flash} onArtistsChanged={load} />}
       {tab === "bands" && event && <BandsTab event={event} events={events} headers={headers} flash={flash} onChanged={load} />}
       {tab === "events" && (
         <EventsTab
@@ -166,17 +170,28 @@ export function AdminConsole() {
           onCreated={async (id) => {
             await load();
             setEventId(id);
-            setTab("write");
-            flash("Event created. Now write bands.");
+            setEditEventId(id);
+            flash("Event created");
           }}
           onPick={(id) => {
             setEventId(id);
-            setTab("tap");
+            setEditEventId(id);
           }}
         />
       )}
+      {editEvent && (
+        <EventEditor
+          key={editEvent.id}
+          event={editEvent}
+          artists={artists}
+          headers={headers}
+          onClose={() => setEditEventId(null)}
+          onChanged={load}
+          flash={flash}
+        />
+      )}
       {tab === "phones" && <PhonesTab headers={headers} flash={flash} />}
-      {!event && tab !== "events" && tab !== "phones" && <Panel className="mt-4"><Empty>No events yet.</Empty></Panel>}
+      {!event && tab !== "events" && tab !== "phones" && tab !== "rewards" && <Panel className="mt-4"><Empty>No events yet.</Empty></Panel>}
 
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>}
     </main>
@@ -271,7 +286,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
   const [log, setLog] = useState<ScanResult[]>([]);
   const [scanning, setScanning] = useState(false);
   const [station, setStation] = useState(false); // full-screen station mode
-  const [mode, setMode] = useState<"scan" | "reset" | "read">("scan");
+  const [mode, setMode] = useState<"scan" | "reset" | "read" | "write">("scan");
   const [readInfo, setReadInfo] = useState<BandInfo | null>(null);
   const modeRef = useRef(mode);
   const stationRef = useRef(false);
@@ -312,6 +327,27 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
           } catch {}
         } catch {
           show({ ok: false, status: "error", message: "Network error", band_uid: uid });
+        }
+        return;
+      }
+      if (modeRef.current === "write") {
+        try {
+          const r = await fetch("/api/admin/bands", { method: "POST", headers: headers(), body: JSON.stringify({ uid, concert_id: event.id }) });
+          const j = (await r.json()) as { ok: boolean; status?: string; tag_url?: string; message?: string };
+          if (!j.ok || !j.tag_url) throw new Error(j.message ?? "Register failed");
+          const res: ScanResult = { ok: true, status: "written", message: j.status === "created" ? "Registered" : j.status === "moved" ? "Moved here" : "Already registered", band_uid: uid };
+          if (opts.reader) {
+            try {
+              await writeUrl(opts.reader, j.tag_url);
+              res.wrote = "written";
+            } catch {
+              res.wrote = "failed";
+            }
+          }
+          show(res);
+          onChanged();
+        } catch (err) {
+          show({ ok: false, status: "error", message: err instanceof Error ? err.message : "Write failed", band_uid: uid });
         }
         return;
       }
@@ -527,8 +563,8 @@ function StationScreen({
   nfcError: string | null;
   isLive: boolean;
   log: ScanResult[];
-  mode: "scan" | "reset" | "read";
-  onMode: (m: "scan" | "reset" | "read") => void;
+  mode: "scan" | "reset" | "read" | "write";
+  onMode: (m: "scan" | "reset" | "read" | "write") => void;
   readInfo: BandInfo | null;
   onExit: () => void;
   onManual: (uid: string) => void;
@@ -546,6 +582,9 @@ function StationScreen({
           <button onClick={() => onMode("scan")} className={`h-8 px-3 label ${mode === "scan" ? "bg-invert-fg text-invert-bg" : "opacity-70"}`}>
             {isLive ? "Live" : "Scan"}
           </button>
+          <button onClick={() => onMode("write")} className={`h-8 px-3 label ${mode === "write" ? "bg-invert-fg text-invert-bg" : "opacity-70"}`}>
+            Write
+          </button>
           <button onClick={() => onMode("read")} className={`h-8 px-3 label ${mode === "read" ? "bg-invert-fg text-invert-bg" : "opacity-70"}`}>
             Read
           </button>
@@ -561,6 +600,11 @@ function StationScreen({
           <>
             <p className="display d-hero mt-3 text-warning">Reset</p>
             <p className="t-sub opacity-70 mt-2 max-w-xs">Tapped bands lose their scans and owner.</p>
+          </>
+        ) : mode === "write" ? (
+          <>
+            <p className="display d-hero mt-3">Write</p>
+            <p className="t-sub opacity-70 mt-2 max-w-xs">Registers each band to {event.artist} and writes its URL to the tag.</p>
           </>
         ) : mode === "read" ? (
           <>
@@ -601,7 +645,7 @@ function StationScreen({
 
         {last && (
           <p className="mt-10 mono-caps text-[11px] opacity-70">
-            Last: {last.band_uid} · {last.status === "reset" ? "reset" : last.ok ? `+${last.points}` : last.status === "duplicate" ? "already done" : last.message}
+            Last: {last.band_uid} · {last.status === "reset" ? "reset" : last.status === "written" ? `${last.message}${last.wrote === "written" ? ", tag written" : ""}` : last.ok ? `+${last.points}` : last.status === "duplicate" ? "already done" : last.message}
           </p>
         )}
       </div>
@@ -628,181 +672,6 @@ function StationScreen({
         </button>
       </form>
     </div>
-  );
-}
-
-/* ---------------- Write: phone becomes an NFC writer ---------------- */
-
-type WriteLog = { uid: string; status: string; ok: boolean; at: number };
-
-function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; headers: () => HeadersInit; nfcSupported: boolean; onDone: () => void }) {
-  const [writing, setWriting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [log, setLog] = useState<WriteLog[]>([]);
-  const [manualUid, setManualUid] = useState("");
-  const [flashUid, setFlashUid] = useState<WriteLog | null>(null);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ serial: string; records: { recordType: string; data: string | null }[]; info?: BandInfo } | null>(null);
-  const sessionRef = useRef<NfcSession | null>(null);
-  const lastRef = useRef({ uid: "", at: 0 });
-  useEffect(() => () => sessionRef.current?.stop(), []);
-
-  async function register(raw: string) {
-    const uid = normalizeUid(raw);
-    if (!uid) return null;
-    const r = await fetch("/api/admin/bands", { method: "POST", headers: headers(), body: JSON.stringify({ uid, concert_id: event.id }) });
-    const j = (await r.json()) as { ok: boolean; status?: string; tag_url?: string; message?: string; claimed?: boolean };
-    return { uid, ...j };
-  }
-
-  function push(entry: WriteLog) {
-    setLog((l) => [entry, ...l].slice(0, 20));
-    setFlashUid(entry);
-    try {
-      navigator.vibrate?.(entry.ok ? 80 : [60, 60, 60]);
-    } catch {}
-    setTimeout(() => setFlashUid((cur) => (cur === entry ? null : cur)), RESULT_MS);
-    onDone();
-  }
-
-  async function startWriter() {
-    setError(null);
-    stopAll();
-    try {
-      sessionRef.current = await startNfc({
-        onTag: async (serial, reader) => {
-          const uid = normalizeUid(serial);
-          const now = Date.now();
-          if (!uid) return push({ uid: "?", ok: false, status: "Tag has no readable serial", at: now });
-          if (lastRef.current.uid === uid && now - lastRef.current.at < 3000) return;
-          lastRef.current = { uid, at: now };
-          try {
-            const res = await register(uid);
-            if (!res?.ok || !res.tag_url) throw new Error(res?.message ?? "Register failed");
-            // Write the tap URL while the tag is still in the field.
-            await writeUrl(reader, res.tag_url);
-            push({ uid, ok: true, status: `${res.status === "created" ? "Registered" : res.status === "moved" ? "Moved" : "Already here"} · URL written`, at: now });
-          } catch (err) {
-            push({ uid, ok: false, status: nfcErrorMessage(err), at: now });
-          }
-        },
-        onError: (message) => push({ uid: "?", ok: false, status: message, at: Date.now() }),
-      });
-      setWriting(true);
-    } catch (err) {
-      setError(nfcErrorMessage(err));
-    }
-  }
-  async function startTest() {
-    setError(null);
-    stopAll();
-    setTestResult(null);
-    try {
-      sessionRef.current = await startNfc({
-        onTag: async (serial, _reader, records) => {
-          const uid = normalizeUid(serial);
-          setTestResult({ serial: uid || serial || "(none)", records });
-          if (uid) {
-            try {
-              setTestResult({ serial: uid, records, info: await fetchBandInfo(uid, headers) });
-            } catch {}
-          }
-        },
-        onError: (message) => setError(message),
-      });
-      setTesting(true);
-    } catch (err) {
-      setError(nfcErrorMessage(err));
-    }
-  }
-  function stopAll() {
-    sessionRef.current?.stop();
-    sessionRef.current = null;
-    setWriting(false);
-    setTesting(false);
-  }
-  const stopWriter = stopAll;
-
-  return (
-    <>
-      <SectionHeader>Write bands</SectionHeader>
-      <div>
-        {nfcSupported ? (
-          <div className="space-y-2">
-            {writing ? (
-              <Button variant="outline" onClick={stopWriter}>
-                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Writing
-              </Button>
-            ) : (
-              <Button onClick={startWriter}>
-                <IconNfc size={20} /> Write
-              </Button>
-            )}
-            {testing ? (
-              <Button variant="outline" size="md" onClick={stopAll}>
-                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Reading
-              </Button>
-            ) : (
-              <Button variant="outline" size="md" onClick={startTest}>Read tag</Button>
-            )}
-            {testResult && (
-              <div className="space-y-2">
-                {testResult.info ? (
-                  <BandInfoCard info={testResult.info} />
-                ) : (
-                  <div className="bg-surface-2 p-3"><p className="font-mono t-sub">{testResult.serial}</p></div>
-                )}
-                <p className="t-foot text-ink-2 px-1">
-                  {testResult.records.length === 0
-                    ? "Tag: no NDEF records (blank)"
-                    : "Tag: " + testResult.records.map((r) => `${r.recordType} ${r.data ?? "(binary)"}`).join(" · ")}
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="t-foot text-ink-2">No NFC in this browser. Register a UID instead.</p>
-        )}
-        {error && <p className="t-foot text-danger mt-2">{error}</p>}
-      </div>
-
-      <form
-        className="flex gap-2 mt-4"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const res = await register(manualUid);
-          if (res) push({ uid: res.uid, ok: !!res.ok, status: res.ok ? `${res.status} · ${res.tag_url}` : res.message ?? "Failed", at: Date.now() });
-          setManualUid("");
-        }}
-      >
-        <Input placeholder="Band UID" value={manualUid} onChange={(e) => setManualUid(e.target.value)} autoCapitalize="characters" autoCorrect="off" />
-        <button type="submit" disabled={!manualUid} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
-          Register
-        </button>
-      </form>
-
-      {log.length > 0 && (
-        <List className="mt-6">
-          {log.map((l, i) => (
-            <Row key={i} title={<span className="font-mono t-sub">{l.uid}</span>} subtitle={l.status} value={l.ok ? "OK" : "Error"} valueTone={l.ok ? "success" : "muted"} />
-          ))}
-        </List>
-      )}
-
-      {flashUid && (
-        <div
-          onClick={() => setFlashUid(null)}
-          className={`fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6 text-white ${flashUid.ok ? "bg-success" : "bg-danger"}`}
-        >
-          <div className="w-20 h-20 border-4 border-white flex items-center justify-center mb-6">
-            {flashUid.ok ? <IconCheck size={44} strokeWidth={3} /> : <IconX size={44} strokeWidth={3} />}
-          </div>
-          <p className="display d-hero">{flashUid.ok ? "Written" : "Failed"}</p>
-          <p className="t-body mt-3 opacity-90">{flashUid.status}</p>
-          <p className="font-mono t-foot mt-8 opacity-70">{flashUid.uid}</p>
-        </div>
-      )}
-    </>
   );
 }
 
@@ -1216,15 +1085,15 @@ function Overlay({ result, activityName, onClose }: { result: ScanResult; activi
         {result.ok ? <IconCheck size={44} strokeWidth={3} /> : <IconX size={44} strokeWidth={3} />}
       </div>
       <p className="display text-[96px] leading-[0.85] t-num">
-        {result.status === "reset" ? "Reset" : result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "Error"}
+        {result.status === "reset" ? "Reset" : result.status === "written" ? "OK" : result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "Error"}
       </p>
-      <p className="display d-lg mt-4">{result.status === "reset" ? "Scans cleared, unclaimed" : result.ok ? activityName ?? result.activity : result.message}</p>
+      <p className="display d-lg mt-4">{result.status === "reset" ? "Scans cleared, unclaimed" : result.status === "written" ? result.message : result.ok ? activityName ?? result.activity : result.message}</p>
       {result.wrote && (
         <p className="label mt-3 opacity-80">
           {result.wrote === "written" ? "Tag written" : result.wrote === "already" ? "Tag already set" : "Tag write failed, hold still and tap again"}
         </p>
       )}
-      {result.ok && result.status !== "reset" && (
+      {result.ok && result.status !== "reset" && result.status !== "written" && (
         <p className="t-body mt-3 opacity-90">
           {result.claimed ? `${result.owner_name || "Fan"}${result.rank ? ` · #${result.rank} tonight` : ""}` : "Unclaimed band · points saved"}
         </p>

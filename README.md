@@ -20,6 +20,8 @@ supabase/migrations/0003_*.sql      keep users.phone in E.164
 supabase/migrations/0004_*.sql      concert imagery/description + activity map pins
 supabase/migrations/0005_*.sql      artists/teams, per-artist pools, socials, social posts, messages, drops
 supabase/migrations/0006_*.sql      live station (self-tap from any phone)
+supabase/migrations/0007_*.sql      saved drop templates (artist console)
+supabase/migrations/0008_*.sql      media storage bucket + custom venue map image
 scripts/seed.ts                     demo data (npm run seed)
 src/proxy.ts                        refreshes Supabase session cookie on every request
 src/lib/supabase/{server,client,admin}.ts
@@ -155,15 +157,15 @@ Claimed bands redirect the owner to their dashboard with the same banner. `conce
 
 ## Admin console
 
-`/admin`, unlocked with `STAFF_PIN`. Built for demos without real tap stations.
+`/admin`, unlocked with `STAFF_PIN`. Five tabs; the current event dropdown at the top drives Station and Bands.
 
-- **Current event** switcher at the top, remembered per device. Everything below acts on that event.
-- **Tap**: pick an activity, then tap bands (Web NFC on Android Chrome) or type a UID. **Go live** makes that activity the live station for iPhone demos (see above). Same `/api/scan` as the staff station, so switching events and tapping simulates a fan moving between shows.
-- **Write**: turns the phone into an NFC writer. Each tapped tag is registered to the current event (`POST /api/admin/bands`) and gets `https://<domain>/b/<serial>` written as an NDEF URL (`NDEFReader.write`, overwrite on). Full-screen green/red result per tag. Desktop fallback: register a UID manually, write the URL with NFC Tools.
-- **Bands**: look up any UID (owner, event, scans, tag URL), move it to another event, unclaim, archive/restore, clear scans. Lists all bands at the current event with points.
-- **Events**: create an event with name, description, location, address, date, doors, artist or team (existing, or create one with a generated console access code), and activities with points. The possible-points total updates as you type. New events open in Write so you can start writing bands.
+- **Station**: full-screen tap screen with four modes. **Scan** logs taps for the chosen activity and writes the band URL to blank tags. **Write** registers bands to the event and writes the URL (pre-write a stack before doors). **Read** shows a band's owner, event, points and tap history. **Reset** wipes a band. Manual UID entry at the bottom for desktops and iPhones.
+- **Events**: list, create, and a full editor per event: details (save on blur), photos (artist hero, venue photo, custom venue map upload), activities (add / edit / delete, points, location, social vs tap-in), pin placement by tapping the map, live station toggle, delete event.
+- **Rewards**: per artist/team: add / edit / delete rewards, stock or discount codes (paste one per line). **Profile** edits the artist's name, kind, bio, photo and console access code.
+- **Bands**: look up any UID (owner, event, scans, tag URL), move between events, unclaim, archive/restore, clear scans, reset.
+- **Phones**: demo numbers that sign in with code `123456` (needs `SUPABASE_ACCESS_TOKEN`).
 
-Staff station `/staff` is the slimmed-down tap-only version for booth workers.
+Images go to the public `media` bucket in Supabase Storage via `POST /api/admin/upload`. A custom venue map replaces the drawn floor plan on the fan's show page; pins keep their percent coordinates.
 
 ## Artists and fandoms
 

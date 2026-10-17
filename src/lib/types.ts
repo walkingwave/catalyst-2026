@@ -5,6 +5,7 @@ export type Artist = {
   kind: "artist" | "team";
   image_url?: string | null;
   bio?: string;
+  access_code?: string | null;
 };
 
 export type Concert = {
@@ -20,6 +21,7 @@ export type Concert = {
   doors_at?: string | null;
   address?: string | null;
   live_activity_id?: string | null;
+  map_image_url?: string | null;
 };
 
 export type Activity = {
@@ -85,7 +87,7 @@ export type Reward = {
 
 export type ScanResult = {
   ok: boolean;
-  status: "scanned" | "duplicate" | "error" | "reset";
+  status: "scanned" | "duplicate" | "error" | "reset" | "written";
   message: string;
   points?: number;
   activity?: string;

@@ -53,7 +53,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
       </List>
 
       <SectionHeader action={`${earned} / ${possible} pts`}>Venue map</SectionHeader>
-      <VenueMap activities={scanActs} done={doneIds} venue={c.venue} />
+      <VenueMap activities={scanActs} done={doneIds} venue={c.venue} imageUrl={c.map_image_url} />
 
       {c.venue_image_url && (
         <div className="relative aspect-[16/9] mt-3 -mx-4 overflow-hidden">
