@@ -7,7 +7,7 @@ import { IconChevron } from "@/components/icons";
 export function Page({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <main
-      className={`flex-1 w-full max-w-md mx-auto px-4 pt-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] ${className}`}
+      className={`flex-1 w-full max-w-md mx-auto px-4 pt-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] ${className}`}
     >
       {children}
     </main>

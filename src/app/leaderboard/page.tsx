@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireFan, formatDate } from "@/lib/fan";
+import { attendedArtists } from "@/lib/current";
 import { Page, Headline, List, Row, Panel, Empty, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
@@ -12,15 +13,15 @@ export default async function LeaderboardPage({
   const { supabase, user } = await requireFan("/leaderboard");
   const sp = await searchParams;
 
-  const [{ data: artists }, { data: concerts }, { data: pools }] = await Promise.all([
+  const [{ data: artists }, { data: concerts }, { current }] = await Promise.all([
     supabase.from("artists").select("id, name, kind").order("name"),
     supabase.from("concerts").select("id, name, artist, artist_id, date").order("date", { ascending: false }),
-    supabase.from("user_artist_points").select("artist_id, balance").eq("user_id", user.id).order("balance", { ascending: false }),
+    attendedArtists(supabase, user.id),
   ]);
 
   const mode: "artist" | "concert" = sp.concert ? "concert" : "artist";
-  // Default to the fan's biggest fandom, then the first artist.
-  const artistId = mode === "artist" ? sp.artist ?? pools?.[0]?.artist_id ?? artists?.[0]?.id : undefined;
+  // Default to the current event, then the first artist.
+  const artistId = mode === "artist" ? sp.artist ?? current?.artist.id ?? artists?.[0]?.id : undefined;
   const artist = artists?.find((a) => a.id === artistId);
   const concert = concerts?.find((c) => c.id === sp.concert);
 
