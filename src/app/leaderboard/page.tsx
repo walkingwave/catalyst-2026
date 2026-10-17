@@ -34,14 +34,7 @@ export default async function LeaderboardPage({
   return (
     <Page>
       <Header />
-      <Headline
-        kicker={mode === "concert" ? "Single show" : artist?.kind === "team" ? "Team fandom" : "Artist fandom"}
-        sub={
-          mode === "concert"
-            ? `${concert?.name} · ${formatDate(concert!.date)}`
-            : "All-time points with this artist. Pools are per artist, not shared."
-        }
-      >
+      <Headline kicker={mode === "concert" ? `${concert?.name} · ${formatDate(concert!.date)}` : "All-time"}>
         {mode === "concert" ? concert?.artist : artist?.name}
       </Headline>
 
@@ -64,7 +57,7 @@ export default async function LeaderboardPage({
       )}
 
       {!rows || rows.length === 0 ? (
-        <Panel><Empty>Nobody on the board yet.</Empty></Panel>
+        <Panel><Empty>No fans yet.</Empty></Panel>
       ) : (
         <List>
           {rows.map((r) => {

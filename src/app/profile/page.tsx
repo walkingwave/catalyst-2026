@@ -26,7 +26,7 @@ export default async function ProfilePage() {
           </form>
         }
       />
-      <Headline kicker={full?.phone ?? ""} sub="Link your socials so artists can find you, and earn points for posting from shows.">
+      <Headline kicker={full?.phone ?? ""}>
         {profile.name || "Your profile"}
       </Headline>
       <ProfileForm
@@ -40,7 +40,7 @@ export default async function ProfilePage() {
 
       {posts && posts.length > 0 && (
         <>
-          <SectionHeader>Your posts</SectionHeader>
+          <SectionHeader>Posts</SectionHeader>
           <List>
             {posts.map((p) => {
               const a = Array.isArray(p.activity) ? p.activity[0] : p.activity;

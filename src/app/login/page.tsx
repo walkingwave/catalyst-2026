@@ -15,7 +15,7 @@ export default async function LoginPage({
   return (
     <Page>
       <Header />
-      <Headline sub="We'll text you a one-time code. No app, no password.">Sign in</Headline>
+      <Headline>Sign in</Headline>
       <LoginForm next={next ?? "/dashboard"} />
     </Page>
   );

@@ -30,7 +30,7 @@ export function DropCard({ drop }: { drop: Drop & { artist_name: string } }) {
         drop.code ? (
           <p className="font-mono text-[22px] tracking-widest mt-4 select-all">{drop.code}</p>
         ) : (
-          <p className="label mt-4">Claimed. Show this at the show.</p>
+          <p className="label mt-4">Claimed</p>
         )
       ) : (
         <div className="mt-4">

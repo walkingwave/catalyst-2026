@@ -86,7 +86,7 @@ export function AdminConsole() {
     return (
       <main className="flex-1 max-w-md mx-auto w-full px-4 pt-12">
         <div className="mb-2"><IconLock size={32} /></div>
-        <Headline sub="Enter the staff PIN to open the admin console.">Admin</Headline>
+        <Headline>Admin</Headline>
         <form onSubmit={submitPin} className="space-y-4">
           <Field label="PIN">
             <Input type="password" inputMode="numeric" placeholder="••••" value={pinInput} onChange={(e) => setPinInput(e.target.value)} autoFocus />
@@ -176,7 +176,7 @@ export function AdminConsole() {
         />
       )}
       {tab === "phones" && <PhonesTab headers={headers} flash={flash} />}
-      {!event && tab !== "events" && tab !== "phones" && <Panel className="mt-4"><Empty>No events yet. Create one in the Events tab.</Empty></Panel>}
+      {!event && tab !== "events" && tab !== "phones" && <Panel className="mt-4"><Empty>No events yet.</Empty></Panel>}
 
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>}
     </main>
@@ -284,11 +284,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
           <div className="min-w-0">
             <p className={`label ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>Live station</p>
             <p className="display d-md mt-1">{liveActivity ? liveActivity.name : "Off"}</p>
-            <p className={`t-foot mt-1 ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>
-              {liveActivity
-                ? "Every band tapped with any phone (iPhone included) logs this activity."
-                : "Turn on to make phone taps of the band URL count as a tap here."}
-            </p>
+            {liveActivity && <p className={`t-foot mt-1 ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>Any phone tapping a band logs this activity.</p>}
           </div>
         </div>
         <div className="flex gap-2 mt-3">
@@ -309,17 +305,17 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
         <div className="mb-3">
           {scanning ? (
             <Button variant="outline" onClick={stopNfc}>
-              <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Scanning, tap bands
+              <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Scanning
             </Button>
           ) : (
             <Button onClick={startScanning} disabled={!activityId}>
-              <IconNfc size={20} /> Start NFC scanning
+              <IconNfc size={20} /> Scan
             </Button>
           )}
           {nfcError && <p className="t-foot text-danger mt-2">{nfcError}</p>}
         </div>
       ) : (
-        <p className="t-foot text-ink-2 mb-3">No Web NFC in this browser. Enter a UID below to simulate a tap.</p>
+        <p className="t-foot text-ink-2 mb-3">No NFC in this browser. Enter a UID instead.</p>
       )}
 
       <form
@@ -441,33 +437,25 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
 
   return (
     <>
-      <SectionHeader>Write bands for this event</SectionHeader>
-      <Panel invert className="p-4">
-        <p className="label text-invert-fg/70">Each tap will</p>
-        <ol className="t-sub mt-2 space-y-1 list-decimal list-inside">
-          <li>Register the band&apos;s serial to <strong>{event.artist} · {event.venue}</strong></li>
-          <li>Write <span className="font-mono">/b/&lt;serial&gt;</span> to the tag so any phone opens the band page</li>
-        </ol>
-      </Panel>
-
-      <div className="mt-4">
+      <SectionHeader>Write bands</SectionHeader>
+      <div>
         {nfcSupported ? (
           <div className="space-y-2">
             {writing ? (
               <Button variant="outline" onClick={stopWriter}>
-                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Writer on, tap bands
+                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Writing
               </Button>
             ) : (
               <Button onClick={startWriter}>
-                <IconNfc size={20} /> Turn phone into NFC writer
+                <IconNfc size={20} /> Write
               </Button>
             )}
             {testing ? (
               <Button variant="outline" size="md" onClick={stopAll}>
-                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Test mode, tap a tag (reads only)
+                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Reading
               </Button>
             ) : (
-              <Button variant="outline" size="md" onClick={startTest}>Test NFC (read only)</Button>
+              <Button variant="outline" size="md" onClick={startTest}>Read tag</Button>
             )}
             {testResult && (
               <div className="border border-line p-3">
@@ -482,7 +470,7 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
             )}
           </div>
         ) : (
-          <p className="t-foot text-ink-2">No Web NFC here (Android Chrome only). Register a UID manually below, then write the URL with NFC Tools.</p>
+          <p className="t-foot text-ink-2">No NFC in this browser. Register a UID instead.</p>
         )}
         {error && <p className="t-foot text-danger mt-2">{error}</p>}
       </div>
@@ -496,7 +484,7 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
           setManualUid("");
         }}
       >
-        <Input placeholder="Band UID (manual)" value={manualUid} onChange={(e) => setManualUid(e.target.value)} autoCapitalize="characters" autoCorrect="off" />
+        <Input placeholder="Band UID" value={manualUid} onChange={(e) => setManualUid(e.target.value)} autoCapitalize="characters" autoCorrect="off" />
         <button type="submit" disabled={!manualUid} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
           Register
         </button>
@@ -592,7 +580,7 @@ function BandsTab({
 
   return (
     <>
-      <SectionHeader>Look up a band</SectionHeader>
+      <SectionHeader>Band</SectionHeader>
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -669,7 +657,7 @@ function BandsTab({
 
       <SectionHeader action={`${rows.length} bands`}>{event.artist} bands</SectionHeader>
       {rows.length === 0 ? (
-        <Panel><Empty>No bands registered to this event yet. Use Write or Tap.</Empty></Panel>
+        <Panel><Empty>No bands yet.</Empty></Panel>
       ) : (
         <List>
           {rows.map((b) => (
@@ -767,14 +755,14 @@ function EventsTab({
         <Panel className="p-4 mb-4">
           <form onSubmit={create} className="space-y-4">
             <Field label="Event name">
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Clumsy 30" required />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
             </Field>
             <Field label="Description">
-              <textarea className="w-full min-h-20 bg-surface border-2 border-line p-3 t-body outline-none focus:bg-surface-2" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's happening tonight" />
+              <textarea className="w-full min-h-20 bg-surface border-2 border-line p-3 t-body outline-none focus:bg-surface-2" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Location">
-                <Input value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="Massey Hall" required />
+                <Input value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="Venue" required />
               </Field>
               <Field label="Date">
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
@@ -782,13 +770,13 @@ function EventsTab({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Address (optional)">
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="178 Victoria St" />
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" />
               </Field>
               <Field label="Doors (optional)">
-                <Input value={doors} onChange={(e) => setDoors(e.target.value)} placeholder="7:00 PM" />
+                <Input value={doors} onChange={(e) => setDoors(e.target.value)} placeholder="Doors" />
               </Field>
             </div>
-            <Field label="Artist or team (points pool)">
+            <Field label="Artist or team">
               <select className="w-full h-14 bg-surface border-2 border-line px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
                 {artists.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -800,7 +788,7 @@ function EventsTab({
             </Field>
             {artistId === "new" && (
               <div className="grid grid-cols-[1fr_auto] gap-2">
-                <Input value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Artist or team name" required />
+                <Input value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Name" required />
                 <select className="h-14 bg-surface border-2 border-line px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
                   <option value="artist">Artist</option>
                   <option value="team">Team</option>
@@ -891,12 +879,7 @@ function PhonesTab({ headers, flash }: { headers: () => HeadersInit; flash: (m: 
   return (
     <>
       <SectionHeader>Demo phones</SectionHeader>
-      <Panel invert className="p-4">
-        <p className="label text-invert-fg/70">No SMS provider needed</p>
-        <p className="t-sub mt-2">
-          Numbers on this list sign in with code <span className="font-mono">123456</span>. Supabase skips the text entirely. Add a judge&apos;s phone here, they log in on the spot.
-        </p>
-      </Panel>
+      <p className="t-sub text-ink-2">These numbers sign in with code <span className="font-mono">123456</span>, no text sent.</p>
       {data && !data.configured && (
         <Panel className="p-4 mt-3">
           <p className="t-sub">
@@ -908,13 +891,13 @@ function PhonesTab({ headers, flash }: { headers: () => HeadersInit; flash: (m: 
       {data?.configured && data.ok && (
         <>
           <form onSubmit={add} className="flex gap-2 mt-4">
-            <Input type="tel" inputMode="tel" placeholder="(555) 010-0099" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Input type="tel" inputMode="tel" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
             <button type="submit" disabled={busy || !phone} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
               {busy ? "…" : "Add"}
             </button>
           </form>
           <p className="t-foot text-ink-2 mt-2">
-            {data.otps?.length ?? 0} numbers · valid until {data.valid_until ? new Date(data.valid_until).toLocaleDateString() : "—"} · adding extends to 90 days
+            {data.otps?.length ?? 0} numbers · valid until {data.valid_until ? new Date(data.valid_until).toLocaleDateString() : "—"}
           </p>
           <List className="mt-3">
             {(data.otps ?? []).map((t) => (

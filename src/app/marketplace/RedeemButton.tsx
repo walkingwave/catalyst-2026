@@ -41,7 +41,7 @@ export function RedeemButton({ reward, balance }: { reward: Reward; balance: num
         {code ? (
           <p className="font-mono text-[24px] tracking-widest mt-2 select-all">{code}</p>
         ) : (
-          <p className="t-foot mt-2 opacity-90">Show this screen at pickup.</p>
+          <p className="t-foot mt-2 opacity-90">Pick up at merch.</p>
         )}
       </div>
     );

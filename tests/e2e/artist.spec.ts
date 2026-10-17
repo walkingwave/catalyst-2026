@@ -3,8 +3,8 @@ import { OLP_CODE, createEvent, deleteEvent, deleteArtist, registerBand, testUid
 
 async function open(page: import("@playwright/test").Page, code = OLP_CODE) {
   await page.goto("/artist");
-  await page.getByPlaceholder("e.g. OLP2026").fill(code);
-  await page.getByRole("button", { name: /open console/i }).click();
+  await page.getByPlaceholder("Access code").fill(code);
+  await page.getByRole("button", { name: /unlock/i }).click();
 }
 
 test.describe("Artist console", () => {
@@ -27,7 +27,7 @@ test.describe("Artist console", () => {
     await expect(page.getByText(/5 selected/i)).toBeVisible();
     await page.getByRole("button", { name: /inbox only/i }).click();
     const body = `E2E message ${Date.now()}`;
-    await page.getByPlaceholder(/thanks for coming out tonight/i).fill(body);
+    await page.getByPlaceholder("Message").fill(body);
     await page.getByRole("button", { name: /send to 5 fans/i }).click();
     await expect(page.getByText(/sent to 5 fans/i)).toBeVisible();
     await page.getByRole("button", { name: /^log$/i }).click();
@@ -71,7 +71,7 @@ test.describe("Artist console", () => {
       await expect(page.getByText(/post on instagram · \+150 pts/i)).toBeVisible();
       await page.getByRole("button", { name: /^approve$/i }).click();
       await expect(page.getByText(/approved, points awarded/i)).toBeVisible();
-      await expect(page.getByText(/nothing waiting/i)).toBeVisible();
+      await expect(page.getByText(/nothing to review/i)).toBeVisible();
 
       // fan sees 150 in the pool and Done on the show page
       await fan.goto(`/concerts/${ev.id}`);

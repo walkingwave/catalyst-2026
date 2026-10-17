@@ -89,20 +89,17 @@ export default async function Dashboard({
       )}
 
       <Panel invert className="p-5 mt-2">
-        <p className="label text-invert-fg/70">Hey {firstName}, you have</p>
+        <p className="label text-invert-fg/70">{firstName}</p>
         <div className="flex items-end gap-3 mt-3">
           <Points value={pts?.balance ?? 0} className="display text-[72px] leading-[0.85]" />
           <span className="display d-md pb-1">pts</span>
         </div>
-        <p className="t-foot text-invert-fg/70 mt-3">
-          across {fandoms.length} {fandoms.length === 1 ? "fandom" : "fandoms"}
-          {pts && pts.spent > 0 ? ` · ${pts.spent.toLocaleString()} redeemed` : ""}
-        </p>
+        {pts && pts.spent > 0 && <p className="t-foot text-invert-fg/70 mt-3">{pts.spent.toLocaleString()} redeemed</p>}
       </Panel>
 
       {inbox.length > 0 && (
         <>
-          <SectionHeader>From your artists</SectionHeader>
+          <SectionHeader>Inbox</SectionHeader>
           <div className="space-y-3">
             {inbox.map((i) =>
               i.kind === "drop" ? (
@@ -123,9 +120,9 @@ export default async function Dashboard({
         </>
       )}
 
-      <SectionHeader action={<Link href="/leaderboard">Ranks</Link>}>Your fandoms</SectionHeader>
+      <SectionHeader action={<Link href="/leaderboard">Ranks</Link>}>Fandoms</SectionHeader>
       {fandoms.length === 0 ? (
-        <Panel><Empty>Tap in at a show to start a fandom.</Empty></Panel>
+        <Panel><Empty>No fandoms yet.</Empty></Panel>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {fandoms.map((f) => (
@@ -138,7 +135,7 @@ export default async function Dashboard({
                 <div className="p-3">
                   <p className="display d-sm truncate">{f.artist!.name}</p>
                   <p className="display d-lg t-num mt-2">{f.balance.toLocaleString()}</p>
-                  <p className="t-foot text-ink-2">pts to spend</p>
+                  <p className="t-foot text-ink-2">pts</p>
                 </div>
               </Panel>
             </Link>
@@ -161,11 +158,11 @@ export default async function Dashboard({
               )}
               <div className="grid grid-cols-2 rules-x border-b border-line">
                 <div className="px-4 py-3 border-r border-line">
-                  <p className="label text-ink-2">At the show</p>
+                  <p className="label text-ink-2">Show</p>
                   <p className="display d-md t-num mt-1">{showRank ? `#${showRank.rank}` : "—"}<span className="t-foot text-ink-2 ml-1 normal-case font-sans">of {showRank?.total ?? 0}</span></p>
                 </div>
                 <div className="px-4 py-3">
-                  <p className="label text-ink-2">In the fandom</p>
+                  <p className="label text-ink-2">Fandom</p>
                   <p className="display d-md t-num mt-1">{artistRank ? `#${artistRank.rank}` : "—"}<span className="t-foot text-ink-2 ml-1 normal-case font-sans">of {artistRank?.total ?? 0}</span></p>
                 </div>
               </div>
@@ -179,9 +176,9 @@ export default async function Dashboard({
         </>
       )}
 
-      <SectionHeader action={<Link href="/concerts">See all</Link>}>Recent activity</SectionHeader>
+      <SectionHeader action={<Link href="/concerts">All</Link>}>Activity</SectionHeader>
       {recent.length === 0 ? (
-        <Panel><Empty>Tap your band at a booth to earn points.</Empty></Panel>
+        <Panel><Empty>No activity yet.</Empty></Panel>
       ) : (
         <List>
           {recent.map((s) => (

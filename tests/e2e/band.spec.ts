@@ -5,7 +5,7 @@ test.describe("Band tap page", () => {
   test("unknown band shows friendly error", async ({ page }) => {
     await page.goto("/b/04E2EUNKNOWN9");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/unknown band/i);
-    await expect(page.getByRole("link", { name: /sign in instead/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^sign in$/i })).toBeVisible();
   });
 
   test("garbage uid handled", async ({ page }) => {
@@ -22,15 +22,15 @@ test.describe("Band tap page", () => {
       await scan(request, uid, ev.activities.find((a) => a.name === "Merch Booth")!.id);
 
       await page.goto(`/b/${uid}`);
-      await expect(page.getByText(/this band has/i)).toBeVisible();
+      await expect(page.getByText(/band points/i)).toBeVisible();
       await expect(page.getByText("150", { exact: true })).toBeVisible();
-      await expect(page.getByText(/2 activities tonight/i)).toBeVisible();
+      await expect(page.getByText(/^2 activities$/i)).toBeVisible();
       await expect(page.getByText("Merch Booth")).toBeVisible();
 
-      await page.getByPlaceholder("Your name").fill("E2E Fan");
-      await page.getByPlaceholder("(555) 010-0099").fill(PHONES.sam);
-      await page.getByRole("button", { name: /save my points/i }).click();
-      await page.getByPlaceholder("123456").fill(OTP);
+      await page.getByPlaceholder("Name").fill("E2E Fan");
+      await page.getByPlaceholder("Phone number").fill(PHONES.sam);
+      await page.getByRole("button", { name: /^claim$/i }).click();
+      await page.getByPlaceholder("Code").fill(OTP);
       await page.getByRole("button", { name: /confirm/i }).click();
       await expect(page).toHaveURL(/\/dashboard\?claimed=1/);
       await expect(page.getByText(/band claimed/i)).toBeVisible();
@@ -58,7 +58,7 @@ test.describe("Band tap page", () => {
       await expect(page.getByRole("link", { name: /sign in with phone/i })).toHaveAttribute("href", `/login?next=/b/${uid}`);
 
       await loginAs(page, PHONES.maya, `/b/${uid}`);
-      await expect(page.getByText(/belongs to another fan/i)).toBeVisible();
+      await expect(page.getByText(/sign in with the number that claimed it/i)).toBeVisible();
     } finally {
       await deleteEvent(request, ev.id);
     }
