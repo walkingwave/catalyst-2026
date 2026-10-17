@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireFan, formatDate } from "@/lib/fan";
-import { Page, Card, Empty, Points } from "@/components/ui";
+import { Page, LargeTitle, List, Row, Card, Empty, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 
@@ -36,60 +36,65 @@ export default async function LeaderboardPage({
 
   return (
     <Page>
-      <Header title="Leaderboard" />
-      <h1 className="text-3xl font-bold mb-4">Ranks</h1>
+      <Header />
+      <LargeTitle sub={concert ? `${concert.name} · ${formatDate(concert.date)}` : "Across every show."}>
+        Ranks
+      </LargeTitle>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 mb-4">
-        <Tab href="/leaderboard?scope=all" active={all}>
-          All-time
-        </Tab>
+      {/* Segmented control */}
+      <div className="flex gap-1 p-1 rounded-[12px] bg-surface-2 overflow-x-auto mb-4">
+        <Seg href="/leaderboard?scope=all" active={all}>All-time</Seg>
         {concerts?.map((c) => (
-          <Tab key={c.id} href={`/leaderboard?concert=${c.id}`} active={!all && c.id === concertId}>
+          <Seg key={c.id} href={`/leaderboard?concert=${c.id}`} active={!all && c.id === concertId}>
             {c.artist}
-          </Tab>
+          </Seg>
         ))}
       </div>
 
-      {concert && (
-        <p className="text-muted text-sm mb-3">
-          {concert.name} · {formatDate(concert.date)}
-        </p>
-      )}
-
       {!rows || rows.length === 0 ? (
-        <Empty>Nobody on the board yet.</Empty>
+        <Card>
+          <Empty>Nobody on the board yet.</Empty>
+        </Card>
       ) : (
-        <Card className="p-0 divide-y divide-border">
+        <List>
           {rows.map((r) => {
             const me = r.user_id === user.id;
             return (
-              <div
+              <Row
                 key={r.user_id}
-                className={`flex items-center gap-3 px-4 py-3 ${me ? "bg-accent/10" : ""}`}
-              >
-                <span className={`w-8 font-mono ${r.rank <= 3 ? "text-accent" : "text-muted"}`}>
-                  {r.rank}
-                </span>
-                <span className="flex-1 truncate font-medium">
-                  {r.name || "Fan"} {me && <span className="text-muted text-xs">(you)</span>}
-                </span>
-                <Points value={r.points} className="text-foreground" />
-              </div>
+                selected={me}
+                leading={
+                  <span
+                    className={`w-8 h-8 rounded-full flex items-center justify-center t-subhead font-semibold ${
+                      r.rank <= 3 ? "bg-accent text-on-accent" : "bg-surface-2 text-text-2"
+                    }`}
+                  >
+                    {r.rank}
+                  </span>
+                }
+                title={
+                  <>
+                    {r.name || "Fan"}
+                    {me && <span className="t-footnote text-text-2 ml-1">(you)</span>}
+                  </>
+                }
+                value={<Points value={r.points} />}
+              />
             );
           })}
-        </Card>
+        </List>
       )}
       <Nav />
     </Page>
   );
 }
 
-function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function Seg({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className={`shrink-0 rounded-full px-4 h-10 flex items-center text-sm font-semibold border ${
-        active ? "bg-accent text-accent-fg border-accent" : "bg-card border-border text-muted"
+      className={`shrink-0 h-9 px-3 rounded-[9px] flex items-center t-subhead font-medium whitespace-nowrap ${
+        active ? "bg-surface text-text card-shadow" : "text-text-2"
       }`}
     >
       {children}

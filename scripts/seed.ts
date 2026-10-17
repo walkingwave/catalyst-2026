@@ -50,7 +50,10 @@ function fail(step: string, error: unknown): never {
 async function wipe() {
   console.log("[seed] wiping previous demo data");
   // Concerts cascade to bands, activities, scans.
-  const { error: cErr } = await db.from("concerts").delete().in("name", ["Catalyst Fest 2026", "Catalyst Fest 2025"]);
+  const { error: cErr } = await db
+    .from("concerts")
+    .delete()
+    .in("name", ["Catalyst Fest 2026", "Catalyst Fest 2025", "Our Lady Peace: Clumsy 30", "Neon Harbor: Warehouse Sessions"]);
   if (cErr) fail("delete concerts", cErr);
   const { error: rErr } = await db.from("rewards").delete().gte("cost", 0);
   if (rErr) fail("delete rewards", rErr);
@@ -90,24 +93,35 @@ async function main() {
   const today = new Date().toISOString().slice(0, 10);
   const { data: concert, error: cErr } = await db
     .from("concerts")
-    .insert({ name: "Catalyst Fest 2026", artist: "The Night Signals", venue: "Riverfront Arena", date: today })
+    .insert({
+      name: "Our Lady Peace: Clumsy 30",
+      artist: "Our Lady Peace",
+      venue: "Massey Hall",
+      address: "178 Victoria St, Toronto, ON",
+      doors_at: "7:00 PM",
+      description: "Our Lady Peace play Clumsy front to back, plus a second set of hits, at Toronto's Massey Hall.",
+      image_url: "/img/our-lady-peace.jpg",
+      venue_image_url: "/img/massey-hall.jpg",
+      date: today,
+    })
     .select()
     .single();
   if (cErr || !concert) fail("insert concert", cErr);
 
   const { data: pastConcert, error: pErr } = await db
     .from("concerts")
-    .insert({ name: "Catalyst Fest 2025", artist: "Neon Harbor", venue: "The Warehouse", date: "2025-10-11" })
+    .insert({ name: "Neon Harbor: Warehouse Sessions", artist: "Neon Harbor", venue: "The Warehouse", address: "1 Polson St, Toronto, ON", doors_at: "8:00 PM", date: "2025-10-11" })
     .select()
     .single();
   if (pErr || !pastConcert) fail("insert past concert", pErr);
 
+  // map_x / map_y are percent positions on the venue floor plan (stage at top, lobby at bottom).
   const activityRows = [
-    { name: "Entry", points: 50 },
-    { name: "Merch Booth", points: 100 },
-    { name: "Photo Wall", points: 75 },
-    { name: "Trivia", points: 120 },
-    { name: "Meet & Greet", points: 200 },
+    { name: "Entry", points: 50, map_x: 50, map_y: 91, location: "Shuter St doors", icon: "entry" },
+    { name: "Merch Booth", points: 100, map_x: 22, map_y: 80, location: "Main lobby, west wall", icon: "merch" },
+    { name: "Photo Wall", points: 75, map_x: 78, map_y: 80, location: "Main lobby, east wall", icon: "photo" },
+    { name: "Trivia", points: 120, map_x: 15, map_y: 46, location: "Centuries Bar, level 2", icon: "trivia" },
+    { name: "Meet & Greet", points: 200, map_x: 84, map_y: 14, location: "Stage door, backstage left", icon: "meet" },
   ];
   const { data: activities, error: aErr } = await db
     .from("activities")

@@ -17,6 +17,7 @@ Next.js 16 (App Router, TypeScript, Tailwind v4) on Vercel · Supabase (Postgres
 supabase/migrations/0001_init.sql   schema, views, RLS, redeem_reward(), archive_expired_bands()
 supabase/migrations/0002_*.sql      function grants (advisor fixes)
 supabase/migrations/0003_*.sql      keep users.phone in E.164
+supabase/migrations/0004_*.sql      concert imagery/description + activity map pins
 scripts/seed.ts                     demo data (npm run seed)
 src/proxy.ts                        refreshes Supabase session cookie on every request
 src/lib/supabase/{server,client,admin}.ts
@@ -36,9 +37,9 @@ src/app/api/cron/archive            daily: archive unclaimed bands 30d after sho
 | table | notes |
 |---|---|
 | `users` | `id` = auth user id, `name`, `phone`. Auto-created by trigger on `auth.users` insert. |
-| `concerts` | `name`, `artist`, `venue`, `date` |
+| `concerts` | `name`, `artist`, `venue`, `date`, `image_url`, `venue_image_url`, `description`, `doors_at`, `address` |
 | `bands` | `uid` PK (tag serial, uppercase hex, no colons), `concert_id`, `user_id` nullable, `claimed_at`, `archived` |
-| `activities` | per concert: `name`, `points`. Seed adds an "Entry" activity for attendance. |
+| `activities` | per concert: `name`, `points`, `map_x`/`map_y` (percent on venue map), `location`, `icon`. Seed adds an "Entry" activity for attendance. |
 | `scans` | `band_uid` + `activity_id`, unique together (no farming) |
 | `rewards` | `cost`, `type` (`merch` \| `discount_code`), `stock` |
 | `reward_codes` | one row per code, `redeemed_by` nullable |
@@ -119,9 +120,17 @@ Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewr
 
 Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-pin`. Response includes points, whether the band is claimed, owner name, and rank tonight.
 
-## Mobile
+## Design
 
-Built for phones in the dark: dark theme, 56px tap targets, 16px inputs (no iOS zoom), safe-area insets, `viewport-fit=cover`, no overscroll bounce, `touch-action: manipulation`. Web manifest lets fans "Add to Home Screen" as a standalone app.
+Light and dark themes (follows system, toggle in the header, remembered per device). Tokens live in `src/app/globals.css` and follow platform conventions rather than a custom look:
+
+- iOS system palette: grouped background + white inset cards (light), elevated greys not pure black (dark), indigo accent, semantic success/warning/danger.
+- HIG type scale: large title 34, title 28/22, headline/body 17, subhead 15, footnote 13. Utilities `.t-large-title` … `.t-caption`.
+- 8pt grid, 44pt minimum targets, 50px primary buttons with 12px radius, 16px card radius, 49px tab bar with SVG icons.
+- Inset grouped lists (`List` + `Row`) with hairline separators, segmented control for leaderboard scopes, no blur or translucency.
+- 17px inputs (no iOS zoom), safe-area insets, `viewport-fit=cover`, no overscroll bounce, web manifest for Add to Home Screen.
+
+Demo show: Our Lady Peace at Massey Hall, with a stylized floor-plan map (`VenueMap`) whose pins come from `activities.map_x / map_y`. Photos are Creative Commons from Wikimedia (see `public/img/ATTRIBUTION.md`).
 
 ## Deploy
 

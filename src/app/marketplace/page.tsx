@@ -1,5 +1,5 @@
 import { requireFan } from "@/lib/fan";
-import { Page, Card, Empty, Points } from "@/components/ui";
+import { Page, LargeTitle, Card, List, Row, SectionHeader, Empty, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { RedeemButton } from "./RedeemButton";
@@ -22,33 +22,36 @@ export default async function MarketplacePage() {
 
   return (
     <Page>
-      <Header
-        right={
-          <span className="text-sm">
-            <Points value={balance} className="text-accent font-semibold" />{" "}
-            <span className="text-muted">pts</span>
-          </span>
+      <Header />
+      <LargeTitle
+        sub={
+          <>
+            You have <Points value={balance} className="text-text font-semibold" /> points to spend.
+          </>
         }
-      />
-      <h1 className="text-3xl font-bold mb-5">Rewards</h1>
+      >
+        Rewards
+      </LargeTitle>
 
       {!rewards || rewards.length === 0 ? (
-        <Empty>No rewards yet.</Empty>
+        <Card>
+          <Empty>No rewards yet.</Empty>
+        </Card>
       ) : (
         <div className="space-y-3">
           {(rewards as Reward[]).map((r) => (
-            <Card key={r.id}>
-              <div className="flex justify-between gap-3">
+            <Card key={r.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold text-lg">{r.name}</p>
-                  <p className="text-muted text-sm">{r.description}</p>
-                  <p className="text-muted text-xs mt-1">
+                  <p className="t-headline">{r.name}</p>
+                  <p className="t-subhead text-text-2 mt-0.5">{r.description}</p>
+                  <p className="t-footnote text-text-2 mt-1.5">
                     {r.stock > 0 ? `${r.stock} left` : "Sold out"} ·{" "}
-                    {r.type === "discount_code" ? "Code" : "Pickup"}
+                    {r.type === "discount_code" ? "Digital code" : "Pick up at merch"}
                   </p>
                 </div>
-                <p className="text-accent font-mono text-lg whitespace-nowrap">
-                  <Points value={r.cost} />
+                <p className="t-headline t-num text-accent whitespace-nowrap">
+                  <Points value={r.cost} /> pts
                 </p>
               </div>
               <div className="mt-3">
@@ -61,23 +64,22 @@ export default async function MarketplacePage() {
 
       {redemptions && redemptions.length > 0 && (
         <>
-          <h2 className="text-lg font-semibold mt-8 mb-3">Your redemptions</h2>
-          <Card className="p-0 divide-y divide-border">
+          <SectionHeader>Your redemptions</SectionHeader>
+          <List>
             {redemptions.map((rd) => {
               const reward = Array.isArray(rd.reward) ? rd.reward[0] : rd.reward;
               const code = Array.isArray(rd.code) ? rd.code[0] : rd.code;
               return (
-                <div key={rd.id} className="px-4 py-3">
-                  <p className="font-medium">{reward?.name}</p>
-                  {code?.code ? (
-                    <p className="font-mono text-accent text-lg tracking-wider mt-1">{code.code}</p>
-                  ) : (
-                    <p className="text-muted text-sm">Show this screen at pickup.</p>
-                  )}
-                </div>
+                <Row
+                  key={rd.id}
+                  title={reward?.name}
+                  subtitle={code?.code ? "Show this code at the booth" : "Show this screen at pickup"}
+                  value={code?.code ? <span className="font-mono tracking-wider">{code.code}</span> : undefined}
+                  valueTone="accent"
+                />
               );
             })}
-          </Card>
+          </List>
         </>
       )}
       <Nav />

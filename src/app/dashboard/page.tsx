@@ -1,8 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
-import { requireFan, fanScans, timeAgo } from "@/lib/fan";
-import { Page, Card, Points, Pill, Empty } from "@/components/ui";
+import { requireFan, fanScans, timeAgo, formatDate } from "@/lib/fan";
+import { Page, Card, Points, List, Row, StatTile, SectionHeader, Banner, Empty } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
+import { IconChevron } from "@/components/icons";
+import type { Concert } from "@/lib/types";
 
 export default async function Dashboard({
   searchParams,
@@ -16,17 +19,15 @@ export default async function Dashboard({
     supabase.from("user_points").select("earned, spent, balance").eq("user_id", user.id).maybeSingle(),
     supabase
       .from("bands")
-      .select("uid, concert:concerts(id, name, artist, venue, date)")
+      .select("uid, concert:concerts(id, name, artist, venue, date, image_url)")
       .eq("user_id", user.id),
     fanScans(supabase),
     supabase.from("leaderboard_alltime").select("user_id, rank").eq("user_id", user.id).maybeSingle(),
   ]);
 
-  // "Tonight" = the most recent concert the fan has a band for.
-  type C = { id: string; name: string; artist: string; venue: string; date: string };
-  const byId = new Map<string, C>();
+  const byId = new Map<string, Concert>();
   for (const b of bands ?? []) {
-    const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as C | null;
+    const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as Concert | null;
     if (c) byId.set(c.id, c);
   }
   const concerts = [...byId.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -42,74 +43,95 @@ export default async function Dashboard({
     if (me) tonightRank = { rank: me.rank, total: lb?.length ?? 0 };
   }
 
-  const recent = scans.slice(0, 8);
+  const recent = scans.slice(0, 6);
+  const firstName = (profile.name || "there").split(" ")[0];
 
   return (
     <Page>
       <Header
         right={
           <form action="/auth/signout" method="post">
-            <button className="text-muted text-sm">Sign out</button>
+            <button className="t-subhead text-accent h-11 px-2">Sign out</button>
           </form>
         }
       />
 
       {claimed && (
-        <div className="mb-4 rounded-2xl bg-accent/15 text-accent px-4 py-3 text-sm font-medium">
-          Band claimed. Your points are saved.
+        <div className="mb-3">
+          <Banner>Band claimed. Your points are saved to this number.</Banner>
         </div>
       )}
 
-      <p className="text-muted">Hey {profile.name || "there"}</p>
-      <h1 className="text-6xl font-bold tracking-tight mt-1">
-        <Points value={pts?.balance ?? 0} className="text-accent" />
-        <span className="text-2xl text-muted font-medium ml-2">pts</span>
-      </h1>
-      {pts && pts.spent > 0 && (
-        <p className="text-muted text-sm mt-1">
-          {pts.earned.toLocaleString()} earned · {pts.spent.toLocaleString()} spent
-        </p>
+      <div className="pt-2 pb-4">
+        <p className="t-subhead text-text-2">Hi {firstName}</p>
+        <div className="flex items-baseline gap-2">
+          <Points value={pts?.balance ?? 0} className="t-large-title text-[44px] leading-[52px]" />
+          <span className="t-headline text-text-2">points</span>
+        </div>
+        {pts && pts.spent > 0 && (
+          <p className="t-footnote text-text-2">
+            {pts.earned.toLocaleString()} earned · {pts.spent.toLocaleString()} redeemed
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <StatTile
+          label="Tonight"
+          value={tonightRank ? `#${tonightRank.rank}` : "—"}
+          sub={tonightRank ? `of ${tonightRank.total} fans` : "No show yet"}
+          href={tonight ? `/leaderboard?concert=${tonight.id}` : "/leaderboard"}
+        />
+        <StatTile
+          label="All-time"
+          value={allTime ? `#${allTime.rank}` : "—"}
+          sub={`${concerts.length} ${concerts.length === 1 ? "show" : "shows"}`}
+          href="/leaderboard?scope=all"
+        />
+      </div>
+
+      {tonight && (
+        <>
+          <SectionHeader>Tonight</SectionHeader>
+          <Link href={`/concerts/${tonight.id}`} className="block active:opacity-70">
+            <Card className="overflow-hidden">
+              {tonight.image_url && (
+                <div className="relative aspect-[16/9]">
+                  <Image src={tonight.image_url} alt={tonight.artist} fill className="object-cover" priority />
+                </div>
+              )}
+              <div className="flex items-center px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="t-headline truncate">{tonight.artist}</p>
+                  <p className="t-footnote text-text-2 truncate">
+                    {tonight.venue} · {formatDate(tonight.date)}
+                  </p>
+                </div>
+                <span className="t-subhead text-accent mr-1">Venue map</span>
+                <IconChevron size={18} className="text-text-3" />
+              </div>
+            </Card>
+          </Link>
+        </>
       )}
 
-      <div className="grid grid-cols-2 gap-3 mt-6">
-        <Link href={tonight ? `/leaderboard?concert=${tonight.id}` : "/leaderboard"}>
-          <Card>
-            <p className="text-muted text-xs uppercase tracking-wide">Tonight</p>
-            <p className="text-3xl font-bold mt-1">{tonightRank ? `#${tonightRank.rank}` : "—"}</p>
-            <p className="text-muted text-xs mt-1 truncate">
-              {tonight ? tonight.artist : "No show yet"}
-            </p>
-          </Card>
-        </Link>
-        <Link href="/leaderboard?scope=all">
-          <Card>
-            <p className="text-muted text-xs uppercase tracking-wide">All-time</p>
-            <p className="text-3xl font-bold mt-1">{allTime ? `#${allTime.rank}` : "—"}</p>
-            <p className="text-muted text-xs mt-1">
-              {concerts.length} {concerts.length === 1 ? "show" : "shows"}
-            </p>
-          </Card>
-        </Link>
-      </div>
-
-      <div className="flex items-center justify-between mt-8 mb-3">
-        <h2 className="text-lg font-semibold">Recent activity</h2>
-        {tonight && <Pill>{tonight.name}</Pill>}
-      </div>
+      <SectionHeader action={<Link href="/concerts">See all</Link>}>Recent activity</SectionHeader>
       {recent.length === 0 ? (
-        <Empty>Tap your band at a booth to earn points.</Empty>
-      ) : (
-        <Card className="p-0 divide-y divide-border">
-          {recent.map((s) => (
-            <div key={s.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="font-medium">{s.activity?.name}</p>
-                <p className="text-muted text-xs">{timeAgo(s.scanned_at)}</p>
-              </div>
-              <span className="text-accent font-mono">+{s.activity?.points}</span>
-            </div>
-          ))}
+        <Card>
+          <Empty>Tap your band at a booth to earn points.</Empty>
         </Card>
+      ) : (
+        <List>
+          {recent.map((s) => (
+            <Row
+              key={s.id}
+              title={s.activity?.name}
+              subtitle={timeAgo(s.scanned_at)}
+              value={`+${s.activity?.points}`}
+              valueTone="success"
+            />
+          ))}
+        </List>
       )}
 
       <Nav />

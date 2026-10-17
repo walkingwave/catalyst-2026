@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
-import { Page } from "@/components/ui";
+import { Page, LargeTitle } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { LoginForm } from "./LoginForm";
 
@@ -15,8 +15,7 @@ export default async function LoginPage({
   return (
     <Page>
       <Header />
-      <h1 className="text-3xl font-bold mb-1">Sign in</h1>
-      <p className="text-muted mb-6">We&apos;ll text you a code.</p>
+      <LargeTitle sub="We'll text you a one-time code.">Sign in</LargeTitle>
       <LoginForm next={next ?? "/dashboard"} />
     </Page>
   );

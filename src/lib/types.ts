@@ -4,6 +4,11 @@ export type Concert = {
   artist: string;
   venue: string;
   date: string;
+  image_url?: string | null;
+  venue_image_url?: string | null;
+  description?: string;
+  doors_at?: string | null;
+  address?: string | null;
 };
 
 export type Activity = {
@@ -11,6 +16,10 @@ export type Activity = {
   concert_id: string;
   name: string;
   points: number;
+  map_x?: number | null;
+  map_y?: number | null;
+  location?: string | null;
+  icon?: string | null;
 };
 
 export type Band = {

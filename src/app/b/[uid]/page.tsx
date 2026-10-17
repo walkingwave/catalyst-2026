@@ -1,8 +1,9 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUser } from "@/lib/supabase/server";
 import { normalizeUid, isValidUid } from "@/lib/uid";
-import { Page, Card, LinkButton, Points } from "@/components/ui";
+import { Page, Card, LinkButton, Points, List, Row, SectionHeader, LargeTitle } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { ClaimFlow } from "./ClaimFlow";
 
@@ -14,24 +15,19 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
   const { data: band } = isValidUid(uid)
     ? await db
         .from("bands")
-        .select("uid, user_id, archived, concert:concerts(name, artist, venue, date)")
+        .select("uid, user_id, archived, concert:concerts(name, artist, venue, date, image_url)")
         .eq("uid", uid)
         .maybeSingle()
     : { data: null };
 
   if (!band) {
     return (
-      <Page className="flex flex-col justify-center min-h-dvh pb-6">
+      <Page>
         <Header />
-        <h1 className="text-3xl font-bold">Hmm, unknown band.</h1>
-        <p className="text-muted mt-2">
-          This wristband hasn&apos;t been scanned at a show yet. Tap in at the entry and try again.
-        </p>
-        <div className="mt-8">
-          <LinkButton href="/login" variant="secondary">
-            Sign in instead
-          </LinkButton>
-        </div>
+        <LargeTitle sub="This wristband hasn't been scanned at a show yet. Tap in at the entry and try again.">
+          Unknown band
+        </LargeTitle>
+        <LinkButton href="/login" variant="tinted">Sign in instead</LinkButton>
       </Page>
     );
   }
@@ -39,38 +35,35 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
   const user = await getUser();
   const concert = Array.isArray(band.concert) ? band.concert[0] : band.concert;
 
-  // Claimed by me -> straight to dashboard.
   if (band.user_id && user && band.user_id === user.id) redirect("/dashboard");
 
-  // Claimed by someone else (or not logged in) -> login prompt.
   if (band.user_id) {
     return (
       <Page>
         <Header />
-        <h1 className="text-3xl font-bold">This band is claimed.</h1>
-        <p className="text-muted mt-2">
-          {user
-            ? "It belongs to another fan. Sign in with the number that claimed it."
-            : "Sign in with the number that claimed it to see your points."}
-        </p>
-        <div className="mt-8">
-          <LinkButton href={`/login?next=/b/${uid}`}>Sign in with phone</LinkButton>
-        </div>
+        <LargeTitle
+          sub={
+            user
+              ? "It belongs to another fan. Sign in with the number that claimed it."
+              : "Sign in with the number that claimed it to see your points."
+          }
+        >
+          This band is claimed
+        </LargeTitle>
+        <LinkButton href={`/login?next=/b/${uid}`}>Sign in with phone</LinkButton>
       </Page>
     );
   }
 
   if (band.archived) {
     return (
-      <Page className="flex flex-col justify-center min-h-dvh pb-6">
+      <Page>
         <Header />
-        <h1 className="text-3xl font-bold">This band expired.</h1>
-        <p className="text-muted mt-2">Unclaimed bands expire 30 days after the show.</p>
+        <LargeTitle sub="Unclaimed bands expire 30 days after the show.">This band expired</LargeTitle>
       </Page>
     );
   }
 
-  // Unclaimed: preview + claim.
   const { data: stats } = await db
     .from("band_points")
     .select("points, activity_count")
@@ -89,38 +82,48 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
     <Page>
       <Header />
       {concert && (
-        <p className="text-muted text-sm">
-          {concert.artist} · {concert.venue}
-        </p>
-      )}
-      <h1 className="text-3xl font-bold mt-1">
-        You&apos;ve got <Points value={points} className="text-accent" /> pts
-      </h1>
-      <p className="text-muted mt-1">
-        {count === 0
-          ? "No activities yet. Tap in at a booth to start earning."
-          : `${count} ${count === 1 ? "activity" : "activities"} tonight.`}
-      </p>
-
-      {scans && scans.length > 0 && (
-        <Card className="mt-5 divide-y divide-border p-0">
-          {scans.map((s, i) => {
-            const a = Array.isArray(s.activity) ? s.activity[0] : s.activity;
-            return (
-              <div key={i} className="flex justify-between px-4 py-3">
-                <span>{a?.name}</span>
-                <span className="text-accent font-mono">+{a?.points}</span>
-              </div>
-            );
-          })}
+        <Card className="overflow-hidden mt-2">
+          {concert.image_url && (
+            <div className="relative aspect-[16/9]">
+              <Image src={concert.image_url} alt={concert.artist} fill className="object-cover" priority />
+            </div>
+          )}
+          <div className="px-4 py-3">
+            <p className="t-headline">{concert.artist}</p>
+            <p className="t-footnote text-text-2">{concert.venue}</p>
+          </div>
         </Card>
       )}
 
-      <h2 className="text-xl font-semibold mt-8 mb-1">Save your points</h2>
-      <p className="text-muted text-sm mb-4">
-        Claim this band so your points stick with you. Name and phone, that&apos;s it.
-      </p>
-      <ClaimFlow uid={uid} signedIn={!!user} />
+      <div className="pt-5 pb-1">
+        <p className="t-subhead text-text-2">Your band tonight</p>
+        <div className="flex items-baseline gap-2">
+          <Points value={points} className="t-large-title text-[44px] leading-[52px]" />
+          <span className="t-headline text-text-2">points</span>
+        </div>
+        <p className="t-footnote text-text-2">
+          {count === 0
+            ? "No activities yet. Tap in at a booth to start earning."
+            : `${count} ${count === 1 ? "activity" : "activities"} so far`}
+        </p>
+      </div>
+
+      {scans && scans.length > 0 && (
+        <List className="mt-3">
+          {scans.map((s, i) => {
+            const a = Array.isArray(s.activity) ? s.activity[0] : s.activity;
+            return <Row key={i} title={a?.name} value={`+${a?.points}`} valueTone="success" />;
+          })}
+        </List>
+      )}
+
+      <SectionHeader>Save your points</SectionHeader>
+      <Card className="p-4">
+        <p className="t-subhead text-text-2 mb-4">
+          Claim this band so your points stick with you. Name and phone, that&apos;s it.
+        </p>
+        <ClaimFlow uid={uid} signedIn={!!user} />
+      </Card>
     </Page>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Card } from "@/components/ui";
+import { Button, Input, List, Row, Field, LargeTitle } from "@/components/ui";
+import { IconCheck, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
 import type { Activity, Concert, ScanResult } from "@/lib/types";
 
@@ -143,19 +144,21 @@ export function StaffStation() {
   // ---------- PIN gate ----------
   if (!pin) {
     return (
-      <main className="flex-1 max-w-md mx-auto w-full px-4 pt-16">
-        <h1 className="text-2xl font-bold mb-1">Staff station</h1>
-        <p className="text-muted mb-6">Enter the staff PIN.</p>
-        <form onSubmit={submitPin} className="space-y-3">
-          <Input
-            type="password"
-            inputMode="numeric"
-            placeholder="PIN"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            autoFocus
-          />
-          {pinError && <p className="text-danger text-sm">{pinError}</p>}
+      <main className="flex-1 max-w-md mx-auto w-full px-4 pt-12">
+        <div className="text-accent mb-2"><IconLock size={32} /></div>
+        <LargeTitle sub="Enter the staff PIN to open the scan station.">Staff</LargeTitle>
+        <form onSubmit={submitPin} className="space-y-4">
+          <Field label="PIN">
+            <Input
+              type="password"
+              inputMode="numeric"
+              placeholder="••••"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              autoFocus
+            />
+          </Field>
+          {pinError && <p className="t-footnote text-danger px-1">{pinError}</p>}
           <Button type="submit">Unlock</Button>
         </form>
       </main>
@@ -167,13 +170,11 @@ export function StaffStation() {
 
   // ---------- station ----------
   return (
-    <main className="flex-1 max-w-md mx-auto w-full px-4 pt-6 pb-10 relative">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold">
-          <span className="text-accent">●</span> Staff
-        </h1>
+    <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-10 relative">
+      <div className="flex items-center justify-between h-12 mb-2">
+        <h1 className="t-title2">Scan station</h1>
         <button
-          className="text-muted text-sm"
+          className="t-subhead text-accent h-11 px-2"
           onClick={() => {
             stopNfc();
             setPin(null);
@@ -186,9 +187,9 @@ export function StaffStation() {
         </button>
       </div>
 
-      <label className="block text-muted text-xs uppercase tracking-wide mb-1">Concert</label>
+      <label className="t-footnote text-text-2 block mb-1.5 px-1">Concert</label>
       <select
-        className="w-full h-14 rounded-2xl bg-card border border-border px-4 mb-4"
+        className="w-full h-[50px] rounded-[12px] bg-surface border border-separator px-4 t-body mb-4"
         value={concertId}
         onChange={(e) => {
           setConcertId(e.target.value);
@@ -202,42 +203,43 @@ export function StaffStation() {
         ))}
       </select>
 
-      <label className="block text-muted text-xs uppercase tracking-wide mb-1">Activity</label>
+      <label className="t-footnote text-text-2 block mb-1.5 px-1">Activity</label>
       <div className="grid grid-cols-2 gap-2 mb-6">
-        {concertActivities.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setActivityId(a.id)}
-            className={`h-16 rounded-2xl border px-3 text-left ${
-              a.id === activityId ? "bg-accent text-accent-fg border-accent" : "bg-card border-border"
-            }`}
-          >
-            <p className="font-semibold leading-tight">{a.name}</p>
-            <p className={`text-xs ${a.id === activityId ? "text-accent-fg/70" : "text-muted"}`}>
-              +{a.points} pts
-            </p>
-          </button>
-        ))}
+        {concertActivities.map((a) => {
+          const on = a.id === activityId;
+          return (
+            <button
+              key={a.id}
+              onClick={() => setActivityId(a.id)}
+              className={`min-h-[60px] rounded-[12px] px-3 py-2 text-left border transition-colors ${
+                on ? "bg-accent text-on-accent border-accent" : "bg-surface border-separator"
+              }`}
+            >
+              <p className="t-headline leading-tight">{a.name}</p>
+              <p className={`t-footnote ${on ? "text-on-accent/80" : "text-text-2"}`}>+{a.points} pts</p>
+            </button>
+          );
+        })}
       </div>
 
       {!nfcSupported && (
-        <p className="text-muted text-sm mb-3">
-          No Web NFC here. Use Android Chrome for tap scanning, or enter a UID below.
+        <p className="t-footnote text-text-2 mb-3 px-1">
+          No Web NFC in this browser. Use Android Chrome for tap scanning, or enter a UID below.
         </p>
       )}
       {nfcSupported && (
         <div className="mb-3">
           {scanning ? (
-            <Button variant="secondary" onClick={stopNfc}>
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
-              Scanning · tap bands
+            <Button variant="tinted" onClick={stopNfc}>
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
+              Scanning, tap bands
             </Button>
           ) : (
             <Button onClick={startNfc} disabled={!activityId}>
-              Start NFC scanning
+              <IconNfc size={20} /> Start NFC scanning
             </Button>
           )}
-          {nfcError && <p className="text-danger text-sm mt-2">{nfcError}</p>}
+          {nfcError && <p className="t-footnote text-danger mt-2 px-1">{nfcError}</p>}
         </div>
       )}
 
@@ -259,47 +261,49 @@ export function StaffStation() {
         <button
           type="submit"
           disabled={!activityId || !manualUid}
-          className="h-14 px-5 rounded-2xl bg-card border border-border font-semibold disabled:opacity-50"
+          className="h-[50px] px-5 rounded-[12px] bg-accent-soft text-accent t-headline disabled:opacity-40"
         >
           Log
         </button>
       </form>
 
       {log.length > 0 && (
-        <Card className="mt-6 p-0 divide-y divide-border">
+        <List className="mt-6">
           {log.map((r, i) => (
-            <div key={i} className="flex justify-between px-4 py-2.5 text-sm">
-              <span className="font-mono text-muted">{r.band_uid}</span>
-              <span className={r.ok ? "text-accent" : r.status === "duplicate" ? "text-amber-400" : "text-danger"}>
-                {r.ok ? `+${r.points}` : r.message}
-              </span>
-            </div>
+            <Row
+              key={i}
+              title={<span className="font-mono t-subhead">{r.band_uid}</span>}
+              subtitle={r.ok ? r.owner_name ?? "Unclaimed band" : r.message}
+              value={r.ok ? `+${r.points}` : r.status === "duplicate" ? "Done" : "Error"}
+              valueTone={r.ok ? "success" : r.status === "duplicate" ? "muted" : "default"}
+            />
           ))}
-        </Card>
+        </List>
       )}
 
       {/* Big confirmation overlay */}
       {result && (
         <div
           onClick={() => setResult(null)}
-          className={`fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6 ${
-            result.ok ? "bg-lime-400 text-black" : result.status === "duplicate" ? "bg-amber-400 text-black" : "bg-red-500 text-white"
+          className={`fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6 text-white ${
+            result.ok ? "bg-success" : result.status === "duplicate" ? "bg-warning" : "bg-danger"
           }`}
         >
-          <p className="text-7xl font-bold tracking-tight">
-            {result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "✕"}
+          <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-4">
+            {result.ok ? <IconCheck size={44} strokeWidth={3} /> : <IconX size={44} strokeWidth={3} />}
+          </div>
+          <p className="text-[64px] leading-none font-bold tracking-tight t-num">
+            {result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "Error"}
           </p>
-          <p className="text-2xl font-semibold mt-2">
-            {result.ok ? activity?.name ?? result.activity : result.message}
-          </p>
+          <p className="t-title2 mt-3">{result.ok ? activity?.name ?? result.activity : result.message}</p>
           {result.ok && (
-            <p className="text-lg mt-3 opacity-80">
+            <p className="t-body mt-2 opacity-90">
               {result.claimed
                 ? `${result.owner_name || "Fan"}${result.rank ? ` · #${result.rank} tonight` : ""}`
                 : "Unclaimed band · points saved"}
             </p>
           )}
-          <p className="font-mono text-sm mt-6 opacity-60">{result.band_uid}</p>
+          <p className="font-mono t-footnote mt-8 opacity-70">{result.band_uid}</p>
         </div>
       )}
     </main>

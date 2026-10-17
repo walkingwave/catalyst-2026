@@ -1,7 +1,11 @@
+import Image from "next/image";
+import Link from "next/link";
 import { requireFan, fanScans, formatDate } from "@/lib/fan";
-import { Page, Card, Empty, Points } from "@/components/ui";
+import { Page, Card, LargeTitle, Empty, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
+import { IconChevron } from "@/components/icons";
+import type { Concert } from "@/lib/types";
 
 export default async function ConcertsPage() {
   const { supabase, user } = await requireFan("/concerts");
@@ -9,53 +13,52 @@ export default async function ConcertsPage() {
   const [{ data: bands }, scans] = await Promise.all([
     supabase
       .from("bands")
-      .select("uid, concert:concerts(id, name, artist, venue, date)")
+      .select("uid, concert:concerts(id, name, artist, venue, date, image_url)")
       .eq("user_id", user.id),
     fanScans(supabase),
   ]);
 
-  type C = { id: string; name: string; artist: string; venue: string; date: string };
-  const byId = new Map<string, C>();
+  const byId = new Map<string, Concert>();
   for (const b of bands ?? []) {
-    const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as C | null;
+    const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as Concert | null;
     if (c) byId.set(c.id, c);
   }
   const concerts = [...byId.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   return (
     <Page>
-      <Header title="Your shows" />
-      <h1 className="text-3xl font-bold mb-5">Shows</h1>
+      <Header />
+      <LargeTitle sub="Every show you've tapped in at.">Shows</LargeTitle>
       {concerts.length === 0 ? (
-        <Empty>No shows yet. Claim a band to start your history.</Empty>
+        <Card>
+          <Empty>No shows yet. Claim a band to start your history.</Empty>
+        </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {concerts.map((c) => {
             const mine = scans.filter((s) => s.activity?.concert_id === c.id);
             const total = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0);
             return (
-              <Card key={c.id}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-lg">{c.artist}</p>
-                    <p className="text-muted text-sm">
-                      {c.venue} · {formatDate(c.date)}
-                    </p>
+              <Link key={c.id} href={`/concerts/${c.id}`} className="block active:opacity-70">
+                <Card className="overflow-hidden">
+                  <div className="flex items-center">
+                    <div className="relative w-24 h-24 shrink-0 bg-surface-2">
+                      {c.image_url && <Image src={c.image_url} alt={c.artist} fill className="object-cover" />}
+                    </div>
+                    <div className="flex-1 min-w-0 px-4 py-3">
+                      <p className="t-headline truncate">{c.artist}</p>
+                      <p className="t-footnote text-text-2 truncate">
+                        {c.venue} · {formatDate(c.date)}
+                      </p>
+                      <p className="t-footnote text-text-2 mt-1">
+                        {mine.length} {mine.length === 1 ? "activity" : "activities"} ·{" "}
+                        <Points value={total} className="text-success font-medium" /> pts
+                      </p>
+                    </div>
+                    <IconChevron size={18} className="text-text-3 mr-3" />
                   </div>
-                  <p className="text-accent font-mono text-lg">
-                    <Points value={total} />
-                  </p>
-                </div>
-                <ul className="mt-3 space-y-1.5">
-                  {mine.length === 0 && <li className="text-muted text-sm">No activities logged.</li>}
-                  {mine.map((s) => (
-                    <li key={s.id} className="flex justify-between text-sm">
-                      <span>{s.activity?.name}</span>
-                      <span className="text-muted font-mono">+{s.activity?.points}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+                </Card>
+              </Link>
             );
           })}
         </div>

@@ -1,21 +1,25 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { Page, LinkButton } from "@/components/ui";
+import { IconLogo, IconNfc } from "@/components/icons";
 
 export default async function Home() {
   const user = await getUser();
   if (user) redirect("/dashboard");
   return (
-    <Page className="flex flex-col justify-center min-h-dvh pb-6">
-      <h1 className="text-4xl font-bold tracking-tight">
-        <span className="text-accent">●</span> ConcertConnect
-      </h1>
-      <p className="text-muted mt-3 text-lg">
+    <Page className="flex flex-col justify-end min-h-dvh pb-10">
+      <div className="text-accent mb-4">
+        <IconLogo size={48} />
+      </div>
+      <h1 className="t-large-title">ConcertConnect</h1>
+      <p className="t-body text-text-2 mt-2">
         Tap your wristband at the show. Earn points. Get rewards.
       </p>
-      <div className="mt-10 space-y-3">
+      <div className="mt-8 space-y-3">
         <LinkButton href="/login">Sign in with phone</LinkButton>
-        <p className="text-muted text-sm text-center">Got a band? Just tap it with your phone.</p>
+        <p className="t-footnote text-text-2 text-center flex items-center justify-center gap-1.5">
+          <IconNfc size={16} /> Got a band? Tap it with your phone.
+        </p>
       </div>
     </Page>
   );

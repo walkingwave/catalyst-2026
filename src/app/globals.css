@@ -1,31 +1,93 @@
 @import "tailwindcss";
 
+/* ---- Semantic tokens (light) ----
+   Modeled on iOS system colors + grouped backgrounds, 8pt grid, 44pt targets. */
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --muted: #a1a1aa;
-  --card: #18181b;
-  --border: #27272a;
-  --accent: #a3e635;
-  --accent-fg: #0a0a0a;
-  --danger: #f87171;
+  --bg: #f2f2f7;            /* systemGroupedBackground */
+  --surface: #ffffff;       /* secondarySystemGroupedBackground */
+  --surface-2: #f2f2f7;     /* tertiary fill inside cards */
+  --text: #000000;
+  --text-2: #3c3c4399;      /* secondaryLabel 60% */
+  --text-3: #3c3c434d;      /* tertiaryLabel 30% */
+  --separator: #3c3c4349;   /* separator 29% */
+  --accent: #5856d6;        /* systemIndigo */
+  --accent-soft: #5856d61a;
+  --on-accent: #ffffff;
+  --success: #34c759;
+  --success-soft: #34c7591f;
+  --warning: #ff9500;
+  --warning-soft: #ff95001f;
+  --danger: #ff3b30;
+  --danger-soft: #ff3b301f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  color-scheme: light;
+}
+
+/* ---- Dark: a designed palette, not an inversion. Elevated greys, no pure black. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --surface-2: #2c2c2e;
+    --text: #ffffff;
+    --text-2: #ebebf599;
+    --text-3: #ebebf54d;
+    --separator: #54545899;
+    --accent: #7d7aff;
+    --accent-soft: #7d7aff26;
+    --on-accent: #ffffff;
+    --success: #30d158;
+    --success-soft: #30d15826;
+    --warning: #ff9f0a;
+    --warning-soft: #ff9f0a26;
+    --danger: #ff453a;
+    --danger-soft: #ff453a26;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --text: #ffffff;
+  --text-2: #ebebf599;
+  --text-3: #ebebf54d;
+  --separator: #54545899;
+  --accent: #7d7aff;
+  --accent-soft: #7d7aff26;
+  --on-accent: #ffffff;
+  --success: #30d158;
+  --success-soft: #30d15826;
+  --warning: #ff9f0a;
+  --warning-soft: #ff9f0a26;
+  --danger: #ff453a;
+  --danger-soft: #ff453a26;
+  --shadow: none;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-card: var(--card);
-  --color-border: var(--border);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-separator: var(--separator);
   --color-accent: var(--accent);
-  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-html {
-  color-scheme: dark;
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --radius-card: 16px;
+  --radius-control: 12px;
 }
 
 html,
@@ -34,20 +96,40 @@ body {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   padding-top: env(safe-area-inset-top);
 }
 
+/* ---- Type scale (HIG) ---- */
+.t-large-title { font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: -0.4px; }
+.t-title1      { font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.3px; }
+.t-title2      { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.2px; }
+.t-headline    { font-size: 17px; line-height: 22px; font-weight: 600; }
+.t-body        { font-size: 17px; line-height: 22px; font-weight: 400; }
+.t-subhead     { font-size: 15px; line-height: 20px; font-weight: 400; }
+.t-footnote    { font-size: 13px; line-height: 18px; font-weight: 400; }
+.t-caption     { font-size: 12px; line-height: 16px; font-weight: 400; }
+.t-num         { font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+
+/* Grouped list hairlines */
+.hairline-b > * + * { border-top: 1px solid var(--separator); }
+
+input,
+select,
+textarea {
+  font-size: 17px; /* stop iOS zoom on focus */
+}
+
 button,
 a {
-  touch-action: manipulation; /* no 300ms delay, no double-tap zoom */
-  user-select: none;
+  touch-action: manipulation;
   -webkit-user-select: none;
+  user-select: none;
 }
 
 select {
@@ -55,7 +137,4 @@ select {
   -webkit-appearance: none;
 }
 
-input,
-select {
-  font-size: 16px; /* stop iOS zoom on focus */
-}
+.card-shadow { box-shadow: var(--shadow); }

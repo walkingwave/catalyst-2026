@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { normalizePhone } from "@/lib/phone";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Field } from "@/components/ui";
 
 type Props = {
   /** Ask for a name (first-time claim). */
@@ -13,7 +13,7 @@ type Props = {
   submitLabel?: string;
 };
 
-export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Text me a code" }: Props) {
+export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Continue" }: Props) {
   const supabase = createClient();
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [name, setName] = useState("");
@@ -27,8 +27,8 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Text
     e.preventDefault();
     setError(null);
     const normalized = normalizePhone(phoneInput);
-    if (!normalized) return setError("Enter a valid phone number");
-    if (withName && name.trim().length < 1) return setError("Enter your name");
+    if (!normalized) return setError("Enter a valid phone number.");
+    if (withName && name.trim().length < 1) return setError("Enter your name.");
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({
       phone: normalized,
@@ -56,57 +56,60 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Text
 
   if (step === "code") {
     return (
-      <form onSubmit={verify} className="space-y-3">
-        <p className="text-muted text-sm">
-          Code sent to <span className="text-foreground">{phone}</span>
-        </p>
-        <Input
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="[0-9]*"
-          placeholder="6-digit code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          autoFocus
-          required
-        />
-        {error && <p className="text-danger text-sm">{error}</p>}
+      <form onSubmit={verify} className="space-y-4">
+        <Field label={`Code sent to ${phone}`}>
+          <Input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]*"
+            placeholder="123456"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            autoFocus
+            required
+          />
+        </Field>
+        {error && <p className="t-footnote text-danger px-1">{error}</p>}
         <Button type="submit" disabled={busy || code.length < 4}>
           {busy ? "Checking…" : "Confirm"}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => setStep("phone")} disabled={busy}>
-          Change number
+        <Button type="button" variant="plain" size="md" onClick={() => setStep("phone")} disabled={busy}>
+          Use a different number
         </Button>
       </form>
     );
   }
 
   return (
-    <form onSubmit={sendCode} className="space-y-3">
+    <form onSubmit={sendCode} className="space-y-4">
       {withName && (
-        <Input
-          placeholder="Your name"
-          autoComplete="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          maxLength={60}
-        />
+        <Field label="Name">
+          <Input
+            placeholder="Your name"
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={60}
+          />
+        </Field>
       )}
-      <Input
-        type="tel"
-        inputMode="tel"
-        autoComplete="tel"
-        placeholder="Phone number"
-        value={phoneInput}
-        onChange={(e) => setPhoneInput(e.target.value)}
-        required
-      />
-      {error && <p className="text-danger text-sm">{error}</p>}
+      <Field label="Phone">
+        <Input
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="(555) 010-0099"
+          value={phoneInput}
+          onChange={(e) => setPhoneInput(e.target.value)}
+          required
+        />
+      </Field>
+      {error && <p className="t-footnote text-danger px-1">{error}</p>}
       <Button type="submit" disabled={busy}>
         {busy ? "Sending…" : submitLabel}
       </Button>
-      <p className="text-muted text-xs text-center">No app. No password. Just a text.</p>
+      <p className="t-footnote text-text-2 text-center">No app. No password. Just a text.</p>
     </form>
   );
 }
