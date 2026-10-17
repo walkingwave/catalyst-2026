@@ -34,7 +34,7 @@ export default async function LeaderboardPage({
   return (
     <Page>
       <Header />
-      <Headline kicker={mode === "concert" ? `${concert?.name} · ${formatDate(concert!.date)}` : "All-time"}>
+      <Headline kicker={mode === "concert" ? `${concert?.name} · ${formatDate(concert!.date)}` : "All shows"}>
         {mode === "concert" ? concert?.artist : artist?.name}
       </Headline>
 

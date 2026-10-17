@@ -102,7 +102,7 @@ export default async function Dashboard({
           stub={
             <div className="grid grid-cols-3 gap-2">
               <TicketField label="Show" value={showRank ? `#${showRank.rank}` : "—"} sub={showRank ? `of ${showRank.total}` : ""} />
-              <TicketField label="Fandom" value={artistRank ? `#${artistRank.rank}` : "—"} sub={artistRank ? `of ${artistRank.total}` : ""} />
+              <TicketField label="Overall" value={artistRank ? `#${artistRank.rank}` : "—"} sub={artistRank ? `of ${artistRank.total}` : ""} />
               <TicketField label="Redeemed" value={(pts?.spent ?? 0).toLocaleString()} sub="pts" />
             </div>
           }
@@ -129,9 +129,9 @@ export default async function Dashboard({
         </>
       )}
 
-      <SectionHeader action={<Link href="/leaderboard">Ranks</Link>}>Fandoms</SectionHeader>
+      <SectionHeader action={<Link href="/leaderboard">Ranks</Link>}>Events</SectionHeader>
       {fandoms.length === 0 ? (
-        <Empty>No fandoms yet.</Empty>
+        <Empty>No events yet.</Empty>
       ) : (
         <div className="hscroll flex gap-3 overflow-x-auto -mx-4 px-4 snap-x">
           {fandoms.map((f) => (
