@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   if (!artist) return NextResponse.json({ ok: false }, { status: 401 });
   const db = createAdminClient();
 
-  const [{ data: lb }, { data: concerts }, { data: pending }, { data: messages }, { data: drops }] =
+  const [{ data: lb }, { data: concerts }, { data: pending }, { data: messages }, { data: drops }, { data: templates }] =
     await Promise.all([
       db.from("leaderboard_artist").select("user_id, name, points, rank").eq("artist_id", artist.id).order("rank").limit(100),
       db.from("concerts").select("id, name, venue, date").eq("artist_id", artist.id).order("date", { ascending: false }),
@@ -19,6 +19,7 @@ export async function GET(req: Request) {
         .order("created_at"),
       db.from("messages").select("id, channel, body, sms_status, created_at, user:users(name)").eq("artist_id", artist.id).order("created_at", { ascending: false }).limit(20),
       db.from("drops").select("id, title, code, claimed_at, created_at, user:users(name)").eq("artist_id", artist.id).order("created_at", { ascending: false }).limit(20),
+      db.from("drop_templates").select("*").eq("artist_id", artist.id).order("created_at"),
     ]);
 
   // Attendance: every fan holding a claimed band at one of this artist's shows, even with 0 points yet.
@@ -85,5 +86,6 @@ export async function GET(req: Request) {
       .filter((p) => p.activity && concertIds.has(p.activity.concert_id)),
     messages: (messages ?? []).map((m) => ({ ...m, user: Array.isArray(m.user) ? m.user[0] : m.user })),
     drops: (drops ?? []).map((d) => ({ ...d, user: Array.isArray(d.user) ? d.user[0] : d.user })),
+    templates: templates ?? [],
   });
 }

@@ -13,37 +13,63 @@ test.describe("Artist console", () => {
     await expect(page.getByText(/wrong access code/i)).toBeVisible();
     await open(page);
     await expect(page.getByRole("heading", { name: /our lady peace/i })).toBeVisible();
-    await expect(page.getByText(/^fans$/i)).toBeVisible();
-    await expect(page.getByRole("heading", { name: /top fans/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /\d+ fans?$/i })).toBeVisible();
     await expect(page.getByText(/ig @maya\.rae/i)).toBeVisible();
-    await expect(page.getByText(/no socials linked/i).first()).toBeVisible();
+    await expect(page.getByText(/no socials/i).first()).toBeVisible();
+    // search narrows the list
+    await page.getByPlaceholder("Search name or @handle").fill("maya");
+    await expect(page.getByRole("heading", { name: /^1 fan$/i })).toBeVisible();
+    await page.getByPlaceholder("Search name or @handle").fill("");
+    // fan sheet opens with history
+    await page.getByRole("button", { name: /maya r\./i }).first().click();
+    await expect(page.getByTestId("fan-sheet")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^taps$/i })).toBeVisible();
+    await page.getByRole("button", { name: /^fans$/i }).first().click();
+    await expect(page.getByTestId("fan-sheet")).toBeHidden();
   });
 
-  test("select top 5, send inbox message, see it in log", async ({ page }) => {
+  test("select top 3 by number, checkboxes, send inbox message, see it in log", async ({ page }) => {
     await open(page);
-    await page.getByRole("button", { name: /^top 5$/i }).click();
-    await expect(page.getByText(/clear 5/i)).toBeVisible();
-    await page.getByRole("button", { name: /^message/i }).click();
-    await expect(page.getByText(/5 selected/i)).toBeVisible();
+    await page.getByPlaceholder("10").fill("3");
+    await page.getByRole("button", { name: /^go$/i }).click();
+    await expect(page.getByText(/^3 selected$/i)).toBeVisible();
+    // uncheck one via its checkbox, then re-check
+    await page.getByRole("button", { name: /^unselect$/i }).first().click();
+    await expect(page.getByText(/^2 selected$/i)).toBeVisible();
+    await page.getByRole("button", { name: /^select$/i }).first().click();
+    await expect(page.getByText(/^3 selected$/i)).toBeVisible();
+    await page.getByRole("button", { name: /^message$/i }).last().click();
+    await expect(page.getByText(/to · 3 fans/i)).toBeVisible();
     await page.getByRole("button", { name: /inbox only/i }).click();
     const body = `E2E message ${Date.now()}`;
     await page.getByPlaceholder("Message").fill(body);
-    await page.getByRole("button", { name: /send to 5 fans/i }).click();
-    await expect(page.getByText(/sent to 5 fans/i)).toBeVisible();
+    await page.getByRole("button", { name: /send to 3 fans/i }).click();
+    await expect(page.getByText(/sent to 3 fans/i)).toBeVisible();
     await page.getByRole("button", { name: /^log$/i }).click();
     await expect(page.getByText(body).first()).toBeVisible();
   });
 
-  test("drop quick pick to top 1 shows in log", async ({ page }) => {
+  test("save a custom drop, send it to top 1, see it in log, delete template", async ({ page }) => {
     await open(page);
-    await page.getByRole("button", { name: /^drop/i }).click();
-    await page.getByRole("button", { name: /^top 1$/i }).click();
-    await page.getByRole("button", { name: /signed poster/i }).click();
-    await expect(page.getByPlaceholder("Soundcheck pass")).toHaveValue("Signed poster");
+    await page.getByRole("button", { name: /^drop$/i }).click();
+    const title = `E2E Drop ${Date.now()}`;
+    await page.getByPlaceholder("Title").fill(title);
+    await page.getByPlaceholder("Message").fill("test");
+    await page.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText(/saved as a drop/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: title, exact: true })).toBeVisible();
+    // recipients: top 1 via the inline control
+    const top = page.locator('input[inputmode="numeric"]').first();
+    await top.fill("1");
+    await page.getByRole("button", { name: /^set$/i }).click();
+    await expect(page.getByText(/to · 1 fan$/i)).toBeVisible();
     await page.getByRole("button", { name: /drop to 1 fan$/i }).click();
     await expect(page.getByText(/dropped to 1 fan/i)).toBeVisible();
     await page.getByRole("button", { name: /^log$/i }).click();
-    await expect(page.getByText("Signed poster").first()).toBeVisible();
+    await expect(page.getByText(title).first()).toBeVisible();
+    await page.getByRole("button", { name: /^drop$/i }).click();
+    await page.getByRole("button", { name: `Delete ${title}` }).click();
+    await expect(page.getByRole("button", { name: title, exact: true })).toBeHidden();
   });
 
   test("social: fan submits, artist approves, points land in that artist's pool", async ({ page, request, browser }) => {
@@ -67,7 +93,7 @@ test.describe("Artist console", () => {
 
       // artist approves in UI
       await open(page, code);
-      await page.getByRole("button", { name: /^social/i }).click();
+      await page.getByRole("button", { name: /^review/i }).click();
       await expect(page.getByText(/post on instagram · \+150 pts/i)).toBeVisible();
       await page.getByRole("button", { name: /^approve$/i }).click();
       await expect(page.getByText(/approved, points awarded/i)).toBeVisible();
