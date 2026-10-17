@@ -126,7 +126,7 @@ Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewr
 1. Chrome on Android (any recent version), NFC on in Settings → Connections.
 2. Open the **production HTTPS URL** (Web NFC refuses plain http and LAN IPs).
 3. `/admin` → Write → **Test NFC (read only)**, hold a band to the top-back of the phone. You should see its serial and any records. If Chrome asks for NFC permission, allow it.
-4. Then **Turn phone into NFC writer**: each band gets registered to the current event and its `/b/<serial>` URL written. Hold still until the green "Written" screen.
+4. Writing happens on the first tap: in the station's Scan mode (e.g. Entry), a blank tag gets registered, scanned, and its `/b/<serial>` URL written in one hold. The overlay says "Tag written". The Write tab still exists for pre-writing a stack of bands before doors.
 5. Tap the band with an iPhone or another phone: it opens the band page.
 6. Tap tab → pick an activity → Start NFC scanning → hold bands for the +N overlay.
 
