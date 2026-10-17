@@ -16,9 +16,9 @@ export const testUid = () => `04E2E0${uniq()}`; // 14 chars like a 7-byte NTAG s
 /** UI sign-in with a test OTP number. Lands on `next` (default /dashboard). */
 export async function loginAs(page: Page, phone = FAN_PHONE, next = "/dashboard") {
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
-  await page.getByPlaceholder("(555) 010-0099").fill(phone);
+  await page.getByPlaceholder("Phone number").fill(phone);
   await page.getByRole("button", { name: /continue/i }).click();
-  await page.getByPlaceholder("123456").fill(OTP);
+  await page.getByPlaceholder("Code").fill(OTP);
   await page.getByRole("button", { name: /confirm/i }).click();
   await page.waitForURL((u) => u.pathname === next.split("?")[0], { timeout: 20_000 });
 }

@@ -29,10 +29,10 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
     return (
       <Page>
         <Header />
-        <Headline sub="This wristband hasn't been scanned at a show yet. Tap in at the entry and try again.">
+        <Headline sub="Not registered yet.">
           Unknown band
         </Headline>
-        <LinkButton href="/login" variant="outline">Sign in instead</LinkButton>
+        <LinkButton href="/login" variant="outline">Sign in</LinkButton>
       </Page>
     );
   }
@@ -48,11 +48,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
         <Header />
         <TapBanner tap={tap} />
         <Headline
-          sub={
-            user
-              ? "It belongs to another fan. Sign in with the number that claimed it."
-              : "Sign in with the number that claimed it to see your points."
-          }
+          sub="Sign in with the number that claimed it."
         >
           Band already claimed
         </Headline>
@@ -65,7 +61,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
     return (
       <Page>
         <Header />
-        <Headline sub="Unclaimed bands expire 30 days after the show.">This band expired</Headline>
+        <Headline sub="Unclaimed bands expire 30 days after the show.">Expired</Headline>
       </Page>
     );
   }
@@ -101,16 +97,12 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
       )}
 
       <Panel invert className="p-5 mt-3">
-        <p className="label text-invert-fg/70">This band has</p>
+        <p className="label text-invert-fg/70">Band points</p>
         <div className="flex items-end gap-3 mt-3">
           <Points value={points} className="display text-[72px] leading-[0.85]" />
           <span className="display d-md pb-1">pts</span>
         </div>
-        <p className="t-foot text-invert-fg/70 mt-3">
-          {count === 0
-            ? "No activities yet. Tap in at a booth to start earning."
-            : `${count} ${count === 1 ? "activity" : "activities"} tonight`}
-        </p>
+        <p className="t-foot text-invert-fg/70 mt-3">{count} {count === 1 ? "activity" : "activities"}</p>
       </Panel>
 
       {scans && scans.length > 0 && (
@@ -122,10 +114,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
         </List>
       )}
 
-      <SectionHeader>Save your points</SectionHeader>
-      <p className="t-sub text-ink-2 mb-4">
-        Claim this band so the points stick with you. Name and phone, that&apos;s it.
-      </p>
+      <SectionHeader>Claim this band</SectionHeader>
       <ClaimFlow uid={uid} signedIn={!!user} />
     </Page>
   );

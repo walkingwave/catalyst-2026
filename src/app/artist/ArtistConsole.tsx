@@ -92,13 +92,13 @@ export function ArtistConsole() {
     return (
       <main className="flex-1 max-w-md mx-auto w-full px-4 pt-12">
         <div className="mb-2"><IconLock size={32} /></div>
-        <Headline sub="Enter your artist access code to open the console.">Artist console</Headline>
+        <Headline>Artist</Headline>
         <form onSubmit={submitCode} className="space-y-4">
           <Field label="Access code">
-            <Input placeholder="e.g. OLP2026" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} autoFocus autoCapitalize="characters" />
+            <Input placeholder="Access code" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} autoFocus autoCapitalize="characters" />
           </Field>
           {codeError && <p className="t-foot text-danger">{codeError}</p>}
-          <Button type="submit">Open console</Button>
+          <Button type="submit">Unlock</Button>
         </form>
       </main>
     );
@@ -194,7 +194,6 @@ export function ArtistConsole() {
       {tab === "drop" && (
         <DropTab
           recipients={recipients}
-          fans={data.top_fans}
           onSend={async (payload) => {
             const r = await fetch("/api/artist/drop", {
               method: "POST",
@@ -274,7 +273,7 @@ function FansTab({
         ))}
       </div>
       {fans.length === 0 ? (
-        <Panel><Empty>No fans with points yet.</Empty></Panel>
+        <Panel><Empty>No fans yet.</Empty></Panel>
       ) : (
         <List>
           {fans.map((f) => (
@@ -318,7 +317,7 @@ function MessageTab({
 
   return (
     <>
-      <SectionHeader>Message fans</SectionHeader>
+      <SectionHeader>Message</SectionHeader>
       <Panel className="p-4 space-y-4">
         <div>
           <p className="label text-ink-2 mb-2">To</p>
@@ -346,7 +345,7 @@ function MessageTab({
           <textarea
             className="w-full min-h-28 bg-surface border-2 border-line p-3 t-body outline-none focus:bg-surface-2"
             maxLength={320}
-            placeholder="Thanks for coming out tonight. Soundcheck passes for the top 10 at the next show…"
+            placeholder="Message"
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
@@ -365,9 +364,6 @@ function MessageTab({
         >
           {busy ? "Sending…" : `Send to ${count} fan${count === 1 ? "" : "s"}`}
         </Button>
-        <p className="t-foot text-ink-2">
-          SMS goes through Twilio when SMS_NOTIFICATIONS=true. Otherwise it is recorded as simulated and still lands in the fan&apos;s inbox.
-        </p>
       </Panel>
     </>
   );
@@ -375,11 +371,9 @@ function MessageTab({
 
 function DropTab({
   recipients,
-  fans,
   onSend,
 }: {
   recipients: string[];
-  fans: Fan[];
   onSend: (p: { title: string; message: string; code?: string; top?: number; notify_sms: boolean }) => Promise<string | void>;
 }) {
   const [title, setTitle] = useState("");
@@ -397,7 +391,7 @@ function DropTab({
 
   return (
     <>
-      <SectionHeader>Send a drop</SectionHeader>
+      <SectionHeader>Drop</SectionHeader>
       <Panel className="p-4 space-y-4">
         <div>
           <p className="label text-ink-2 mb-2">To</p>
@@ -435,7 +429,7 @@ function DropTab({
             maxLength={500}
           />
         </Field>
-        <Field label="Code prefix (optional, numbered per fan)">
+        <Field label="Code prefix">
           <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SOUNDCHECK" autoCapitalize="characters" />
         </Field>
         {error && <p className="t-foot text-danger">{error}</p>}
@@ -456,9 +450,6 @@ function DropTab({
         >
           {busy ? "Sending…" : `Drop to ${count} fan${count === 1 ? "" : "s"}`}
         </Button>
-        <p className="t-foot text-ink-2">
-          Fans see drops at the top of their home screen. {fans.length ? "" : "No fans yet."}
-        </p>
       </Panel>
     </>
   );
@@ -473,9 +464,9 @@ function SocialTab({
 }) {
   return (
     <>
-      <SectionHeader>Posts to review</SectionHeader>
+      <SectionHeader>Review</SectionHeader>
       {posts.length === 0 ? (
-        <Panel><Empty>Nothing waiting. Fans submit post links from a show page.</Empty></Panel>
+        <Panel><Empty>Nothing to review.</Empty></Panel>
       ) : (
         <div className="space-y-3">
           {posts.map((p) => (
@@ -512,7 +503,7 @@ function SocialTab({
 function LogTab({ messages, drops }: { messages: Overview["messages"]; drops: Overview["drops"] }) {
   return (
     <>
-      <SectionHeader>Recent drops</SectionHeader>
+      <SectionHeader>Drops</SectionHeader>
       {drops.length === 0 ? (
         <Panel><Empty>No drops yet.</Empty></Panel>
       ) : (
@@ -528,7 +519,7 @@ function LogTab({ messages, drops }: { messages: Overview["messages"]; drops: Ov
           ))}
         </List>
       )}
-      <SectionHeader>Recent messages</SectionHeader>
+      <SectionHeader>Messages</SectionHeader>
       {messages.length === 0 ? (
         <Panel><Empty>No messages yet.</Empty></Panel>
       ) : (

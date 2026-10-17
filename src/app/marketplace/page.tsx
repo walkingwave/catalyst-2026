@@ -28,10 +28,10 @@ export default async function MarketplacePage() {
   return (
     <Page>
       <Header />
-      <Headline sub="Points are per artist. Spend them on that artist's rewards.">Rewards</Headline>
+      <Headline>Rewards</Headline>
 
       {groups.length === 0 ? (
-        <Panel><Empty>No rewards yet.</Empty></Panel>
+        <Panel><Empty>No rewards.</Empty></Panel>
       ) : (
         groups.map((g) => (
           <section key={g.artist.id}>
@@ -61,7 +61,7 @@ export default async function MarketplacePage() {
 
       {redemptions && redemptions.length > 0 && (
         <>
-          <SectionHeader>Your redemptions</SectionHeader>
+          <SectionHeader>Redeemed</SectionHeader>
           <List>
             {redemptions.map((rd) => {
               const reward = Array.isArray(rd.reward) ? rd.reward[0] : rd.reward;
@@ -70,7 +70,7 @@ export default async function MarketplacePage() {
                 <Row
                   key={rd.id}
                   title={reward?.name}
-                  subtitle={code?.code ? "Show this code at the booth" : "Show this screen at pickup"}
+                  subtitle={code?.code ? "Code" : "Pick up at merch"}
                   value={code?.code ? <span className="font-mono tracking-wider">{code.code}</span> : undefined}
                 />
               );

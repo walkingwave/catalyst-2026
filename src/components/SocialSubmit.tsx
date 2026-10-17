@@ -22,14 +22,14 @@ export function SocialSubmit({ activityId, network, points }: { activityId: stri
         const j = await r.json().catch(() => ({}));
         setBusy(false);
         if (!r.ok) return setState(j.message ?? "Could not submit");
-        setState("Submitted. Points land once the artist approves.");
+        setState("Submitted, pending approval.");
         setUrl("");
         router.refresh();
       }}
     >
-      <p className="t-foot text-ink-2">Post on {network ?? "social"}, then paste the link. +{points} pts after approval.</p>
+      <p className="t-foot text-ink-2">Paste your {network ?? "post"} link. +{points} pts after approval.</p>
       <div className="flex gap-2">
-        <Input type="url" placeholder="https://instagram.com/p/…" value={url} onChange={(e) => setUrl(e.target.value)} required />
+        <Input type="url" placeholder="Post link" value={url} onChange={(e) => setUrl(e.target.value)} required />
         <button type="submit" disabled={busy || !url} className="h-14 px-4 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
           {busy ? "…" : "Submit"}
         </button>

@@ -2,11 +2,10 @@ import { test, expect } from "@playwright/test";
 import { loginAs, PHONES } from "./helpers";
 
 test.describe("Public pages", () => {
-  test("home shows CTA and tap hint", async ({ page }) => {
+  test("home shows CTA", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/tap in/i);
     await expect(page.getByRole("link", { name: /sign in with phone/i })).toBeVisible();
-    await expect(page.getByText(/got a band/i)).toBeVisible();
+    await expect(page.getByRole("img")).toBeVisible();
   });
 
   test("protected pages redirect to login with next", async ({ page }) => {
@@ -18,22 +17,22 @@ test.describe("Public pages", () => {
 
   test("login validates phone and code; wrong code shows error", async ({ page }) => {
     await page.goto("/login");
-    await page.getByPlaceholder("(555) 010-0099").fill("123");
+    await page.getByPlaceholder("Phone number").fill("123");
     await page.getByRole("button", { name: /continue/i }).click();
     await expect(page.getByText(/valid phone/i)).toBeVisible();
-    await page.getByPlaceholder("(555) 010-0099").fill(PHONES.priya);
+    await page.getByPlaceholder("Phone number").fill(PHONES.priya);
     await page.getByRole("button", { name: /continue/i }).click();
     await expect(page.getByText(/code sent to \+15550100003/i)).toBeVisible();
-    await page.getByPlaceholder("123456").fill("000000");
+    await page.getByPlaceholder("Code").fill("000000");
     await page.getByRole("button", { name: /confirm/i }).click();
     await expect(page.getByText(/invalid|expired/i)).toBeVisible();
     await page.getByRole("button", { name: /different number/i }).click();
-    await expect(page.getByPlaceholder("(555) 010-0099")).toBeVisible();
+    await expect(page.getByPlaceholder("Phone number")).toBeVisible();
   });
 
   test("login round trip lands on dashboard and sign out returns to login", async ({ page }) => {
     await loginAs(page, PHONES.leo); // own number: sign-out revokes every session for that user
-    await expect(page.getByText(/hey leo/i)).toBeVisible();
+    await expect(page.getByText(/^leo$/i)).toBeVisible();
     await page.getByRole("button", { name: /sign out/i }).click();
     await expect(page).toHaveURL(/\/login$/);
     await page.goto("/dashboard");

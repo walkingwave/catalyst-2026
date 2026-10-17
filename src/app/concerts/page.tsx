@@ -28,10 +28,10 @@ export default async function ConcertsPage() {
   return (
     <Page>
       <Header />
-      <Headline sub="Every show you've tapped in at.">Shows</Headline>
+      <Headline>Shows</Headline>
       {concerts.length === 0 ? (
         <Panel>
-          <Empty>No shows yet. Claim a band to start your history.</Empty>
+          <Empty>No shows yet.</Empty>
         </Panel>
       ) : (
         <div className="space-y-3">

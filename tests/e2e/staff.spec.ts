@@ -25,14 +25,14 @@ test.describe("Staff station", () => {
       await page.getByRole("button", { name: /unlock/i }).click();
       await page.getByRole("combobox").selectOption(ev.id);
       await page.getByRole("button", { name: /merch booth/i }).click();
-      await expect(page.getByText(/no web nfc/i)).toBeVisible();
-      await page.getByPlaceholder("Band UID (manual)").fill(uid);
+      await expect(page.getByText(/no nfc in this browser/i)).toBeVisible();
+      await page.getByPlaceholder("Band UID").fill(uid);
       await page.getByRole("button", { name: /^log$/i }).click();
       const overlay = page.getByRole("paragraph").filter({ hasText: /^\+100$/ });
       await expect(overlay).toBeVisible();
       await expect(page.getByText(/unclaimed band · points saved/i)).toBeVisible();
       await overlay.click(); // dismiss overlay
-      await page.getByPlaceholder("Band UID (manual)").fill(uid);
+      await page.getByPlaceholder("Band UID").fill(uid);
       await page.getByRole("button", { name: /^log$/i }).click();
       await expect(page.getByText(/^done$/i).first()).toBeVisible();
       await expect(page.locator("text=" + uid).first()).toBeVisible();

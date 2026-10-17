@@ -6,10 +6,9 @@ import { createEvent, deleteEvent, deleteArtist, registerBand, scan, testUid, cr
 test.describe("Fan pages", () => {
   test("dashboard shows points, fandoms, latest show, activity, nav", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByText(/hey demo, you have/i)).toBeVisible();
-    await expect(page.getByText(/across \d+ fandom/i)).toBeVisible();
-    await expect(page.getByRole("heading", { name: /your fandoms/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /recent activity/i })).toBeVisible();
+    await expect(page.getByText(/^demo$/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^fandoms$/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^activity$/i })).toBeVisible();
     for (const t of ["Home", "Shows", "Ranks", "Rewards", "Me"]) {
       await expect(page.getByRole("navigation").getByRole("link", { name: t, exact: true })).toBeVisible();
     }
@@ -35,8 +34,8 @@ test.describe("Fan pages", () => {
       await page.keyboard.press("Enter");
       await expect(page.getByText(/main lobby, west wall/i).first()).toBeVisible();
     });
-    await expect(page.getByRole("heading", { name: /tap-in activities/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /post and earn/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^activities$/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^social$/i })).toBeVisible();
   });
 
   test("leaderboard: artist tabs, show chips, you highlighted", async ({ page }) => {
@@ -45,10 +44,10 @@ test.describe("Fan pages", () => {
     await expect(page.getByText(/^you$/i)).toBeVisible();
     await page.getByRole("link", { name: /toronto marl/i }).click();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/marlies/i);
-    await expect(page.getByText(/team fandom/i)).toBeVisible();
+    await expect(page.getByRole("paragraph").filter({ hasText: /^all-time$/i })).toBeVisible();
     await page.getByRole("link", { name: /our lady peace/i }).click();
     await page.getByRole("link", { name: /oct \d+, 2026/i }).first().click();
-    await expect(page.getByText(/single show/i)).toBeVisible();
+    await expect(page.getByText(/oct \d+, 2026/i).first()).toBeVisible();
   });
 
   test("profile: save socials, see them on reload", async ({ page }) => {
@@ -79,14 +78,14 @@ test.describe("Fan pages", () => {
       expect(claim.ok(), await claim.text()).toBeTruthy();
 
       await page.goto(`/concerts/${ev.id}`);
-      await expect(page.getByRole("heading", { name: /post and earn/i })).toBeVisible();
-      const url = page.getByPlaceholder(/instagram\.com/i);
+      await expect(page.getByRole("heading", { name: /^social$/i })).toBeVisible();
+      const url = page.getByPlaceholder("Post link");
       await url.fill("not a url");
       await page.getByRole("button", { name: /^submit$/i }).click();
       // native url validation blocks submit; nothing changes
       await url.fill("https://www.instagram.com/p/e2e-test/");
       await page.getByRole("button", { name: /^submit$/i }).click();
-      await expect(page.getByText(/submitted\. points land once the artist approves/i)).toBeVisible();
+      await expect(page.getByText(/submitted, pending approval/i)).toBeVisible();
       await page.reload();
       await expect(page.getByText(/^pending$/i)).toBeVisible();
 
@@ -120,7 +119,7 @@ test.describe("Fan pages", () => {
       await expect(card.getByText(code)).toBeVisible();
       await expect(section.getByText(/0 pts/)).toBeVisible();
 
-      await expect(page.getByRole("heading", { name: /your redemptions/i })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /^redeemed$/i })).toBeVisible();
       await expect(page.getByText(code)).toHaveCount(2); // card + redemptions list
       void pricey;
     } finally {

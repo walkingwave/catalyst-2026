@@ -66,7 +66,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
 
       {socialActs.length > 0 && (
         <>
-          <SectionHeader>Post and earn</SectionHeader>
+          <SectionHeader>Social</SectionHeader>
           <div className="border border-line rules">
             {socialActs.map((a) => {
               const st = postBy.get(a.id);
@@ -86,7 +86,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
         </>
       )}
 
-      <SectionHeader>Tap-in activities</SectionHeader>
+      <SectionHeader>Activities</SectionHeader>
       <List>
         {scanActs.map((a) => (
           <Row

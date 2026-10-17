@@ -20,13 +20,13 @@ test.describe("Admin console", () => {
       // Form must be closed by default when events exist.
       await expect(page.getByRole("button", { name: /new event/i })).toBeVisible();
       await page.getByRole("button", { name: /new event/i }).click();
-      await page.getByPlaceholder("Clumsy 30").fill(name);
-      await page.getByPlaceholder("What's happening tonight").fill("E2E description");
-      await page.getByPlaceholder("Massey Hall").fill("E2E Arena");
-      await page.getByPlaceholder("178 Victoria St").fill("1 E2E Way");
-      await page.getByPlaceholder("7:00 PM").fill("6:30 PM");
+      await page.getByPlaceholder("Name").first().fill(name);
+      await page.getByPlaceholder("Description").fill("E2E description");
+      await page.getByPlaceholder("Venue").fill("E2E Arena");
+      await page.getByPlaceholder("Address").fill("1 E2E Way");
+      await page.getByPlaceholder("Doors").fill("6:30 PM");
       await page.locator("select").nth(1).selectOption("new");
-      await page.getByPlaceholder("Artist or team name").fill(team);
+      await page.getByPlaceholder("Name").nth(1).fill(team);
       await page.locator("select").nth(2).selectOption("team");
       // edit points of first activity, add one, remove one
       const pts = page.getByPlaceholder("pts");
@@ -39,7 +39,7 @@ test.describe("Admin console", () => {
       await page.getByRole("button", { name: /create event/i }).click();
 
       await expect(page.getByText(/event created/i)).toBeVisible();
-      await expect(page.getByRole("heading", { name: /write bands for this event/i })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /^write bands$/i })).toBeVisible();
       await expect(page.getByRole("combobox").first()).toContainText(team);
 
       const list = await (await request.get("/api/admin/events", { headers: adminHeaders })).json();
@@ -67,7 +67,7 @@ test.describe("Admin console", () => {
       await expect(page.getByText(/2 activities · 0 bands/i)).toBeVisible();
       await page.getByRole("button", { name: /fan zone/i }).click();
       await page.getByRole("button", { name: /go live: fan zone/i }).click();
-      await expect(page.getByText(/every band tapped with any phone/i)).toBeVisible();
+      await expect(page.getByText(/any phone tapping a band/i)).toBeVisible();
 
       await page.getByPlaceholder("Band UID").fill(uid);
       await page.locator("form").getByRole("button", { name: /^tap$/i }).click();
@@ -93,9 +93,9 @@ test.describe("Admin console", () => {
       await unlock(page);
       await page.getByRole("combobox").first().selectOption(a.id);
       await page.getByRole("button", { name: /^write$/i }).click();
-      await expect(page.getByText(/no web nfc here/i)).toBeVisible();
+      await expect(page.getByText(/no nfc in this browser/i)).toBeVisible();
       await test.step("register", async () => {
-        await page.getByPlaceholder("Band UID (manual)").fill(uid);
+        await page.getByPlaceholder("Band UID").first().fill(uid);
         await page.getByRole("button", { name: /^register$/i }).click();
         await expect(page.getByRole("paragraph").filter({ hasText: /^written$/i })).toBeVisible();
         await page.getByRole("paragraph").filter({ hasText: /^written$/i }).click({ timeout: 5_000 });

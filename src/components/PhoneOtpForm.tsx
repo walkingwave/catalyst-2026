@@ -62,7 +62,7 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Cont
             inputMode="numeric"
             autoComplete="one-time-code"
             pattern="[0-9]*"
-            placeholder="123456"
+            placeholder="Code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             autoFocus
@@ -85,7 +85,7 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Cont
       {withName && (
         <Field label="Name">
           <Input
-            placeholder="Your name"
+            placeholder="Name"
             autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -99,7 +99,7 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Cont
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          placeholder="(555) 010-0099"
+          placeholder="Phone number"
           value={phoneInput}
           onChange={(e) => setPhoneInput(e.target.value)}
           required
@@ -109,7 +109,6 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Cont
       <Button type="submit" disabled={busy}>
         {busy ? "Sending…" : submitLabel}
       </Button>
-      <p className="t-foot text-ink-2 text-center">No app. No password. Just a text.</p>
     </form>
   );
 }

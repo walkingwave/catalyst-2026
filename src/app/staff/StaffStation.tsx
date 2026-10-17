@@ -148,7 +148,7 @@ export function StaffStation() {
     return (
       <main className="flex-1 max-w-md mx-auto w-full px-4 pt-12">
         <div className="mb-2"><IconLock size={32} /></div>
-        <Headline sub="Enter the staff PIN to open the scan station.">Staff</Headline>
+        <Headline>Staff</Headline>
         <form onSubmit={submitPin} className="space-y-4">
           <Field label="PIN">
             <Input
@@ -226,7 +226,7 @@ export function StaffStation() {
 
       {!nfcSupported && (
         <p className="t-foot text-ink-2 mb-3">
-          No Web NFC here. Needs Android Chrome over HTTPS with NFC on. Enter a UID below instead.
+          No NFC in this browser. Enter a UID instead.
         </p>
       )}
       {nfcSupported && (
@@ -234,11 +234,11 @@ export function StaffStation() {
           {scanning ? (
             <Button variant="outline" onClick={stopNfc}>
               <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" />
-              Scanning, tap bands
+              Scanning
             </Button>
           ) : (
             <Button onClick={startScanning} disabled={!activityId}>
-              <IconNfc size={20} /> Start NFC scanning
+              <IconNfc size={20} /> Scan
             </Button>
           )}
           {nfcError && <p className="t-foot text-danger mt-2">{nfcError}</p>}
@@ -254,7 +254,7 @@ export function StaffStation() {
         }}
       >
         <Input
-          placeholder="Band UID (manual)"
+          placeholder="Band UID"
           value={manualUid}
           onChange={(e) => setManualUid(e.target.value)}
           autoCapitalize="characters"
