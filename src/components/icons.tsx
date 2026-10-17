@@ -95,3 +95,9 @@ export const IconUser = ({ size = 24, ...p }: P) => (
     <path d="M4 21a8 8 0 0 1 16 0" />
   </svg>
 );
+export const IconTicket = ({ size = 24, ...p }: P) => (
+  <svg {...base(size, p)}>
+    <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2.5 2.5 0 0 0 0 5v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2.5 2.5 0 0 0 0-5z" />
+    <path d="M13 5v2M13 11v2M13 17v2" strokeDasharray="1 2" />
+  </svg>
+);

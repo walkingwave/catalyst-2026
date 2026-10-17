@@ -252,7 +252,7 @@ export function TicketField({ label, value, sub }: { label: string; value: React
   return (
     <div className="min-w-0">
       <p className="mono-caps text-[10px] opacity-70">{label}</p>
-      <p className="display d-lg t-num mt-1 truncate">{value}</p>
+      <p className="display d-lg t-num mt-1 break-words">{value}</p>
       {sub && <p className="t-foot opacity-70 truncate">{sub}</p>}
     </div>
   );

@@ -116,7 +116,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
           stub={
             <div className="grid grid-cols-2 gap-2">
               <TicketField label="Activities" value={count} />
-              <TicketField label="Status" value="Unclaimed" />
+              <TicketField label="Status" value={<span className="d-md">Unclaimed</span>} />
             </div>
           }
         />

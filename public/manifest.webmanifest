@@ -1,6 +1,6 @@
 {
-  "name": "ConcertConnect",
-  "short_name": "ConcertConnect",
+  "name": "BandDrop",
+  "short_name": "BandDrop",
   "description": "Tap your wristband. Earn points. Get rewards.",
   "start_url": "/dashboard",
   "display": "standalone",

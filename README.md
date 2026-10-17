@@ -1,4 +1,4 @@
-# ConcertConnect
+# BandDrop
 
 NFC wristbands that track concert activity and points, plus one mobile website for fans.
 No app, no passwords. Name + phone + SMS code.

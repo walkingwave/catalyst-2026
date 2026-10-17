@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ---- ConcertConnect design tokens ----
+/* ---- BandDrop design tokens ----
    Cues from fandrop.com: monochrome, zero radius, condensed uppercase display type,
    hard 2px rules, black-and-white photography, inverted blocks for emphasis. */
 :root {

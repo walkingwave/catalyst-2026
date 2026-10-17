@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   if (!phone || !otp) return NextResponse.json({ error: { http_code: 400, message: "missing phone or otp" } }, { status: 400 });
 
   // OTP always goes out when a provider exists, regardless of the notifications toggle.
-  const res = await sendSms(phone, `${otp} is your ConcertConnect code.`, { force: true });
+  const res = await sendSms(phone, `${otp} is your BandDrop code.`, { force: true });
   if (!res.ok) {
     return NextResponse.json({ error: { http_code: 500, message: res.error ?? "send failed" } }, { status: 500 });
   }
