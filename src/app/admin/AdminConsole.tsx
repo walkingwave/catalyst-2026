@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge } from "@/components/ui";
 import { IconCheck, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
+import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, writeUrl, type NfcSession } from "@/lib/nfc";
 import type { Activity, Concert, ScanResult } from "@/lib/types";
 
 const PIN_KEY = "cc_staff_pin"; // shared with /staff
@@ -35,7 +36,7 @@ export function AdminConsole() {
   });
   const [tab, setTab] = useState<Tab>("tap");
   const [toast, setToast] = useState<string | null>(null);
-  const nfcSupported = "NDEFReader" in window;
+  const nfcSupported = nfcOk();
 
   const headers = useCallback(() => ({ "x-staff-pin": pin ?? "", "content-type": "application/json" }), [pin]);
 
@@ -204,13 +205,13 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
   const [log, setLog] = useState<ScanResult[]>([]);
   const [scanning, setScanning] = useState(false);
   const [nfcError, setNfcError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const sessionRef = useRef<NfcSession | null>(null);
   const activityRef = useRef(activityId);
   const lastRef = useRef({ uid: "", at: 0 });
   useEffect(() => {
     activityRef.current = activityId;
   }, [activityId]);
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => sessionRef.current?.stop(), []);
 
   function show(res: ScanResult) {
     setResult(res);
@@ -239,23 +240,21 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
       }
   }
 
-  async function startNfc() {
+  async function startScanning() {
     setNfcError(null);
-    if (!window.NDEFReader) return setNfcError("Web NFC needs Android Chrome.");
     try {
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      const reader = new window.NDEFReader();
-      reader.onreading = (ev) => void scan(ev.serialNumber);
-      reader.onreadingerror = () => show({ ok: false, status: "error", message: "Couldn't read tag" });
-      await reader.scan({ signal: ctrl.signal });
+      sessionRef.current = await startNfc({
+        onTag: (serial) => void scan(serial),
+        onError: (message) => show({ ok: false, status: "error", message }),
+      });
       setScanning(true);
     } catch (err) {
-      setNfcError(err instanceof Error ? err.message : "NFC failed");
+      setNfcError(nfcErrorMessage(err));
     }
   }
   function stopNfc() {
-    abortRef.current?.abort();
+    sessionRef.current?.stop();
+    sessionRef.current = null;
     setScanning(false);
   }
 
@@ -313,7 +312,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
               <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Scanning, tap bands
             </Button>
           ) : (
-            <Button onClick={startNfc} disabled={!activityId}>
+            <Button onClick={startScanning} disabled={!activityId}>
               <IconNfc size={20} /> Start NFC scanning
             </Button>
           )}
@@ -366,9 +365,11 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
   const [log, setLog] = useState<WriteLog[]>([]);
   const [manualUid, setManualUid] = useState("");
   const [flashUid, setFlashUid] = useState<WriteLog | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ serial: string; records: { recordType: string; data: string | null }[] } | null>(null);
+  const sessionRef = useRef<NfcSession | null>(null);
   const lastRef = useRef({ uid: "", at: 0 });
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => sessionRef.current?.stop(), []);
 
   async function register(raw: string) {
     const uid = normalizeUid(raw);
@@ -390,37 +391,53 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
 
   async function startWriter() {
     setError(null);
-    if (!window.NDEFReader) return setError("Web NFC needs Android Chrome.");
+    stopAll();
     try {
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      const reader = new window.NDEFReader();
-      reader.onreading = async (ev) => {
-        const uid = normalizeUid(ev.serialNumber);
-        const now = Date.now();
-        if (lastRef.current.uid === uid && now - lastRef.current.at < 3000) return;
-        lastRef.current = { uid, at: now };
-        try {
-          const res = await register(uid);
-          if (!res?.ok || !res.tag_url) throw new Error(res?.message ?? "Register failed");
-          // Write the tap URL while the tag is still in the field.
-          await reader.write({ records: [{ recordType: "url", data: res.tag_url }] }, { overwrite: true });
-          push({ uid, ok: true, status: `${res.status === "created" ? "Registered" : res.status === "moved" ? "Moved" : "Already here"} · URL written`, at: now });
-        } catch (err) {
-          push({ uid, ok: false, status: err instanceof Error ? err.message : "Write failed", at: now });
-        }
-      };
-      reader.onreadingerror = () => push({ uid: "?", ok: false, status: "Couldn't read tag", at: Date.now() });
-      await reader.scan({ signal: ctrl.signal });
+      sessionRef.current = await startNfc({
+        onTag: async (serial, reader) => {
+          const uid = normalizeUid(serial);
+          const now = Date.now();
+          if (!uid) return push({ uid: "?", ok: false, status: "Tag has no readable serial", at: now });
+          if (lastRef.current.uid === uid && now - lastRef.current.at < 3000) return;
+          lastRef.current = { uid, at: now };
+          try {
+            const res = await register(uid);
+            if (!res?.ok || !res.tag_url) throw new Error(res?.message ?? "Register failed");
+            // Write the tap URL while the tag is still in the field.
+            await writeUrl(reader, res.tag_url);
+            push({ uid, ok: true, status: `${res.status === "created" ? "Registered" : res.status === "moved" ? "Moved" : "Already here"} · URL written`, at: now });
+          } catch (err) {
+            push({ uid, ok: false, status: nfcErrorMessage(err), at: now });
+          }
+        },
+        onError: (message) => push({ uid: "?", ok: false, status: message, at: Date.now() }),
+      });
       setWriting(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "NFC failed");
+      setError(nfcErrorMessage(err));
     }
   }
-  function stopWriter() {
-    abortRef.current?.abort();
-    setWriting(false);
+  async function startTest() {
+    setError(null);
+    stopAll();
+    setTestResult(null);
+    try {
+      sessionRef.current = await startNfc({
+        onTag: (serial, _reader, records) => setTestResult({ serial: normalizeUid(serial) || serial || "(none)", records }),
+        onError: (message) => setError(message),
+      });
+      setTesting(true);
+    } catch (err) {
+      setError(nfcErrorMessage(err));
+    }
   }
+  function stopAll() {
+    sessionRef.current?.stop();
+    sessionRef.current = null;
+    setWriting(false);
+    setTesting(false);
+  }
+  const stopWriter = stopAll;
 
   return (
     <>
@@ -435,15 +452,35 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
 
       <div className="mt-4">
         {nfcSupported ? (
-          writing ? (
-            <Button variant="outline" onClick={stopWriter}>
-              <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Writer on, tap bands
-            </Button>
-          ) : (
-            <Button onClick={startWriter}>
-              <IconNfc size={20} /> Turn phone into NFC writer
-            </Button>
-          )
+          <div className="space-y-2">
+            {writing ? (
+              <Button variant="outline" onClick={stopWriter}>
+                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Writer on, tap bands
+              </Button>
+            ) : (
+              <Button onClick={startWriter}>
+                <IconNfc size={20} /> Turn phone into NFC writer
+              </Button>
+            )}
+            {testing ? (
+              <Button variant="outline" size="md" onClick={stopAll}>
+                <span className="inline-block w-2.5 h-2.5 bg-success animate-pulse" /> Test mode, tap a tag (reads only)
+              </Button>
+            ) : (
+              <Button variant="outline" size="md" onClick={startTest}>Test NFC (read only)</Button>
+            )}
+            {testResult && (
+              <div className="border border-line p-3">
+                <p className="label text-ink-2">Last tag</p>
+                <p className="font-mono t-sub mt-1">{testResult.serial}</p>
+                <p className="t-foot text-ink-2 mt-1">
+                  {testResult.records.length === 0
+                    ? "No NDEF records (blank tag)"
+                    : testResult.records.map((r) => `${r.recordType}: ${r.data ?? "(binary)"}`).join(" · ")}
+                </p>
+              </div>
+            )}
+          </div>
         ) : (
           <p className="t-foot text-ink-2">No Web NFC here (Android Chrome only). Register a UID manually below, then write the URL with NFC Tools.</p>
         )}

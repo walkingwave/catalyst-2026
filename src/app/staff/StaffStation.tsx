@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, List, Row, Field, Headline } from "@/components/ui";
 import { IconCheck, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
+import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, type NfcSession } from "@/lib/nfc";
 import type { Activity, Concert, ScanResult } from "@/lib/types";
 
 const PIN_KEY = "cc_staff_pin";
@@ -27,10 +28,10 @@ export function StaffStation() {
   const [concertId, setConcertId] = useState("");
   const [activityId, setActivityId] = useState("");
 
-  const [nfcSupported] = useState<boolean>(() => "NDEFReader" in window);
+  const [nfcSupported] = useState<boolean>(() => nfcOk());
   const [scanning, setScanning] = useState(false);
   const [nfcError, setNfcError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const sessionRef = useRef<NfcSession | null>(null);
 
   const [manualUid, setManualUid] = useState("");
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -117,34 +118,30 @@ export function StaffStation() {
     [pin, show],
   );
 
-  async function startNfc() {
+  async function startScanning() {
     setNfcError(null);
-    if (!window.NDEFReader) return setNfcError("Web NFC needs Android Chrome.");
     try {
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      const reader = new window.NDEFReader();
-      reader.onreading = (ev) => {
-        if (ev.serialNumber) void scan(ev.serialNumber);
-      };
-      reader.onreadingerror = () => {
-        show({ ok: false, status: "error", message: "Couldn't read tag. Try again." });
-      };
-      await reader.scan({ signal: ctrl.signal });
+      sessionRef.current = await startNfc({
+        onTag: (serial) => {
+          if (serial) void scan(serial);
+          else show({ ok: false, status: "error", message: "Tag has no readable serial" });
+        },
+        onError: (message) => show({ ok: false, status: "error", message }),
+      });
       setScanning(true);
     } catch (err) {
-      setNfcError(err instanceof Error ? err.message : "NFC failed to start");
+      setNfcError(nfcErrorMessage(err));
       setScanning(false);
     }
   }
 
   function stopNfc() {
-    abortRef.current?.abort();
-    abortRef.current = null;
+    sessionRef.current?.stop();
+    sessionRef.current = null;
     setScanning(false);
   }
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => sessionRef.current?.stop(), []);
 
   // ---------- PIN gate ----------
   if (!pin) {
@@ -229,7 +226,7 @@ export function StaffStation() {
 
       {!nfcSupported && (
         <p className="t-foot text-ink-2 mb-3">
-          No Web NFC in this browser. Use Android Chrome for tap scanning, or enter a UID below.
+          No Web NFC here. Needs Android Chrome over HTTPS with NFC on. Enter a UID below instead.
         </p>
       )}
       {nfcSupported && (
@@ -240,7 +237,7 @@ export function StaffStation() {
               Scanning, tap bands
             </Button>
           ) : (
-            <Button onClick={startNfc} disabled={!activityId}>
+            <Button onClick={startScanning} disabled={!activityId}>
               <IconNfc size={20} /> Start NFC scanning
             </Button>
           )}
