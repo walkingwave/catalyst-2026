@@ -1,5 +1,5 @@
 import { requireFan } from "@/lib/fan";
-import { Page, LargeTitle, Card, List, Row, SectionHeader, Empty, Points } from "@/components/ui";
+import { Page, Headline, Panel, List, Row, SectionHeader, Empty, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { RedeemButton } from "./RedeemButton";
@@ -23,41 +23,36 @@ export default async function MarketplacePage() {
   return (
     <Page>
       <Header />
-      <LargeTitle
-        sub={
-          <>
-            You have <Points value={balance} className="text-text font-semibold" /> points to spend.
-          </>
-        }
+      <Headline
+        kicker={<><Points value={balance} /> pts to spend</>}
+        sub="Trade points for merch and codes. Pick-ups happen at the merch booth tonight."
       >
         Rewards
-      </LargeTitle>
+      </Headline>
 
       {!rewards || rewards.length === 0 ? (
-        <Card>
+        <Panel>
           <Empty>No rewards yet.</Empty>
-        </Card>
+        </Panel>
       ) : (
         <div className="space-y-3">
           {(rewards as Reward[]).map((r) => (
-            <Card key={r.id} className="p-4">
+            <Panel key={r.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="t-headline">{r.name}</p>
-                  <p className="t-subhead text-text-2 mt-0.5">{r.description}</p>
-                  <p className="t-footnote text-text-2 mt-1.5">
+                  <p className="display d-md">{r.name}</p>
+                  <p className="t-sub text-ink-2 mt-1">{r.description}</p>
+                  <p className="label text-ink-2 mt-3">
                     {r.stock > 0 ? `${r.stock} left` : "Sold out"} ·{" "}
                     {r.type === "discount_code" ? "Digital code" : "Pick up at merch"}
                   </p>
                 </div>
-                <p className="t-headline t-num text-accent whitespace-nowrap">
-                  <Points value={r.cost} /> pts
-                </p>
+                <p className="display d-lg t-num whitespace-nowrap">{r.cost}</p>
               </div>
-              <div className="mt-3">
+              <div className="mt-4">
                 <RedeemButton reward={r} balance={balance} />
               </div>
-            </Card>
+            </Panel>
           ))}
         </div>
       )}
@@ -75,7 +70,6 @@ export default async function MarketplacePage() {
                   title={reward?.name}
                   subtitle={code?.code ? "Show this code at the booth" : "Show this screen at pickup"}
                   value={code?.code ? <span className="font-mono tracking-wider">{code.code}</span> : undefined}
-                  valueTone="accent"
                 />
               );
             })}

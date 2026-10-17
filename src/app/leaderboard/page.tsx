@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireFan, formatDate } from "@/lib/fan";
-import { Page, LargeTitle, List, Row, Card, Empty, Points } from "@/components/ui";
+import { Page, Headline, List, Row, Panel, Empty, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 
@@ -37,24 +37,24 @@ export default async function LeaderboardPage({
   return (
     <Page>
       <Header />
-      <LargeTitle sub={concert ? `${concert.name} · ${formatDate(concert.date)}` : "Across every show."}>
+      <Headline sub={concert ? `${concert.name} · ${formatDate(concert.date)}` : "Across every show."}>
         Ranks
-      </LargeTitle>
+      </Headline>
 
-      {/* Segmented control */}
-      <div className="flex gap-1 p-1 rounded-[12px] bg-surface-2 overflow-x-auto mb-4">
-        <Seg href="/leaderboard?scope=all" active={all}>All-time</Seg>
+      {/* Tabs: hard-edged, inverted when active */}
+      <div className="flex border-2 border-line overflow-x-auto mb-4">
+        <Tab href="/leaderboard?scope=all" active={all}>All-time</Tab>
         {concerts?.map((c) => (
-          <Seg key={c.id} href={`/leaderboard?concert=${c.id}`} active={!all && c.id === concertId}>
+          <Tab key={c.id} href={`/leaderboard?concert=${c.id}`} active={!all && c.id === concertId}>
             {c.artist}
-          </Seg>
+          </Tab>
         ))}
       </div>
 
       {!rows || rows.length === 0 ? (
-        <Card>
+        <Panel>
           <Empty>Nobody on the board yet.</Empty>
-        </Card>
+        </Panel>
       ) : (
         <List>
           {rows.map((r) => {
@@ -63,19 +63,11 @@ export default async function LeaderboardPage({
               <Row
                 key={r.user_id}
                 selected={me}
-                leading={
-                  <span
-                    className={`w-8 h-8 rounded-full flex items-center justify-center t-subhead font-semibold ${
-                      r.rank <= 3 ? "bg-accent text-on-accent" : "bg-surface-2 text-text-2"
-                    }`}
-                  >
-                    {r.rank}
-                  </span>
-                }
+                leading={<span className="display d-md w-8 text-left t-num">{r.rank}</span>}
                 title={
                   <>
                     {r.name || "Fan"}
-                    {me && <span className="t-footnote text-text-2 ml-1">(you)</span>}
+                    {me && <span className="label ml-2 opacity-70">You</span>}
                   </>
                 }
                 value={<Points value={r.points} />}
@@ -89,12 +81,12 @@ export default async function LeaderboardPage({
   );
 }
 
-function Seg({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className={`shrink-0 h-9 px-3 rounded-[9px] flex items-center t-subhead font-medium whitespace-nowrap ${
-        active ? "bg-surface text-text card-shadow" : "text-text-2"
+      className={`shrink-0 h-11 px-4 flex items-center label whitespace-nowrap border-r-2 border-line last:border-r-0 ${
+        active ? "bg-invert-bg text-invert-fg" : "text-ink-2"
       }`}
     >
       {children}

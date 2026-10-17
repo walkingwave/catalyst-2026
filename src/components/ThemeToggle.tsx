@@ -15,7 +15,6 @@ function current(): Theme {
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme | null>(null);
   useEffect(() => {
-    // Read after mount so SSR markup matches regardless of stored preference.
     const t = current();
     queueMicrotask(() => setTheme(t));
   }, []);
@@ -33,7 +32,7 @@ export function ThemeToggle() {
     <button
       onClick={toggle}
       aria-label="Toggle theme"
-      className="w-11 h-11 -mr-2 flex items-center justify-center rounded-full text-text-2 active:bg-surface-2"
+      className="w-11 h-11 -mr-2 flex items-center justify-center text-ink active:bg-surface-2"
     >
       {theme === "dark" ? <IconSun size={22} /> : <IconMoon size={22} />}
     </button>

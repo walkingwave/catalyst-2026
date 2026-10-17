@@ -42,7 +42,7 @@ export function ClaimFlow({ uid, signedIn }: { uid: string; signedIn: boolean })
         >
           {busy ? "Claiming…" : "Add to my account"}
         </Button>
-        {error && <p className="t-footnote text-danger px-1">{error}</p>}
+        {error && <p className="t-foot text-danger">{error}</p>}
       </div>
     );
   }

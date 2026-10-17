@@ -7,40 +7,57 @@ import { IconChevron } from "@/components/icons";
 export function Page({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <main
-      className={`flex-1 w-full max-w-md mx-auto px-4 pt-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] ${className}`}
+      className={`flex-1 w-full max-w-md mx-auto px-4 pt-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] ${className}`}
     >
       {children}
     </main>
   );
 }
 
-export function LargeTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
+/** Page headline: condensed uppercase display type, hard rule under it. */
+export function Headline({ children, sub, kicker }: { children: ReactNode; sub?: ReactNode; kicker?: ReactNode }) {
   return (
-    <div className="pt-2 pb-4">
-      <h1 className="t-large-title">{children}</h1>
-      {sub && <p className="t-subhead text-text-2 mt-1">{sub}</p>}
+    <div className="pt-4 pb-4 border-b-2 border-line mb-4">
+      {kicker && <p className="label text-ink-2 mb-2">{kicker}</p>}
+      <h1 className="display d-xl">{children}</h1>
+      {sub && <p className="t-sub text-ink-2 mt-2">{sub}</p>}
     </div>
   );
 }
 
 export function SectionHeader({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-end justify-between px-1 pt-6 pb-2">
-      <h2 className="t-footnote uppercase tracking-wide text-text-2 font-medium">{children}</h2>
-      {action && <span className="t-footnote text-accent">{action}</span>}
+    <div className="flex items-end justify-between pt-7 pb-2 border-b-2 border-line mb-3">
+      <h2 className="display d-sm">{children}</h2>
+      {action && <span className="label text-ink-2">{action}</span>}
     </div>
   );
 }
 
 /* Surfaces ------------------------------------------------------------ */
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[16px] bg-surface card-shadow ${className}`}>{children}</div>;
+/** Bordered panel. `invert` makes a solid black (or white in dark) block. */
+export function Panel({
+  children,
+  className = "",
+  invert = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  invert?: boolean;
+}) {
+  return (
+    <div
+      className={`${invert ? "bg-invert-bg text-invert-fg" : "bg-surface border border-line"} ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
-/** Inset grouped list. Children are rows. */
+/** Bordered list with hairline rules between rows. */
 export function List({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <Card className={`overflow-hidden hairline-b ${className}`}>{children}</Card>;
+  return <div className={`border border-line rules ${className}`}>{children}</div>;
 }
 
 export function Row({
@@ -57,33 +74,28 @@ export function Row({
   title: ReactNode;
   subtitle?: ReactNode;
   value?: ReactNode;
-  valueTone?: "default" | "accent" | "success" | "muted";
+  valueTone?: "default" | "success" | "muted";
   leading?: ReactNode;
   href?: string;
   onClick?: () => void;
   chevron?: boolean;
   selected?: boolean;
 }) {
-  const tone = {
-    default: "text-text",
-    accent: "text-accent",
-    success: "text-success",
-    muted: "text-text-2",
-  }[valueTone];
+  const tone = { default: "text-ink", success: "text-success", muted: "text-ink-2" }[valueTone];
   const inner = (
     <>
       {leading && <div className="shrink-0 mr-3 flex items-center">{leading}</div>}
       <div className="flex-1 min-w-0 py-3">
         <p className="t-body truncate">{title}</p>
-        {subtitle && <p className="t-footnote text-text-2 truncate mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="t-foot text-ink-2 truncate mt-0.5">{subtitle}</p>}
       </div>
-      {value !== undefined && <span className={`t-body t-num ml-3 ${tone}`}>{value}</span>}
-      {(chevron || href) && <IconChevron size={18} className="text-text-3 ml-1 -mr-1 shrink-0" />}
+      {value !== undefined && <span className={`display d-sm t-num ml-3 ${tone}`}>{value}</span>}
+      {(chevron || href) && <IconChevron size={18} className="text-ink-3 ml-1 -mr-1 shrink-0" />}
     </>
   );
-  const cls = `flex items-center min-h-[44px] px-4 w-full text-left ${selected ? "bg-accent-soft" : ""} ${
-    href || onClick ? "active:bg-surface-2 transition-colors" : ""
-  }`;
+  const cls = `flex items-center min-h-[48px] px-4 w-full text-left ${
+    selected ? "bg-invert-bg text-invert-fg" : ""
+  } ${href || onClick ? "active:bg-surface-2" : ""}`;
   if (href) return <Link href={href} className={cls}>{inner}</Link>;
   if (onClick) return <button onClick={onClick} className={cls}>{inner}</button>;
   return <div className={cls}>{inner}</div>;
@@ -91,12 +103,12 @@ export function Row({
 
 /* Controls ------------------------------------------------------------ */
 
-type Variant = "filled" | "tinted" | "plain" | "danger";
+type Variant = "filled" | "outline" | "plain" | "danger";
 const variantCls: Record<Variant, string> = {
-  filled: "bg-accent text-on-accent",
-  tinted: "bg-accent-soft text-accent",
-  plain: "bg-transparent text-accent",
-  danger: "bg-danger-soft text-danger",
+  filled: "bg-invert-bg text-invert-fg border-2 border-invert-bg",
+  outline: "bg-transparent text-ink border-2 border-line",
+  plain: "bg-transparent text-ink underline underline-offset-4",
+  danger: "bg-danger text-white border-2 border-danger",
 };
 
 export function Button({
@@ -106,10 +118,10 @@ export function Button({
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "lg" | "md" }) {
-  const h = size === "lg" ? "h-[50px] t-headline" : "h-11 t-subhead font-semibold";
+  const h = size === "lg" ? "h-14" : "h-12";
   return (
     <button
-      className={`w-full ${h} rounded-[12px] flex items-center justify-center gap-2 active:opacity-70 transition-opacity disabled:opacity-40 ${variantCls[variant]} ${className}`}
+      className={`w-full ${h} display d-sm flex items-center justify-center gap-2 active:opacity-70 disabled:opacity-40 ${variantCls[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -129,7 +141,7 @@ export function LinkButton({
   return (
     <Link
       href={href}
-      className={`w-full h-[50px] t-headline rounded-[12px] flex items-center justify-center gap-2 active:opacity-70 transition-opacity ${variantCls[variant]}`}
+      className={`w-full h-14 display d-sm flex items-center justify-center gap-2 active:opacity-70 ${variantCls[variant]}`}
     >
       {children}
     </Link>
@@ -139,7 +151,7 @@ export function LinkButton({
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className="w-full h-[50px] rounded-[12px] bg-surface border border-separator px-4 t-body outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft placeholder:text-text-3"
+      className="w-full h-14 bg-surface border-2 border-line px-4 t-body outline-none focus:bg-surface-2 placeholder:text-ink-3"
       {...props}
     />
   );
@@ -148,7 +160,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="t-footnote text-text-2 block mb-1.5 px-1">{label}</span>
+      <span className="label text-ink-2 block mb-2">{label}</span>
       {children}
     </label>
   );
@@ -165,47 +177,38 @@ export function StatTile({
   value,
   sub,
   href,
+  invert = false,
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
   href?: string;
+  invert?: boolean;
 }) {
   const body = (
-    <Card className="p-4 h-full">
-      <p className="t-footnote text-text-2">{label}</p>
-      <p className="t-title1 t-num mt-1">{value}</p>
-      {sub && <p className="t-footnote text-text-2 mt-1 truncate">{sub}</p>}
-    </Card>
+    <Panel invert={invert} className="p-4 h-full">
+      <p className={`label ${invert ? "text-invert-fg/70" : "text-ink-2"}`}>{label}</p>
+      <p className="display d-xl t-num mt-3">{value}</p>
+      {sub && <p className={`t-foot mt-1 truncate ${invert ? "text-invert-fg/70" : "text-ink-2"}`}>{sub}</p>}
+    </Panel>
   );
   return href ? <Link href={href} className="block active:opacity-70">{body}</Link> : body;
 }
 
-export function Badge({
-  children,
-  tone = "accent",
-}: {
-  children: ReactNode;
-  tone?: "accent" | "success" | "warning" | "neutral";
-}) {
+export function Badge({ children, tone = "ink" }: { children: ReactNode; tone?: "ink" | "success" | "warning" }) {
   const cls = {
-    accent: "bg-accent-soft text-accent",
-    success: "bg-success-soft text-success",
-    warning: "bg-warning-soft text-warning",
-    neutral: "bg-surface-2 text-text-2",
+    ink: "bg-invert-bg text-invert-fg",
+    success: "bg-success text-white",
+    warning: "bg-warning text-black",
   }[tone];
-  return (
-    <span className={`inline-flex items-center h-6 px-2 rounded-md t-caption font-semibold ${cls}`}>
-      {children}
-    </span>
-  );
+  return <span className={`inline-flex items-center h-6 px-2 label ${cls}`}>{children}</span>;
 }
 
 export function Banner({ children, tone = "success" }: { children: ReactNode; tone?: "success" | "warning" }) {
-  const cls = tone === "success" ? "bg-success-soft text-success" : "bg-warning-soft text-warning";
-  return <div className={`rounded-[12px] px-4 py-3 t-subhead font-medium ${cls}`}>{children}</div>;
+  const cls = tone === "success" ? "bg-success text-white" : "bg-warning text-black";
+  return <div className={`px-4 py-3 t-sub font-semibold ${cls}`}>{children}</div>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="t-subhead text-text-2 text-center py-10 px-6">{children}</p>;
+  return <p className="t-sub text-ink-2 text-center py-10 px-6">{children}</p>;
 }

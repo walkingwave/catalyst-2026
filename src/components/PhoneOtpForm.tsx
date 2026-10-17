@@ -69,11 +69,11 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Cont
             required
           />
         </Field>
-        {error && <p className="t-footnote text-danger px-1">{error}</p>}
+        {error && <p className="t-foot text-danger">{error}</p>}
         <Button type="submit" disabled={busy || code.length < 4}>
           {busy ? "Checking…" : "Confirm"}
         </Button>
-        <Button type="button" variant="plain" size="md" onClick={() => setStep("phone")} disabled={busy}>
+        <Button type="button" variant="outline" size="md" onClick={() => setStep("phone")} disabled={busy}>
           Use a different number
         </Button>
       </form>
@@ -105,11 +105,11 @@ export function PhoneOtpForm({ withName = false, onVerified, submitLabel = "Cont
           required
         />
       </Field>
-      {error && <p className="t-footnote text-danger px-1">{error}</p>}
+      {error && <p className="t-foot text-danger">{error}</p>}
       <Button type="submit" disabled={busy}>
         {busy ? "Sending…" : submitLabel}
       </Button>
-      <p className="t-footnote text-text-2 text-center">No app. No password. Just a text.</p>
+      <p className="t-foot text-ink-2 text-center">No app. No password. Just a text.</p>
     </form>
   );
 }

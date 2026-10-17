@@ -14,7 +14,7 @@ const tabs = [
 export function Nav() {
   const path = usePathname();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-separator">
+    <nav className="fixed bottom-0 inset-x-0 z-40 bg-invert-bg text-invert-fg">
       <div className="max-w-md mx-auto grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
         {tabs.map(({ href, label, Icon }) => {
           const active = path.startsWith(href);
@@ -23,12 +23,12 @@ export function Nav() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center justify-center h-[49px] gap-0.5 ${
-                active ? "text-accent" : "text-text-2"
+              className={`flex flex-col items-center justify-center h-14 gap-1 ${
+                active ? "opacity-100" : "opacity-50"
               }`}
             >
-              <Icon size={24} strokeWidth={active ? 2.25 : 2} />
-              <span className="text-[10px] leading-3 font-medium">{label}</span>
+              <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+              <span className="label text-[10px]">{label}</span>
             </Link>
           );
         })}

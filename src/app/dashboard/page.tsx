@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { requireFan, fanScans, timeAgo, formatDate } from "@/lib/fan";
-import { Page, Card, Points, List, Row, StatTile, SectionHeader, Banner, Empty } from "@/components/ui";
+import { Page, Panel, Points, List, Row, StatTile, SectionHeader, Banner, Empty } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { IconChevron } from "@/components/icons";
@@ -51,7 +51,7 @@ export default async function Dashboard({
       <Header
         right={
           <form action="/auth/signout" method="post">
-            <button className="t-subhead text-accent h-11 px-2">Sign out</button>
+            <button className="label text-ink h-11 px-2 underline underline-offset-4">Sign out</button>
           </form>
         }
       />
@@ -62,20 +62,21 @@ export default async function Dashboard({
         </div>
       )}
 
-      <div className="pt-2 pb-4">
-        <p className="t-subhead text-text-2">Hi {firstName}</p>
-        <div className="flex items-baseline gap-2">
-          <Points value={pts?.balance ?? 0} className="t-large-title text-[44px] leading-[52px]" />
-          <span className="t-headline text-text-2">points</span>
+      {/* Points hero: inverted block */}
+      <Panel invert className="p-5 mt-2">
+        <p className="label text-invert-fg/70">Hey {firstName}, you have</p>
+        <div className="flex items-end gap-3 mt-3">
+          <Points value={pts?.balance ?? 0} className="display text-[72px] leading-[0.85]" />
+          <span className="display d-md pb-1">pts</span>
         </div>
         {pts && pts.spent > 0 && (
-          <p className="t-footnote text-text-2">
+          <p className="t-foot text-invert-fg/70 mt-3">
             {pts.earned.toLocaleString()} earned · {pts.spent.toLocaleString()} redeemed
           </p>
         )}
-      </div>
+      </Panel>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 mt-3">
         <StatTile
           label="Tonight"
           value={tonightRank ? `#${tonightRank.rank}` : "—"}
@@ -92,34 +93,35 @@ export default async function Dashboard({
 
       {tonight && (
         <>
-          <SectionHeader>Tonight</SectionHeader>
+          <SectionHeader action={formatDate(tonight.date)}>Tonight</SectionHeader>
           <Link href={`/concerts/${tonight.id}`} className="block active:opacity-70">
-            <Card className="overflow-hidden">
+            <Panel className="overflow-hidden">
               {tonight.image_url && (
-                <div className="relative aspect-[16/9]">
-                  <Image src={tonight.image_url} alt={tonight.artist} fill className="object-cover" priority />
+                <div className="relative aspect-[16/10] border-b border-line">
+                  <Image src={tonight.image_url} alt={tonight.artist} fill className="object-cover photo" priority />
+                  <p className="absolute left-3 bottom-3 display d-lg text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                    {tonight.artist}
+                  </p>
                 </div>
               )}
               <div className="flex items-center px-4 py-3">
                 <div className="flex-1 min-w-0">
-                  <p className="t-headline truncate">{tonight.artist}</p>
-                  <p className="t-footnote text-text-2 truncate">
-                    {tonight.venue} · {formatDate(tonight.date)}
-                  </p>
+                  <p className="t-body truncate">{tonight.venue}</p>
+                  <p className="t-foot text-ink-2 truncate">{tonight.name}</p>
                 </div>
-                <span className="t-subhead text-accent mr-1">Venue map</span>
-                <IconChevron size={18} className="text-text-3" />
+                <span className="label mr-1">Venue map</span>
+                <IconChevron size={18} className="text-ink-3" />
               </div>
-            </Card>
+            </Panel>
           </Link>
         </>
       )}
 
       <SectionHeader action={<Link href="/concerts">See all</Link>}>Recent activity</SectionHeader>
       {recent.length === 0 ? (
-        <Card>
+        <Panel>
           <Empty>Tap your band at a booth to earn points.</Empty>
-        </Card>
+        </Panel>
       ) : (
         <List>
           {recent.map((s) => (
@@ -128,7 +130,6 @@ export default async function Dashboard({
               title={s.activity?.name}
               subtitle={timeAgo(s.scanned_at)}
               value={`+${s.activity?.points}`}
-              valueTone="success"
             />
           ))}
         </List>

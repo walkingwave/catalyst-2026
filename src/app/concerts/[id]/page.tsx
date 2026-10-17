@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireFan, fanScans, formatDate } from "@/lib/fan";
-import { Page, Card, List, Row, SectionHeader, Points } from "@/components/ui";
+import { Page, List, Row, SectionHeader, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { VenueMap } from "@/components/VenueMap";
@@ -28,37 +28,33 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   return (
     <Page>
       <Header />
-      <Card className="overflow-hidden mt-2">
-        {c.image_url && (
-          <div className="relative aspect-[4/3]">
-            <Image src={c.image_url} alt={c.artist} fill className="object-cover" priority />
-          </div>
-        )}
-        <div className="p-4">
-          <h1 className="t-title1">{c.artist}</h1>
-          <p className="t-subhead text-text-2 mt-0.5">{c.name}</p>
-          {c.description && <p className="t-subhead mt-3">{c.description}</p>}
+      <div className="relative aspect-[4/5] mt-2 border border-line overflow-hidden">
+        {c.image_url && <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" priority />}
+        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white">
+          <p className="label text-white/70">{formatDate(c.date)} · {c.venue}</p>
+          <h1 className="display d-hero mt-1">{c.artist}</h1>
         </div>
-      </Card>
+      </div>
+      <p className="t-body text-ink-2 mt-4">{c.description}</p>
 
       <SectionHeader>Details</SectionHeader>
       <List>
-        <Row title="Venue" value={c.venue} valueTone="muted" />
-        <Row title="Date" value={formatDate(c.date)} valueTone="muted" />
-        {c.doors_at && <Row title="Doors" value={c.doors_at} valueTone="muted" />}
-        {c.address && <Row title="Address" value={c.address} valueTone="muted" />}
+        <Row title="Show" value={<span className="t-sub normal-case font-sans font-medium">{c.name}</span>} />
+        <Row title="Venue" value={<span className="t-sub normal-case font-sans font-medium">{c.venue}</span>} />
+        {c.doors_at && <Row title="Doors" value={<span className="t-sub normal-case font-sans font-medium">{c.doors_at}</span>} />}
+        {c.address && <Row title="Address" value={<span className="t-sub normal-case font-sans font-medium">{c.address}</span>} />}
       </List>
 
-      <SectionHeader action={<span>{earned} / {possible} pts</span>}>Venue map</SectionHeader>
+      <SectionHeader action={`${earned} / ${possible} pts`}>Venue map</SectionHeader>
       <VenueMap activities={acts} done={doneIds} venue={c.venue} />
 
       {c.venue_image_url && (
-        <Card className="overflow-hidden mt-3">
-          <div className="relative aspect-[16/9]">
-            <Image src={c.venue_image_url} alt={c.venue} fill className="object-cover" />
-          </div>
-          <p className="t-footnote text-text-2 px-4 py-2">{c.venue}{c.address ? ` · ${c.address}` : ""}</p>
-        </Card>
+        <div className="relative aspect-[16/9] mt-3 border border-line overflow-hidden">
+          <Image src={c.venue_image_url} alt={c.venue} fill className="object-cover photo" />
+          <p className="absolute left-3 bottom-3 label text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+            {c.venue}{c.address ? ` · ${c.address}` : ""}
+          </p>
+        </div>
       )}
 
       <SectionHeader>Activities</SectionHeader>
@@ -68,8 +64,8 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
             key={a.id}
             title={a.name}
             subtitle={a.location ?? undefined}
-            value={doneIds.has(a.id) ? "Done" : <Points value={a.points} />}
-            valueTone={doneIds.has(a.id) ? "success" : "accent"}
+            value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
+            valueTone={doneIds.has(a.id) ? "success" : "default"}
           />
         ))}
       </List>

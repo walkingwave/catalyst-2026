@@ -122,15 +122,15 @@ Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-p
 
 ## Design
 
-Light and dark themes (follows system, toggle in the header, remembered per device). Tokens live in `src/app/globals.css` and follow platform conventions rather than a custom look:
+Cues from fandrop.com: monochrome, zero border radius, condensed uppercase display type, hard 2px rules, black-and-white photography, inverted black blocks for emphasis.
 
-- iOS system palette: grouped background + white inset cards (light), elevated greys not pure black (dark), indigo accent, semantic success/warning/danger.
-- HIG type scale: large title 34, title 28/22, headline/body 17, subhead 15, footnote 13. Utilities `.t-large-title` … `.t-caption`.
-- 8pt grid, 44pt minimum targets, 50px primary buttons with 12px radius, 16px card radius, 49px tab bar with SVG icons.
-- Inset grouped lists (`List` + `Row`) with hairline separators, segmented control for leaderboard scopes, no blur or translucency.
-- 17px inputs (no iOS zoom), safe-area insets, `viewport-fit=cover`, no overscroll bounce, web manifest for Add to Home Screen.
+- Fonts: Clash Display (headlines, uppercase) and General Sans (body) via Fontshare, free for commercial use.
+- Tokens in `src/app/globals.css`: `--ink`, `--line`, `--invert-bg/fg`, plus success/warning/danger. Light = white paper, dark = black. Toggle in the header, follows system by default.
+- Primitives in `src/components/ui.tsx`: `Panel` (bordered or inverted), `List`/`Row` with hairline rules, `Button` filled/outline, `Headline` with a rule, `StatTile`.
+- Photos get `.photo` (grayscale + contrast) so any artist image matches the system.
+- 56px buttons/inputs, 56px tab bar (black with white icons), 17px inputs, safe-area insets, no overscroll bounce.
 
-Demo show: Our Lady Peace at Massey Hall, with a stylized floor-plan map (`VenueMap`) whose pins come from `activities.map_x / map_y`. Photos are Creative Commons from Wikimedia (see `public/img/ATTRIBUTION.md`).
+Demo show: Our Lady Peace at Massey Hall with a monochrome floor-plan map (`VenueMap`) whose pins come from `activities.map_x / map_y`. Photos are Creative Commons from Wikimedia (see `public/img/ATTRIBUTION.md`).
 
 ## Deploy
 
