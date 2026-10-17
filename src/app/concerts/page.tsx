@@ -40,10 +40,16 @@ export default async function ConcertsPage() {
             const total = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0);
             return (
               <Link key={c.id} href={`/concerts/${c.id}`} className="block active:opacity-70">
-                <Panel>
+                <Panel className="overflow-hidden">
                   <div className="flex items-stretch">
-                    <div className="relative w-28 shrink-0 bg-surface-2 border-r border-line">
-                      {c.image_url && <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" />}
+                    <div className="relative w-28 shrink-0 bg-invert-bg">
+                      {c.image_url ? (
+                        <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" />
+                      ) : (
+                        <p className="absolute inset-0 flex items-center justify-center display d-xl text-invert-fg/20 select-none">
+                          {c.artist.split(/\s+/).slice(0, 2).map((w) => w[0]).join("")}
+                        </p>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 px-4 py-3">
                       <p className="display d-md truncate">{c.artist}</p>

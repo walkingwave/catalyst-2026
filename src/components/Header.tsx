@@ -17,7 +17,7 @@ export function Header({ right }: { right?: React.ReactNode }) {
 }
 
 export function Wordmark({ size = "sm" }: { size?: "sm" | "lg" }) {
-  const cls = size === "lg" ? "px-3 py-2 d-lg" : "px-2 py-1.5 text-[13px] leading-[0.95]";
+  const cls = size === "lg" ? "px-3 py-2 d-lg" : "px-2 py-1.5 text-[12px] leading-[0.95]";
   return (
     <span className={`display bg-invert-bg text-invert-fg inline-block text-left ${cls}`}>
       Concert

@@ -85,7 +85,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
       <Header />
       <TapBanner tap={tap} />
       {concert && (
-        <div className="relative aspect-[16/10] mt-2 border border-line overflow-hidden">
+        <div className="relative aspect-[16/10] mt-2 -mx-4 overflow-hidden">
           {concert.image_url && (
             <Image src={concert.image_url} alt={concert.artist} fill className="object-cover photo" priority />
           )}
@@ -106,7 +106,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
       </Panel>
 
       {scans && scans.length > 0 && (
-        <List className="mt-3 border-t-0">
+        <List className="mt-3">
           {scans.map((s, i) => {
             const a = Array.isArray(s.activity) ? s.activity[0] : s.activity;
             return <Row key={i} title={a?.name} value={`+${a?.points}`} />;

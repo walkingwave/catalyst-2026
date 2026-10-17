@@ -109,7 +109,7 @@ export function AdminConsole() {
 
   return (
     <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-10">
-      <div className="flex items-center justify-between h-14 border-b-2 border-line">
+      <div className="flex items-center justify-between h-14">
         <h1 className="display d-lg">Admin</h1>
         <button
           className="label underline underline-offset-4 h-11 px-2"
@@ -127,7 +127,7 @@ export function AdminConsole() {
       {/* Event switcher: always visible so taps can jump between events fast. */}
       <label className="label text-ink-2 block mt-4 mb-2">Current event</label>
       <select
-        className="w-full h-14 bg-surface border-2 border-line px-4 t-body"
+        className="w-full h-14 bg-surface-2 px-4 t-body"
         value={eventId}
         onChange={(e) => setEventId(e.target.value)}
       >
@@ -143,12 +143,12 @@ export function AdminConsole() {
         </p>
       )}
 
-      <div className="flex border-2 border-line mt-4">
+      <div className="flex gap-1 mt-4 bg-surface-2 p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 h-11 label border-r-2 border-line last:border-r-0 ${tab === t.id ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}
+            className={`flex-1 h-10 label ${tab === t.id ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}
           >
             {t.label}
           </button>
@@ -269,7 +269,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
             <button
               key={a.id}
               onClick={() => setActivityId(a.id)}
-              className={`min-h-[60px] px-3 py-2 text-left border-2 border-line ${on ? "bg-invert-bg text-invert-fg" : "bg-surface"}`}
+              className={`min-h-[60px] px-3 py-2 text-left ${on ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}
             >
               <p className="display d-sm">{a.name}</p>
               <p className={`t-foot mt-1 ${on ? "text-invert-fg/70" : "text-ink-2"}`}>+{a.points} pts</p>
@@ -327,7 +327,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
         }}
       >
         <Input placeholder="Band UID" value={manualUid} onChange={(e) => setManualUid(e.target.value)} autoCapitalize="characters" autoCorrect="off" />
-        <button type="submit" disabled={!activityId || !manualUid} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
+        <button type="submit" disabled={!activityId || !manualUid} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
           Tap
         </button>
       </form>
@@ -458,7 +458,7 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
               <Button variant="outline" size="md" onClick={startTest}>Read tag</Button>
             )}
             {testResult && (
-              <div className="border border-line p-3">
+              <div className="bg-surface-2 p-3">
                 <p className="label text-ink-2">Last tag</p>
                 <p className="font-mono t-sub mt-1">{testResult.serial}</p>
                 <p className="t-foot text-ink-2 mt-1">
@@ -485,7 +485,7 @@ function WriteTab({ event, headers, nfcSupported, onDone }: { event: EventRow; h
         }}
       >
         <Input placeholder="Band UID" value={manualUid} onChange={(e) => setManualUid(e.target.value)} autoCapitalize="characters" autoCorrect="off" />
-        <button type="submit" disabled={!manualUid} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
+        <button type="submit" disabled={!manualUid} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
           Register
         </button>
       </form>
@@ -589,7 +589,7 @@ function BandsTab({
         }}
       >
         <Input placeholder="Band UID" value={lookup} onChange={(e) => setLookup(e.target.value)} autoCapitalize="characters" autoCorrect="off" />
-        <button type="submit" disabled={!lookup} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
+        <button type="submit" disabled={!lookup} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
           Open
         </button>
       </form>
@@ -628,14 +628,14 @@ function BandsTab({
               <p className="label text-ink-2 mt-4 mb-2">Assign to event</p>
               <div className="flex gap-2 w-full">
                 {/* min-w-0 lets the select shrink below its option text so the button never leaves the viewport */}
-                <select className="flex-1 min-w-0 h-12 bg-surface border-2 border-line px-3 t-sub" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+                <select className="flex-1 min-w-0 h-12 bg-surface-2 px-3 t-sub" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
                   {events.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.artist} · {e.date}
                     </option>
                   ))}
                 </select>
-                <button onClick={move} className="h-12 px-4 shrink-0 bg-invert-bg text-invert-fg label">Move</button>
+                <button onClick={move} className="h-12 px-4 shrink-0 bg-invert-bg text-invert-fg label press">Move</button>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3">
                 {detail.band.user_id && <Button size="md" variant="outline" onClick={() => act("unclaim")}>Unclaim</Button>}
@@ -758,7 +758,7 @@ function EventsTab({
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
             </Field>
             <Field label="Description">
-              <textarea className="w-full min-h-20 bg-surface border-2 border-line p-3 t-body outline-none focus:bg-surface-2" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
+              <textarea className="w-full min-h-20 bg-surface-2 p-3 t-body outline-none" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Location">
@@ -777,7 +777,7 @@ function EventsTab({
               </Field>
             </div>
             <Field label="Artist or team">
-              <select className="w-full h-14 bg-surface border-2 border-line px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
+              <select className="w-full h-14 bg-surface-2 px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
                 {artists.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.kind})
@@ -789,7 +789,7 @@ function EventsTab({
             {artistId === "new" && (
               <div className="grid grid-cols-[1fr_auto] gap-2">
                 <Input value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Name" required />
-                <select className="h-14 bg-surface border-2 border-line px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
+                <select className="h-14 bg-surface-2 px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
                   <option value="artist">Artist</option>
                   <option value="team">Team</option>
                 </select>
@@ -806,13 +806,13 @@ function EventsTab({
                   <div key={i} className="grid grid-cols-[1fr_72px_auto] gap-2">
                     <Input value={a.name} onChange={(e) => setActs(acts.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder="Activity" />
                     <Input inputMode="numeric" value={a.points} onChange={(e) => setActs(acts.map((x, j) => (j === i ? { ...x, points: e.target.value.replace(/\D/g, "") } : x)))} placeholder="pts" />
-                    <button type="button" onClick={() => setActs(acts.filter((_, j) => j !== i))} className="h-14 w-12 border-2 border-line flex items-center justify-center" aria-label="Remove">
+                    <button type="button" onClick={() => setActs(acts.filter((_, j) => j !== i))} className="h-14 w-12 bg-surface-2 flex items-center justify-center" aria-label="Remove">
                       <IconX size={18} />
                     </button>
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => setActs([...acts, { name: "", points: "50", location: "" }])} className="mt-2 h-11 px-3 border-2 border-line label">
+              <button type="button" onClick={() => setActs([...acts, { name: "", points: "50", location: "" }])} className="mt-2 h-11 px-3 bg-surface-2 label">
                 + Add activity
               </button>
             </div>
@@ -892,7 +892,7 @@ function PhonesTab({ headers, flash }: { headers: () => HeadersInit; flash: (m: 
         <>
           <form onSubmit={add} className="flex gap-2 mt-4">
             <Input type="tel" inputMode="tel" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <button type="submit" disabled={busy || !phone} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
+            <button type="submit" disabled={busy || !phone} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
               {busy ? "…" : "Add"}
             </button>
           </form>

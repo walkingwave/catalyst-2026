@@ -17,7 +17,7 @@ export function Page({ children, className = "" }: { children: ReactNode; classN
 /** Page headline: condensed uppercase display type, hard rule under it. */
 export function Headline({ children, sub, kicker }: { children: ReactNode; sub?: ReactNode; kicker?: ReactNode }) {
   return (
-    <div className="pt-4 pb-4 border-b-2 border-line mb-4">
+    <div className="pt-4 pb-5">
       {kicker && <p className="label text-ink-2 mb-2">{kicker}</p>}
       <h1 className="display d-xl">{children}</h1>
       {sub && <p className="t-sub text-ink-2 mt-2">{sub}</p>}
@@ -27,7 +27,7 @@ export function Headline({ children, sub, kicker }: { children: ReactNode; sub?:
 
 export function SectionHeader({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-end justify-between pt-7 pb-2 border-b-2 border-line mb-3">
+    <div className="flex items-end justify-between pt-8 pb-3">
       <h2 className="display d-sm">{children}</h2>
       {action && <span className="label text-ink-2">{action}</span>}
     </div>
@@ -36,7 +36,7 @@ export function SectionHeader({ children, action }: { children: ReactNode; actio
 
 /* Surfaces ------------------------------------------------------------ */
 
-/** Bordered panel. `invert` makes a solid black (or white in dark) block. */
+/** Tonal panel. `invert` makes a solid black (or white in dark) block. */
 export function Panel({
   children,
   className = "",
@@ -49,7 +49,7 @@ export function Panel({
 } & Omit<React.HTMLAttributes<HTMLDivElement>, "className" | "children">) {
   return (
     <div
-      className={`${invert ? "bg-invert-bg text-invert-fg" : "bg-surface border border-line"} ${className}`}
+      className={`${invert ? "bg-invert-bg text-invert-fg" : "bg-surface-2"} ${className}`}
       {...rest}
     >
       {children}
@@ -57,9 +57,9 @@ export function Panel({
   );
 }
 
-/** Bordered list with hairline rules between rows. */
+/** List with hairline rules between rows. */
 export function List({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`border border-line rules ${className}`}>{children}</div>;
+  return <div className={`rules ${className}`}>{children}</div>;
 }
 
 export function Row({
@@ -97,9 +97,9 @@ export function Row({
       {(chevron || href) && <IconChevron size={18} className="text-ink-3 ml-1 -mr-1 shrink-0" />}
     </>
   );
-  const cls = `flex items-center min-h-[48px] px-4 w-full text-left ${
-    selected ? "bg-invert-bg text-invert-fg" : ""
-  } ${href || onClick ? "active:bg-surface-2" : ""}`;
+  const cls = `flex items-center min-h-[52px] px-1 w-full text-left ${
+    selected ? "bg-invert-bg text-invert-fg px-4 -mx-0" : ""
+  } ${href || onClick ? "press" : ""}`;
   if (href) return <Link href={href} className={cls}>{inner}</Link>;
   if (onClick) return <button onClick={onClick} className={cls}>{inner}</button>;
   return <div className={cls}>{inner}</div>;
@@ -109,10 +109,10 @@ export function Row({
 
 type Variant = "filled" | "outline" | "plain" | "danger";
 const variantCls: Record<Variant, string> = {
-  filled: "bg-invert-bg text-invert-fg border-2 border-invert-bg",
-  outline: "bg-transparent text-ink border-2 border-line",
+  filled: "bg-invert-bg text-invert-fg",
+  outline: "bg-surface-2 text-ink",
   plain: "bg-transparent text-ink underline underline-offset-4",
-  danger: "bg-danger text-white border-2 border-danger",
+  danger: "bg-danger text-white",
 };
 
 export function Button({
@@ -125,7 +125,7 @@ export function Button({
   const h = size === "lg" ? "h-14" : "h-12";
   return (
     <button
-      className={`w-full ${h} display d-sm flex items-center justify-center gap-2 active:opacity-70 disabled:opacity-40 ${variantCls[variant]} ${className}`}
+      className={`w-full ${h} display d-sm flex items-center justify-center gap-2 press disabled:opacity-40 ${variantCls[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -145,7 +145,7 @@ export function LinkButton({
   return (
     <Link
       href={href}
-      className={`w-full h-14 display d-sm flex items-center justify-center gap-2 active:opacity-70 ${variantCls[variant]}`}
+      className={`w-full h-14 display d-sm flex items-center justify-center gap-2 press ${variantCls[variant]}`}
     >
       {children}
     </Link>
@@ -155,7 +155,7 @@ export function LinkButton({
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className="w-full h-14 bg-surface border-2 border-line px-4 t-body outline-none focus:bg-surface-2 placeholder:text-ink-3"
+      className="w-full h-14 bg-surface-2 border-b-2 border-transparent px-4 t-body outline-none focus:border-line placeholder:text-ink-3"
       {...props}
     />
   );
@@ -196,7 +196,7 @@ export function StatTile({
       {sub && <p className={`t-foot mt-1 truncate ${invert ? "text-invert-fg/70" : "text-ink-2"}`}>{sub}</p>}
     </Panel>
   );
-  return href ? <Link href={href} className="block active:opacity-70">{body}</Link> : body;
+  return href ? <Link href={href} className="block press">{body}</Link> : body;
 }
 
 export function Badge({ children, tone = "ink" }: { children: ReactNode; tone?: "ink" | "success" | "warning" }) {
@@ -214,5 +214,5 @@ export function Banner({ children, tone = "success" }: { children: ReactNode; to
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="t-sub text-ink-2 text-center py-10 px-6">{children}</p>;
+  return <p className="t-sub text-ink-2 py-6">{children}</p>;
 }
