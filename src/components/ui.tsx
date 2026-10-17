@@ -81,13 +81,15 @@ export function Row({
   chevron?: boolean;
   selected?: boolean;
 }) {
-  const tone = { default: "text-ink", success: "text-success", muted: "text-ink-2" }[valueTone];
+  const tone = selected
+    ? "text-invert-fg"
+    : { default: "text-ink", success: "text-success", muted: "text-ink-2" }[valueTone];
   const inner = (
     <>
       {leading && <div className="shrink-0 mr-3 flex items-center">{leading}</div>}
       <div className="flex-1 min-w-0 py-3">
         <p className="t-body truncate">{title}</p>
-        {subtitle && <p className="t-foot text-ink-2 truncate mt-0.5">{subtitle}</p>}
+        {subtitle && <p className={`t-foot truncate mt-0.5 ${selected ? "text-invert-fg/70" : "text-ink-2"}`}>{subtitle}</p>}
       </div>
       {value !== undefined && <span className={`display d-sm t-num ml-3 ${tone}`}>{value}</span>}
       {(chevron || href) && <IconChevron size={18} className="text-ink-3 ml-1 -mr-1 shrink-0" />}
