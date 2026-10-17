@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     doors_at?: string;
     artist_id?: string;
     new_artist?: { name: string; kind?: "artist" | "team" };
-    activities?: { name: string; points: number; location?: string }[];
+    activities?: { name: string; points: number; location?: string; kind?: "scan" | "social"; social_network?: string }[];
   };
   const name = (b.name ?? "").trim();
   const venue = (b.venue ?? "").trim();
@@ -54,7 +54,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, message: "Name, location and date are required" }, { status: 400 });
   }
   const acts = (b.activities ?? [])
-    .map((a) => ({ name: (a.name ?? "").trim(), points: Math.max(0, Math.round(Number(a.points) || 0)), location: a.location?.trim() || null }))
+    .map((a) => ({
+      name: (a.name ?? "").trim(),
+      points: Math.max(0, Math.round(Number(a.points) || 0)),
+      location: a.location?.trim() || null,
+      kind: a.kind === "social" ? "social" : "scan",
+      social_network: a.kind === "social" ? a.social_network ?? "instagram" : null,
+    }))
     .filter((a) => a.name);
   if (!acts.length) return NextResponse.json({ ok: false, message: "Add at least one activity" }, { status: 400 });
 
@@ -119,4 +125,15 @@ export async function PATCH(req: Request) {
   const { error } = await db.from("concerts").update({ live_activity_id: b.live_activity_id ?? null }).eq("id", b.id);
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
+}
+
+/** DELETE ?id=… removes an event and everything under it (activities, bands, scans). */
+export async function DELETE(req: Request) {
+  if (!checkStaffPin(staffPinFromRequest(req))) return NextResponse.json({ ok: false }, { status: 401 });
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ ok: false, message: "id required" }, { status: 400 });
+  const db = createAdminClient();
+  const { error, count } = await db.from("concerts").delete({ count: "exact" }).eq("id", id);
+  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, deleted: count ?? 0 });
 }

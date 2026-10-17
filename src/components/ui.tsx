@@ -41,14 +41,16 @@ export function Panel({
   children,
   className = "",
   invert = false,
+  ...rest
 }: {
   children: ReactNode;
   className?: string;
   invert?: boolean;
-}) {
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "className" | "children">) {
   return (
     <div
       className={`${invert ? "bg-invert-bg text-invert-fg" : "bg-surface border border-line"} ${className}`}
+      {...rest}
     >
       {children}
     </div>

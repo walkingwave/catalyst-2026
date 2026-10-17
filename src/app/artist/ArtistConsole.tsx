@@ -213,7 +213,12 @@ export function ArtistConsole() {
         <SocialTab
           posts={data.pending_posts}
           onReview={async (id, status) => {
-            await fetch("/api/artist/social", { method: "POST", headers: headers(), body: JSON.stringify({ id, status }) });
+            const r = await fetch("/api/artist/social", { method: "POST", headers: headers(), body: JSON.stringify({ id, status }) });
+            const j = (await r.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+            if (!r.ok || !j.ok) {
+              flash(`Could not ${status === "approved" ? "approve" : "reject"}: ${j.message ?? r.status}`);
+              return;
+            }
             flash(status === "approved" ? "Approved, points awarded" : "Rejected");
             void load();
           }}
@@ -223,7 +228,7 @@ export function ArtistConsole() {
       {tab === "log" && <LogTab messages={data.messages} drops={data.drops} />}
 
       {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50">{toast}</div>
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>
       )}
     </main>
   );

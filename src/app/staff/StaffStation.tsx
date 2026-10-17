@@ -55,11 +55,15 @@ export function StaffStation() {
         setActivities(j.activities);
         if (j.concerts[0]) setConcertId(j.concerts[0].id);
       })
-      .catch(() => {
-        setPin(null);
-        try {
-          localStorage.removeItem(PIN_KEY);
-        } catch {}
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.message === "bad pin") {
+          setPin(null);
+          try {
+            localStorage.removeItem(PIN_KEY);
+          } catch {}
+          return;
+        }
+        console.error("[staff] catalog failed", err);
       });
   }, [pin]);
 
@@ -88,13 +92,14 @@ export function StaffStation() {
   }, []);
 
   const scan = useCallback(
-    async (rawUid: string) => {
+    async (rawUid: string, opts: { manual?: boolean } = {}) => {
       const uid = normalizeUid(rawUid);
       const act = activityRef.current;
       if (!uid) return;
       if (!act) return show({ ok: false, status: "error", message: "Pick an activity first" });
       const now = Date.now();
-      if (lastRef.current.uid === uid && now - lastRef.current.at < DEBOUNCE_MS) return;
+      // NFC re-reads the same tag while it sits on the phone; manual entry is always intentional.
+      if (!opts.manual && lastRef.current.uid === uid && now - lastRef.current.at < DEBOUNCE_MS) return;
       lastRef.current = { uid, at: now };
 
       try {
@@ -247,7 +252,7 @@ export function StaffStation() {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          void scan(manualUid);
+          void scan(manualUid, { manual: true });
           setManualUid("");
         }}
       >

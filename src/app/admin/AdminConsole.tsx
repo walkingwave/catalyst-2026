@@ -137,7 +137,7 @@ export function AdminConsole() {
       </select>
       {event && (
         <p className="t-foot text-ink-2 mt-2">
-          {event.activities.length} activities · {event.bands.total} bands ({event.bands.claimed} claimed)
+          {event.activities.length} {event.activities.length === 1 ? "activity" : "activities"} · {event.bands.total} {event.bands.total === 1 ? "band" : "bands"} ({event.bands.claimed} claimed)
         </p>
       )}
 
@@ -175,7 +175,7 @@ export function AdminConsole() {
       )}
       {!event && tab !== "events" && <Panel className="mt-4"><Empty>No events yet. Create one in the Events tab.</Empty></Panel>}
 
-      {toast && <div className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50">{toast}</div>}
+      {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>}
     </main>
   );
 }
@@ -219,17 +219,19 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
     setTimeout(() => setResult((cur) => (cur === res ? null : cur)), RESULT_MS);
   }
 
-  async function scan(raw: string) {
+  async function scan(raw: string, opts: { manual?: boolean } = {}) {
       const uid = normalizeUid(raw);
       const act = activityRef.current;
       if (!uid || !act) return;
       const now = Date.now();
-      if (lastRef.current.uid === uid && now - lastRef.current.at < 2500) return;
+      // NFC fires repeatedly while a tag sits on the phone; manual entry is always intentional.
+      if (!opts.manual && lastRef.current.uid === uid && now - lastRef.current.at < 2500) return;
       lastRef.current = { uid, at: now };
       try {
         const r = await fetch("/api/scan", { method: "POST", headers: headers(), body: JSON.stringify({ band_uid: uid, activity_id: act }) });
         const j = (await r.json()) as ScanResult;
         show({ ...j, band_uid: j.band_uid ?? uid });
+        if (j.ok) onChanged(); // refresh band counts in the header
       } catch {
         show({ ok: false, status: "error", message: "Network error", band_uid: uid });
       }
@@ -323,7 +325,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          void scan(manualUid);
+          void scan(manualUid, { manual: true });
           setManualUid("");
         }}
       >
@@ -572,13 +574,15 @@ function BandsTab({
               <p className="font-mono display d-md">{detail.uid}</p>
               <p className="t-foot text-ink-2 mt-1 break-all">{detail.tag_url}</p>
             </div>
-            {detail.band ? (
-              <Badge tone={detail.band.archived ? "warning" : detail.band.user_id ? "success" : "ink"}>
-                {detail.band.archived ? "archived" : detail.band.user_id ? "claimed" : "unclaimed"}
-              </Badge>
-            ) : (
-              <Badge tone="warning">unknown</Badge>
-            )}
+            <span data-testid="band-status">
+              {detail.band ? (
+                <Badge tone={detail.band.archived ? "warning" : detail.band.user_id ? "success" : "ink"}>
+                  {detail.band.archived ? "archived" : detail.band.user_id ? "claimed" : "unclaimed"}
+                </Badge>
+              ) : (
+                <Badge tone="warning">unknown</Badge>
+              )}
+            </span>
           </div>
           {detail.band ? (
             <>
@@ -595,15 +599,16 @@ function BandsTab({
                 </List>
               )}
               <p className="label text-ink-2 mt-4 mb-2">Assign to event</p>
-              <div className="flex gap-2">
-                <select className="flex-1 h-12 bg-surface border-2 border-line px-3 t-sub" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+              <div className="flex gap-2 w-full">
+                {/* min-w-0 lets the select shrink below its option text so the button never leaves the viewport */}
+                <select className="flex-1 min-w-0 h-12 bg-surface border-2 border-line px-3 t-sub" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
                   {events.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.artist} · {e.date}
                     </option>
                   ))}
                 </select>
-                <button onClick={move} className="h-12 px-4 bg-invert-bg text-invert-fg label">Move</button>
+                <button onClick={move} className="h-12 px-4 shrink-0 bg-invert-bg text-invert-fg label">Move</button>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3">
                 {detail.band.user_id && <Button size="md" variant="outline" onClick={() => act("unclaim")}>Unclaim</Button>}
@@ -665,7 +670,8 @@ function EventsTab({
   onCreated: (id: string) => void;
   onPick: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(events.length === 0);
+  const [openPref, setOpen] = useState<boolean | null>(null);
+  const open = openPref ?? events.length === 0; // auto-open only when there are truly no events
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [venue, setVenue] = useState("");

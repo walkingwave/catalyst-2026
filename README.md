@@ -177,6 +177,15 @@ Cues from fandrop.com: monochrome, zero border radius, condensed uppercase displ
 
 Demo show: Our Lady Peace at Massey Hall with a monochrome floor-plan map (`VenueMap`) whose pins come from `activities.map_x / map_y`. Photos are Creative Commons from Wikimedia (see `public/img/ATTRIBUTION.md`).
 
+## Tests
+
+```bash
+npm test          # Vitest unit tests
+npm run test:e2e  # Playwright API + e2e + axe a11y against the dev server and live Supabase
+```
+
+See `docs/TESTING.md` for coverage, how test data is isolated, and the UX gaps the suite found and fixed.
+
 ## Deploy
 
 Repo remote: `github.com/walkingwave/catalyst-2026`. Vercel Hobby is free.

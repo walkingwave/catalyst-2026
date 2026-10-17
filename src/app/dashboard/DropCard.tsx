@@ -19,7 +19,7 @@ export function DropCard({ drop }: { drop: Drop & { artist_name: string } }) {
   }
 
   return (
-    <Panel invert className="p-4">
+    <Panel invert className="p-4" data-testid="drop-card">
       <div className="flex items-center gap-2">
         <IconGift size={18} />
         <p className="label text-invert-fg/70">Drop from {drop.artist_name}</p>
