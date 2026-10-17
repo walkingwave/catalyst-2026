@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { artistFromRequest } from "@/lib/artist";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendSms } from "@/lib/sms";
+import { sendSms, smsEnabled } from "@/lib/sms";
 
 /**
  * POST { body, user_ids?: string[], top?: number, channel: "sms" | "inbox" }
@@ -34,14 +34,14 @@ export async function POST(req: Request) {
   if (!ids.length) return NextResponse.json({ ok: false, message: "No recipients" }, { status: 400 });
 
   const { data: fans } = await db.from("users").select("id, phone").in("id", ids);
-  const live = process.env.SMS_NOTIFICATIONS === "true";
+  const live = smsEnabled();
   const rows = [];
   for (const f of fans ?? []) {
     let sms_status: string | null = null;
     if (channel === "sms") {
       if (f.phone && live) {
-        await sendSms(f.phone, `${artist.name}: ${text}`);
-        sms_status = "sent";
+        const r = await sendSms(f.phone, `${artist.name}: ${text}`);
+        sms_status = r.ok ? "sent" : `failed: ${r.error ?? r.provider}`;
       } else {
         sms_status = f.phone ? "simulated" : "no_phone";
       }

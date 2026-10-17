@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkStaffPin, staffPinFromRequest } from "@/lib/staff";
 import { normalizeUid, isValidUid } from "@/lib/uid";
-import { sendSms } from "@/lib/sms";
+import { sendSms, smsEnabled } from "@/lib/sms";
 import type { ScanResult } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -122,11 +122,11 @@ export async function POST(req: Request) {
     const rankText = me?.rank ? ` You're #${me.rank} tonight.` : "";
     const text = `+${activity.points} pts at ${activity.name}.${rankText}`;
     // In-app inbox always (no SMS provider needed); SMS only when enabled. Never block the scan.
+    const live = smsEnabled() && !!owner?.phone;
     if (concert?.artist_id) {
-      const live = process.env.SMS_NOTIFICATIONS === "true" && !!owner?.phone;
       void db.from("messages").insert({ artist_id: concert.artist_id, user_id: band.user_id, channel: live ? "sms" : "inbox", body: text, sms_status: live ? "sent" : null });
     }
-    if (owner?.phone) void sendSms(owner.phone, text);
+    if (live) void sendSms(owner!.phone!, text);
   }
 
   return reply(result);
