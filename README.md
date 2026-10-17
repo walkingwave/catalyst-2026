@@ -19,6 +19,7 @@ supabase/migrations/0002_*.sql      function grants (advisor fixes)
 supabase/migrations/0003_*.sql      keep users.phone in E.164
 supabase/migrations/0004_*.sql      concert imagery/description + activity map pins
 supabase/migrations/0005_*.sql      artists/teams, per-artist pools, socials, social posts, messages, drops
+supabase/migrations/0006_*.sql      live station (self-tap from any phone)
 scripts/seed.ts                     demo data (npm run seed)
 src/proxy.ts                        refreshes Supabase session cookie on every request
 src/lib/supabase/{server,client,admin}.ts
@@ -125,12 +126,23 @@ Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewr
 
 Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-pin`. Admin routes (`/api/admin/events`, `/api/admin/bands`) use the same header. Response includes points, whether the band is claimed, owner name, and rank tonight.
 
+## iPhone-only demo (no Android scanner)
+
+Web NFC (`NDEFReader`) only exists in Chrome on Android, so the Tap and Write tabs can't scan on an iPhone. The fan side needs nothing: iPhones read NDEF URL tags natively and open Safari. So the demo makes **the fan's own tap the station**:
+
+1. Write tags once with the free **NFC Tools** iOS app: Read the tag, copy its serial (strip colons), Write a URL record `https://<domain>/b/<SERIAL>`. Lock the tag if you want.
+2. In `/admin` → Tap, pick an activity and press **Go live**. Only one station is live at a time, across all events.
+3. Tap a band with any iPhone. The band page logs a scan for the live station and shows "+N pts · Activity". Tapping again shows "Already tapped in". Unknown serials auto-register to the live event, so step 1 is the only prep.
+4. Switch the live station (Entry → Merch Booth → Photo Wall) or switch events from the admin dropdown to simulate moving through the venue or between shows.
+
+Claimed bands redirect the owner to their dashboard with the same banner. `concerts.live_activity_id` holds the live station; `src/lib/tap.ts` does the work.
+
 ## Admin console
 
 `/admin`, unlocked with `STAFF_PIN`. Built for demos without real tap stations.
 
 - **Current event** switcher at the top, remembered per device. Everything below acts on that event.
-- **Tap**: pick an activity, then tap bands (Web NFC on Android Chrome) or type a UID. Same `/api/scan` as the staff station, so switching events and tapping simulates a fan moving between shows.
+- **Tap**: pick an activity, then tap bands (Web NFC on Android Chrome) or type a UID. **Go live** makes that activity the live station for iPhone demos (see above). Same `/api/scan` as the staff station, so switching events and tapping simulates a fan moving between shows.
 - **Write**: turns the phone into an NFC writer. Each tapped tag is registered to the current event (`POST /api/admin/bands`) and gets `https://<domain>/b/<serial>` written as an NDEF URL (`NDEFReader.write`, overwrite on). Full-screen green/red result per tag. Desktop fallback: register a UID manually, write the URL with NFC Tools.
 - **Bands**: look up any UID (owner, event, scans, tag URL), move it to another event, unclaim, archive/restore, clear scans. Lists all bands at the current event with points.
 - **Events**: create an event with name, description, location, address, date, doors, artist or team (existing, or create one with a generated console access code), and activities with points. The possible-points total updates as you type. New events open in Write so you can start writing bands.

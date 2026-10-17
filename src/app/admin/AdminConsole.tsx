@@ -153,7 +153,7 @@ export function AdminConsole() {
         ))}
       </div>
 
-      {tab === "tap" && event && <TapTab key={event.id} event={event} headers={headers} nfcSupported={nfcSupported} />}
+      {tab === "tap" && event && <TapTab key={event.id} event={event} headers={headers} nfcSupported={nfcSupported} onChanged={load} />}
       {tab === "write" && event && <WriteTab event={event} headers={headers} nfcSupported={nfcSupported} onDone={load} />}
       {tab === "bands" && event && <BandsTab event={event} events={events} headers={headers} flash={flash} onChanged={load} />}
       {tab === "events" && (
@@ -182,9 +182,21 @@ export function AdminConsole() {
 
 /* ---------------- Tap: simulate scans at the current event ---------------- */
 
-function TapTab({ event, headers, nfcSupported }: { event: EventRow; headers: () => HeadersInit; nfcSupported: boolean }) {
+function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; headers: () => HeadersInit; nfcSupported: boolean; onChanged: () => void }) {
   const scanActs = event.activities.filter((a) => a.kind !== "social");
   const [activityId, setActivityId] = useState(scanActs[0]?.id ?? "");
+  const [liveBusy, setLiveBusy] = useState(false);
+  const liveActivity = scanActs.find((a) => a.id === event.live_activity_id) ?? null;
+  const isLive = !!activityId && event.live_activity_id === activityId;
+
+  const activity = scanActs.find((a) => a.id === activityId);
+
+  async function setLive(id: string | null) {
+    setLiveBusy(true);
+    await fetch("/api/admin/events", { method: "PATCH", headers: headers(), body: JSON.stringify({ id: event.id, live_activity_id: id }) });
+    setLiveBusy(false);
+    onChanged();
+  }
   const [manualUid, setManualUid] = useState("");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [log, setLog] = useState<ScanResult[]>([]);
@@ -243,8 +255,6 @@ function TapTab({ event, headers, nfcSupported }: { event: EventRow; headers: ()
     setScanning(false);
   }
 
-  const activity = scanActs.find((a) => a.id === activityId);
-
   return (
     <>
       <SectionHeader>Simulate a tap</SectionHeader>
@@ -264,6 +274,33 @@ function TapTab({ event, headers, nfcSupported }: { event: EventRow; headers: ()
           );
         })}
       </div>
+
+      {/* iPhone-friendly: make the selected activity the live station. Any tap of a band URL logs it. */}
+      <Panel invert={isLive} className="p-4 mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className={`label ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>Live station</p>
+            <p className="display d-md mt-1">{liveActivity ? liveActivity.name : "Off"}</p>
+            <p className={`t-foot mt-1 ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>
+              {liveActivity
+                ? "Every band tapped with any phone (iPhone included) logs this activity."
+                : "Turn on to make phone taps of the band URL count as a tap here."}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-3">
+          {!isLive && activityId && (
+            <button onClick={() => setLive(activityId)} disabled={liveBusy} className={`flex-1 h-11 label ${isLive ? "bg-invert-fg text-invert-bg" : "bg-invert-bg text-invert-fg"}`}>
+              {liveBusy ? "…" : `Go live: ${activity?.name ?? ""}`}
+            </button>
+          )}
+          {liveActivity && (
+            <button onClick={() => setLive(null)} disabled={liveBusy} className={`flex-1 h-11 label border-2 ${isLive ? "border-invert-fg" : "border-line"}`}>
+              Turn off
+            </button>
+          )}
+        </div>
+      </Panel>
 
       {nfcSupported ? (
         <div className="mb-3">

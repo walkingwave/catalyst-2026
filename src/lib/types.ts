@@ -19,6 +19,7 @@ export type Concert = {
   description?: string;
   doors_at?: string | null;
   address?: string | null;
+  live_activity_id?: string | null;
 };
 
 export type Activity = {

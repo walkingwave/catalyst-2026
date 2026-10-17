@@ -11,10 +11,10 @@ import type { Artist, Concert } from "@/lib/types";
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ claimed?: string }>;
+  searchParams: Promise<{ claimed?: string; tap?: string; pts?: string; dup?: string }>;
 }) {
   const { supabase, user, profile } = await requireFan("/dashboard");
-  const { claimed } = await searchParams;
+  const { claimed, tap, pts: tapPts, dup } = await searchParams;
 
   const [{ data: pts }, { data: pools }, { data: artists }, { data: bands }, scans, { data: drops }, { data: messages }] =
     await Promise.all([
@@ -80,6 +80,11 @@ export default async function Dashboard({
       {claimed && (
         <div className="mb-3">
           <Banner>Band claimed. Your points are saved to this number.</Banner>
+        </div>
+      )}
+      {tap && (
+        <div className="mb-3">
+          {dup ? <Banner tone="warning">Already tapped in at {tap}</Banner> : <Banner>+{tapPts} pts · {tap}</Banner>}
         </div>
       )}
 

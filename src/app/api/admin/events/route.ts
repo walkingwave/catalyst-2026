@@ -103,3 +103,20 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, event: { ...concert, activities: created ?? [] } });
 }
+
+/** PATCH: { id, live_activity_id: string | null } sets the live station for an event. */
+export async function PATCH(req: Request) {
+  if (!checkStaffPin(staffPinFromRequest(req))) return NextResponse.json({ ok: false }, { status: 401 });
+  const b = (await req.json().catch(() => ({}))) as { id?: string; live_activity_id?: string | null };
+  if (!b.id) return NextResponse.json({ ok: false, message: "id required" }, { status: 400 });
+  const db = createAdminClient();
+  if (b.live_activity_id) {
+    const { data: a } = await db.from("activities").select("concert_id").eq("id", b.live_activity_id).maybeSingle();
+    if (a?.concert_id !== b.id) return NextResponse.json({ ok: false, message: "Activity not in this event" }, { status: 400 });
+    // Only one live station across all events keeps the demo unambiguous.
+    await db.from("concerts").update({ live_activity_id: null }).not("live_activity_id", "is", null);
+  }
+  const { error } = await db.from("concerts").update({ live_activity_id: b.live_activity_id ?? null }).eq("id", b.id);
+  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
