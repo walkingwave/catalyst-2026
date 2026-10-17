@@ -4,8 +4,8 @@ import { loginAs, PHONES } from "./helpers";
 test.describe("Public pages", () => {
   test("home shows CTA", async ({ page }) => {
     await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/your wristband/i);
     await expect(page.getByRole("link", { name: /sign in with phone/i })).toBeVisible();
-    await expect(page.getByRole("img")).toBeVisible();
   });
 
   test("protected pages redirect to login with next", async ({ page }) => {
