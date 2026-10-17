@@ -100,7 +100,6 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
         <Ticket
           invert
           rail="Wristband"
-          serial={uid}
           main={
             <>
               <div className="flex items-start justify-between">

@@ -87,7 +87,6 @@ export default async function Dashboard({
         <Ticket
           invert
           rail="Admit one"
-          serial={user.id.replace(/-/g, "").slice(0, 12).toUpperCase()}
           main={
             <>
               <div className="flex items-start justify-between">
