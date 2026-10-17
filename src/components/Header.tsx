@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-/** Top bar: wordmark block on the left (Fandrop-style sticker), actions right. */
+/** Top bar: ticket mark + wordmark on the left, actions right. */
 export function Header({ right }: { right?: React.ReactNode }) {
   return (
     <header className="flex items-center justify-between h-14">
@@ -17,12 +17,14 @@ export function Header({ right }: { right?: React.ReactNode }) {
 }
 
 export function Wordmark({ size = "sm" }: { size?: "sm" | "lg" }) {
-  const cls = size === "lg" ? "px-3 py-2 d-lg" : "px-2 py-1.5 text-[12px] leading-[0.95]";
+  const lg = size === "lg";
   return (
-    <span className={`display bg-invert-bg text-invert-fg inline-block text-left ${cls}`}>
-      Concert
-      <br />
-      Connect
+    <span
+      className={`ticket-mark inline-flex items-center justify-center bg-invert-bg text-invert-fg display ${
+        lg ? "h-12 px-5 text-[22px]" : "h-8 px-3.5 text-[12px]"
+      } leading-none`}
+    >
+      BandDrop
     </span>
   );
 }

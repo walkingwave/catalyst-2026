@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { requireFan, fanScans, timeAgo, formatDate } from "@/lib/fan";
-import { Page, Panel, Points, List, Row, SectionHeader, Banner, Empty } from "@/components/ui";
+import { Page, Panel, Points, List, Row, SectionHeader, Banner, Empty, Ticket, TicketField } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { IconChevron } from "@/components/icons";
@@ -83,24 +83,31 @@ export default async function Dashboard({
       )}
 
       {/* Points pass */}
-      <Panel invert className="mt-2">
-        <div className="p-5">
-          <div className="flex items-start justify-between">
-            <p className="label text-invert-fg/70">{firstName}</p>
-            {tonight && <p className="label text-invert-fg/70">{formatDate(tonight.date)}</p>}
-          </div>
-          <div className="flex items-end gap-3 mt-6">
-            <Points value={pts?.balance ?? 0} className="display text-[80px] leading-[0.8]" />
-            <span className="display d-md pb-1">pts</span>
-          </div>
-        </div>
-        <div className="perf mx-5" />
-        <div className="grid grid-cols-3 px-5 py-4">
-          <Stat label="Show" value={showRank ? `#${showRank.rank}` : "—"} sub={showRank ? `of ${showRank.total}` : ""} />
-          <Stat label="Fandom" value={artistRank ? `#${artistRank.rank}` : "—"} sub={artistRank ? `of ${artistRank.total}` : ""} />
-          <Stat label="Redeemed" value={(pts?.spent ?? 0).toLocaleString()} sub="pts" />
-        </div>
-      </Panel>
+      <div className="mt-2">
+        <Ticket
+          invert
+          rail="Admit one"
+          main={
+            <>
+              <div className="flex items-start justify-between">
+                <p className="mono-caps text-[10px] opacity-70">{firstName}</p>
+                {tonight && <p className="mono-caps text-[10px] opacity-70">{formatDate(tonight.date)}</p>}
+              </div>
+              <div className="flex items-end gap-3 mt-5">
+                <Points value={pts?.balance ?? 0} className="display text-[76px] leading-[0.8]" />
+                <span className="display d-md pb-1">pts</span>
+              </div>
+            </>
+          }
+          stub={
+            <div className="grid grid-cols-3 gap-2">
+              <TicketField label="Show" value={showRank ? `#${showRank.rank}` : "—"} sub={showRank ? `of ${showRank.total}` : ""} />
+              <TicketField label="Fandom" value={artistRank ? `#${artistRank.rank}` : "—"} sub={artistRank ? `of ${artistRank.total}` : ""} />
+              <TicketField label="Redeemed" value={(pts?.spent ?? 0).toLocaleString()} sub="pts" />
+            </div>
+          }
+        />
+      </div>
 
       {inbox.length > 0 && (
         <>
@@ -182,12 +189,3 @@ export default async function Dashboard({
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div>
-      <p className="label text-invert-fg/70">{label}</p>
-      <p className="display d-lg t-num mt-1">{value}</p>
-      <p className="t-foot text-invert-fg/70">{sub}</p>
-    </div>
-  );
-}

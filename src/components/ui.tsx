@@ -170,6 +170,95 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+/* Ticket --------------------------------------------------------------- */
+
+/** Deterministic fake barcode from any string (serial, code, id). Purely decorative. */
+export function Barcode({ value, className = "", height = 28 }: { value: string; className?: string; height?: number }) {
+  let h = 2166136261;
+  const bars: number[] = [];
+  for (let i = 0; i < 48; i++) {
+    h ^= value.charCodeAt(i % Math.max(value.length, 1)) + i;
+    h = Math.imul(h, 16777619) >>> 0;
+    bars.push(1 + (h % 3));
+  }
+  return (
+    <svg viewBox={`0 0 ${bars.reduce((a, b) => a + b + 1, 0)} 10`} preserveAspectRatio="none" className={className} style={{ height }} aria-hidden>
+      {bars.reduce<{ x: number; els: React.ReactNode[] }>(
+        (acc, w, i) => {
+          acc.els.push(<rect key={i} x={acc.x} y="0" width={w} height="10" fill="currentColor" />);
+          acc.x += w + 1;
+          return acc;
+        },
+        { x: 0, els: [] },
+      ).els}
+    </svg>
+  );
+}
+
+/**
+ * Ticket stub. `main` above the tear, `stub` below it. Notches sit on the tear line.
+ * Pass `serial` to print a ticket number + barcode in the stub.
+ */
+export function Ticket({
+  main,
+  stub,
+  invert = false,
+  rail,
+  serial,
+  className = "",
+}: {
+  main: ReactNode;
+  stub?: ReactNode;
+  invert?: boolean;
+  rail?: string;
+  serial?: string;
+  className?: string;
+}) {
+  const tone = invert ? "bg-invert-bg text-invert-fg" : "bg-surface-2 text-ink";
+  return (
+    <div className={`ticket overflow-hidden ${tone} ${className}`}>
+      <div className="flex">
+        {rail && (
+          <div className={`shrink-0 w-9 flex items-center justify-center border-r border-dashed ${invert ? "border-invert-fg/40" : "border-line-soft"}`}>
+            <span className="stub-tab mono-caps text-[10px] opacity-70">{rail}</span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="p-5">{main}</div>
+          {stub && (
+            <>
+              {/* with a rail the row starts 16px inside the left edge, so the notch shifts right by 32px */}
+              <div className={`tear-row mx-4 ${rail ? "-ml-[52px] pl-[52px]" : ""}`} style={rail ? ({ ["--notch-left" as string]: "5px" } as React.CSSProperties) : undefined}>
+                <div className="tear" />
+              </div>
+              <div className="px-5 py-4">
+                {stub}
+                {serial && (
+                  <div className="mt-3 flex items-end gap-3">
+                    <Barcode value={serial} className="w-full" />
+                    <span className="mono-caps text-[10px] opacity-70 whitespace-nowrap">{serial}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** SEC / ROW / SEAT style detail cell. */
+export function TicketField({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="mono-caps text-[10px] opacity-70">{label}</p>
+      <p className="display d-lg t-num mt-1 break-words">{value}</p>
+      {sub && <p className="t-foot opacity-70 truncate">{sub}</p>}
+    </div>
+  );
+}
+
 /* Data display -------------------------------------------------------- */
 
 export function Points({ value, className = "" }: { value: number; className?: string }) {

@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   if (b.notify_sms && smsEnabled()) {
     const { data: fans } = await db.from("users").select("id, phone").in("id", ids);
     for (const f of fans ?? []) {
-      if (f.phone) void sendSms(f.phone, `${artist.name} sent you a drop: ${title}. Open ConcertConnect to claim it.`);
+      if (f.phone) void sendSms(f.phone, `${artist.name} sent you a drop: ${title}. Open BandDrop to claim it.`);
     }
   }
   return NextResponse.json({ ok: true, sent: rows.length });

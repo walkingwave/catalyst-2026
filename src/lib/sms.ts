@@ -18,7 +18,7 @@ export async function sendSms(to: string, body: string, opts: { force?: boolean 
       const r = await fetch("https://textbelt.com/text", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: to, message: body, key: process.env.TEXTBELT_KEY, sender: "ConcertConnect" }),
+        body: JSON.stringify({ phone: to, message: body, key: process.env.TEXTBELT_KEY, sender: "BandDrop" }),
       });
       const j = (await r.json()) as { success: boolean; error?: string; quotaRemaining?: number };
       if (!j.success) console.error("[sms] textbelt:", j.error);
