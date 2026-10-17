@@ -228,7 +228,7 @@ export function Ticket({
           {stub && (
             <>
               {/* with a rail the row starts 16px inside the left edge, so the notch shifts right by 32px */}
-              <div className={`tear-row mx-4 ${rail ? "-ml-[52px] pl-[52px] before:left-[5px]" : ""}`}>
+              <div className={`tear-row mx-4 ${rail ? "-ml-[52px] pl-[52px]" : ""}`} style={rail ? ({ ["--notch-left" as string]: "5px" } as React.CSSProperties) : undefined}>
                 <div className="tear" />
               </div>
               <div className="px-5 py-4">

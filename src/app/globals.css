@@ -129,7 +129,7 @@ body {
   border-radius: 50%;
   background: var(--bg);
 }
-.tear-row::before { left: -27px; }
+.tear-row::before { left: var(--notch-left, -27px); }
 .tear-row::after { right: -27px; }
 .ticket-edge {
   /* serrated top/bottom edge like a torn stub */
