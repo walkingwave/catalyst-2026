@@ -14,9 +14,9 @@
   --line-soft: #00000026;
   --invert-bg: #000000;    /* inverted block */
   --invert-fg: #ffffff;
-  --success: #16a34a;
-  --warning: #ea8a00;
-  --danger: #e5142b;
+  --success: #15803d;      /* 4.6:1 on white, AA for small text */
+  --warning: #b45309;      /* 4.7:1 on white */
+  --danger: #dc2626;
   --photo-filter: grayscale(1) contrast(1.08);
   color-scheme: light;
 }

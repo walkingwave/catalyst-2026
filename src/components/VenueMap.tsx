@@ -19,7 +19,7 @@ export function VenueMap({
 
   return (
     <div className="border border-line">
-      <svg viewBox="0 0 100 140" className="w-full block bg-surface" role="img" aria-label={`${venue} floor plan`}>
+      <svg viewBox="0 0 100 140" className="w-full block bg-surface" role="group" aria-label={`${venue} floor plan`}>
         {/* stage */}
         <path d="M20 6 h60 v16 q-30 9 -60 0z" className="fill-ink" />
         <text x="50" y="16" textAnchor="middle" fontSize="4.5" fontWeight="700" letterSpacing="0.5" className="fill-surface">
@@ -52,7 +52,22 @@ export function VenueMap({
           const x = (p.map_x! / 100) * 100;
           const y = (p.map_y! / 100) * 140;
           return (
-            <g key={p.id} transform={`translate(${x} ${y})`} onClick={() => setActive(p.id)} className="cursor-pointer">
+            <g
+              key={p.id}
+              transform={`translate(${x} ${y})`}
+              onClick={() => setActive(p.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setActive(p.id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
+              aria-label={`${p.name}${p.location ? `, ${p.location}` : ""}, ${isDone ? "done" : `${p.points} points`}`}
+              className="cursor-pointer outline-none focus-visible:[&>rect:first-child]:stroke-ink"
+            >
               {isActive && <rect x="-5.5" y="-5.5" width="11" height="11" className="fill-none stroke-ink" strokeWidth="0.8" />}
               <rect
                 x="-3.5"

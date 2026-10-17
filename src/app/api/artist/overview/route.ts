@@ -21,31 +21,40 @@ export async function GET(req: Request) {
       db.from("drops").select("id, title, code, claimed_at, created_at, user:users(name)").eq("artist_id", artist.id).order("created_at", { ascending: false }).limit(20),
     ]);
 
-  // Fan details (socials, phone presence, shows attended) for the top fans list.
-  const ids = (lb ?? []).map((r) => r.user_id);
+  // Attendance: every fan holding a claimed band at one of this artist's shows, even with 0 points yet.
+  const concertIds = new Set((concerts ?? []).map((c) => c.id));
+  const { data: attendance } = concertIds.size
+    ? await db.from("bands").select("user_id, concert_id").in("concert_id", [...concertIds]).not("user_id", "is", null)
+    : { data: [] };
+  const showsBy = new Map<string, Set<string>>();
+  for (const b of attendance ?? []) {
+    if (!showsBy.has(b.user_id!)) showsBy.set(b.user_id!, new Set());
+    showsBy.get(b.user_id!)!.add(b.concert_id);
+  }
+  const pointsBy = new Map((lb ?? []).map((r) => [r.user_id, r]));
+  const ids = [...new Set([...showsBy.keys(), ...pointsBy.keys()])];
   const { data: fans } = ids.length
-    ? await db.from("users").select("id, phone, instagram, tiktok, x_handle").in("id", ids)
+    ? await db.from("users").select("id, name, phone, instagram, tiktok, x_handle").in("id", ids)
     : { data: [] };
-  const { data: attendance } = ids.length
-    ? await db
-        .from("bands")
-        .select("user_id, concert:concerts!inner(artist_id)")
-        .in("user_id", ids)
-        .eq("concert.artist_id", artist.id)
-    : { data: [] };
-  const showsBy = new Map<string, number>();
-  for (const b of attendance ?? []) showsBy.set(b.user_id!, (showsBy.get(b.user_id!) ?? 0) + 1);
   const fanBy = new Map((fans ?? []).map((f) => [f.id, f]));
 
-  const concertIds = new Set((concerts ?? []).map((c) => c.id));
-  const topFans = (lb ?? []).map((r) => {
+  const merged = ids
+    .map((id) => ({ user_id: id, name: pointsBy.get(id)?.name ?? fanBy.get(id)?.name ?? "", points: pointsBy.get(id)?.points ?? 0 }))
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  let rank = 0;
+  let prev = -1;
+  const topFans = merged.map((r, i) => {
+    if (r.points !== prev) {
+      rank = i + 1;
+      prev = r.points;
+    }
     const f = fanBy.get(r.user_id);
     return {
       user_id: r.user_id,
       name: r.name,
       points: r.points,
-      rank: r.rank,
-      shows: showsBy.get(r.user_id) ?? 0,
+      rank,
+      shows: showsBy.get(r.user_id)?.size ?? 0,
       has_phone: !!f?.phone,
       phone_hint: f?.phone ? `···${f.phone.slice(-4)}` : null,
       instagram: f?.instagram ?? null,

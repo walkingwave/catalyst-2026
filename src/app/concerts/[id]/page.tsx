@@ -28,7 +28,8 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   for (const [aid, st] of postBy) if (st === "approved") doneIds.add(aid);
   const scanActs = acts.filter((a) => a.kind !== "social");
   const socialActs = acts.filter((a) => a.kind === "social");
-  const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0);
+  const socialEarned = acts.filter((a) => a.kind === "social" && postBy.get(a.id) === "approved").reduce((n, a) => n + a.points, 0);
+  const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0) + socialEarned;
   const possible = acts.reduce((n, a) => n + a.points, 0);
 
   return (

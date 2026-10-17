@@ -11,15 +11,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, message: "Bad request" }, { status: 400 });
   }
   const db = createAdminClient();
-  const { data: post } = await db
-    .from("social_posts")
-    .select("id, activity:activities!inner(concert:concerts!inner(artist_id))")
-    .eq("id", id)
-    .maybeSingle();
-  const act = post && (Array.isArray(post.activity) ? post.activity[0] : post.activity);
-  const concert = act && (Array.isArray(act.concert) ? act.concert[0] : act.concert);
-  if (!post || concert?.artist_id !== artist.id) {
+  const { data: post } = await db.from("social_posts").select("id, activity_id, status").eq("id", id).maybeSingle();
+  const { data: act } = post ? await db.from("activities").select("concert_id").eq("id", post.activity_id).maybeSingle() : { data: null };
+  const { data: concert } = act ? await db.from("concerts").select("artist_id").eq("id", act.concert_id).maybeSingle() : { data: null };
+  if (!post || !concert || concert.artist_id !== artist.id) {
     return NextResponse.json({ ok: false, message: "Not your post" }, { status: 404 });
+  }
+  if (post.status !== "pending") {
+    return NextResponse.json({ ok: false, message: `Already ${post.status}` }, { status: 409 });
   }
   const { error } = await db
     .from("social_posts")
