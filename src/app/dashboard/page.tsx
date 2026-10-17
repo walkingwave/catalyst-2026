@@ -42,7 +42,7 @@ export default async function Dashboard({
   const recent = scans
     .filter((s) => !current || concertBy.get(s.activity?.concert_id ?? "")?.artist_id === current.artist.id)
     .slice(0, 6);
-  const firstName = (profile.name || "there").split(" ")[0];
+  const firstName = (profile.name || "").split(" ")[0];
   const inbox = [
     ...(drops ?? []).map((d) => ({ kind: "drop" as const, at: d.created_at, d })),
     ...(messages ?? []).map((m) => ({ kind: "msg" as const, at: m.created_at, m })),
@@ -84,7 +84,7 @@ export default async function Dashboard({
           main={
             <>
               <div className="flex items-start justify-between">
-                <p className="mono-caps text-[10px] opacity-70">{firstName}</p>
+                <p className="mono-caps text-[10px] opacity-70">{firstName || "Your pass"}</p>
                 {latestShow && <p className="mono-caps text-[10px] opacity-70">{latestShow.venue} · {formatDate(latestShow.date)}</p>}
               </div>
               <div className="flex items-end gap-3 mt-5">

@@ -49,10 +49,9 @@ export function ClaimFlow({ uid, signedIn }: { uid: string; signedIn: boolean })
 
   return (
     <PhoneOtpForm
-      withName
       submitLabel="Claim"
-      onVerified={async ({ name }) => {
-        const err = await claim(uid, name);
+      onVerified={async () => {
+        const err = await claim(uid);
         if (err) return err;
         go();
       }}

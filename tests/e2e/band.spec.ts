@@ -28,7 +28,6 @@ test.describe("Band tap page", () => {
       await expect(page.getByText("2", { exact: true })).toBeVisible();
       await expect(page.getByText("Merch Booth")).toBeVisible();
 
-      await page.getByPlaceholder("Name").fill("E2E Fan");
       await page.getByPlaceholder("Phone number").fill(PHONES.sam);
       await page.getByRole("button", { name: /^claim$/i }).click();
       await page.getByPlaceholder("Code").fill(OTP);
