@@ -125,4 +125,17 @@ Built for phones in the dark: dark theme, 56px tap targets, 16px inputs (no iOS 
 
 ## Deploy
 
-Vercel: import repo, add the env vars, deploy. `vercel.json` schedules `/api/cron/archive` daily (flags unclaimed bands 30 days after their concert). Set `NEXT_PUBLIC_SITE_URL` to the production URL and write that domain into the tags.
+Repo remote: `github.com/walkingwave/catalyst-2026`. Vercel Hobby is free.
+
+```bash
+git push -u origin main
+npx vercel login
+npx vercel link            # create project "concertconnect" in walkingwave's projects
+npx vercel env add NEXT_PUBLIC_SUPABASE_URL production      # paste from .env.local, repeat for:
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, STAFF_PIN, SMS_NOTIFICATIONS
+npx vercel --prod
+```
+
+Or in the Vercel dashboard: Add New Project -> import the GitHub repo -> paste the env vars -> Deploy.
+
+`vercel.json` schedules `/api/cron/archive` daily (flags unclaimed bands 30 days after their concert). Set `NEXT_PUBLIC_SITE_URL` to the production URL and write that domain into the tags. Web NFC on `/staff` needs HTTPS, so the staff phone must use the deployed URL (or `localhost` on the dev box).

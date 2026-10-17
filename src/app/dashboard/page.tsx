@@ -23,10 +23,13 @@ export default async function Dashboard({
   ]);
 
   // "Tonight" = the most recent concert the fan has a band for.
-  const concerts = (bands ?? [])
-    .map((b) => (Array.isArray(b.concert) ? b.concert[0] : b.concert))
-    .filter(Boolean) as { id: string; name: string; artist: string; venue: string; date: string }[];
-  concerts.sort((a, b) => (a.date < b.date ? 1 : -1));
+  type C = { id: string; name: string; artist: string; venue: string; date: string };
+  const byId = new Map<string, C>();
+  for (const b of bands ?? []) {
+    const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as C | null;
+    if (c) byId.set(c.id, c);
+  }
+  const concerts = [...byId.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
   const tonight = concerts[0];
 
   let tonightRank: { rank: number; total: number } | null = null;
