@@ -8,6 +8,9 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "ConcertConnect",
   description: "Tap your wristband. Earn points. Get rewards.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "ConcertConnect" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -15,6 +18,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

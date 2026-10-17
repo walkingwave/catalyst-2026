@@ -13,7 +13,7 @@ const tabs = [
 export function Nav() {
   const path = usePathname();
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-background/90 backdrop-blur border-t border-border">
+    <nav className="fixed bottom-0 inset-x-0 z-40 bg-background/90 backdrop-blur border-t border-border">
       <div className="max-w-md mx-auto grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((t) => {
           const active = path.startsWith(t.href);

@@ -3,7 +3,7 @@ import type { ReactNode, ButtonHTMLAttributes } from "react";
 
 export function Page({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <main className={`flex-1 w-full max-w-md mx-auto px-4 pt-6 pb-28 ${className}`}>{children}</main>
+    <main className={`flex-1 w-full max-w-md mx-auto px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] ${className}`}>{children}</main>
   );
 }
 

@@ -15,6 +15,8 @@ Next.js 16 (App Router, TypeScript, Tailwind v4) on Vercel · Supabase (Postgres
 
 ```
 supabase/migrations/0001_init.sql   schema, views, RLS, redeem_reward(), archive_expired_bands()
+supabase/migrations/0002_*.sql      function grants (advisor fixes)
+supabase/migrations/0003_*.sql      keep users.phone in E.164
 scripts/seed.ts                     demo data (npm run seed)
 src/proxy.ts                        refreshes Supabase session cookie on every request
 src/lib/supabase/{server,client,admin}.ts
@@ -64,11 +66,13 @@ Copy `.env.example` to `.env.local`:
 
 ## Supabase setup
 
-1. Create a project. Copy URL, anon key, service role key into `.env.local`.
-2. SQL Editor -> paste `supabase/migrations/0001_init.sql` -> run. (Or `supabase db push` with the CLI.)
-3. Authentication -> Providers -> **Phone**: enable. SMS provider: **Twilio**. Enter Account SID, Auth Token, and your Twilio number (or Messaging Service SID).
-4. Authentication -> Rate limits: raise "SMS messages per hour" if you'll demo a lot.
-5. Optional: Authentication -> Phone -> **Test OTP** lets you map a demo phone to a fixed code with no SMS at all. Handy for demos.
+Live project: **concertconnect** (`ivjrbaiiphqfvoynxwuc`, ca-central-1, org "wavy"). All three migrations are applied, demo data is seeded, phone auth is enabled. `.env.local` has the URL and anon key.
+
+Still needed once: **Settings -> API Keys -> Legacy -> service_role** into `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Band pages, staff scans and claims use it.
+
+Demo sign-in without Twilio: the Phone provider has test numbers registered (valid until 2026-11-30). Enter `555 010 0099` (new fan) or `555 010 0001`..`0006` (seeded fans) on the login screen, code `123456`. No SMS is sent. Any other number goes to Twilio, which currently holds placeholder credentials, so real SMS fails until you paste real Twilio creds in Authentication -> Sign In / Providers -> Phone.
+
+Fresh project instead: run `supabase/migrations/*.sql` in order in the SQL editor, then `npm run seed`.
 
 Scans on an unknown UID auto-register the band to the activity's concert, so you never need to pre-load band rows.
 
@@ -84,7 +88,7 @@ Scans on an unknown UID auto-register the band to the activity's concert, so you
 ```bash
 npm install
 cp .env.example .env.local   # fill in
-npm run seed                 # demo concert, activities, 10 bands, fans, rewards
+npm run seed                 # optional re-seed (live project is already seeded)
 npm run dev                  # http://localhost:3000
 ```
 
@@ -114,6 +118,10 @@ Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewr
 5. Desktop / iPhone: type a UID in the manual box and press **Log**.
 
 Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-pin`. Response includes points, whether the band is claimed, owner name, and rank tonight.
+
+## Mobile
+
+Built for phones in the dark: dark theme, 56px tap targets, 16px inputs (no iOS zoom), safe-area insets, `viewport-fit=cover`, no overscroll bounce, `touch-action: manipulation`. Web manifest lets fans "Add to Home Screen" as a standalone app.
 
 ## Deploy
 
