@@ -6,7 +6,7 @@ import { IconGift, IconHome, IconMusic, IconTrophy, IconUser } from "@/component
 
 const tabs = [
   { href: "/dashboard", label: "Home", Icon: IconHome },
-  { href: "/concerts", label: "Shows", Icon: IconMusic },
+  { href: "/events", label: "Events", Icon: IconMusic },
   { href: "/leaderboard", label: "Ranks", Icon: IconTrophy },
   { href: "/marketplace", label: "Rewards", Icon: IconGift },
   { href: "/profile", label: "Me", Icon: IconUser },
@@ -15,8 +15,8 @@ const tabs = [
 export function Nav() {
   const path = usePathname();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),12px)] pointer-events-none">
-      <div className="max-w-md mx-auto grid grid-cols-5 bg-invert-bg text-invert-fg pointer-events-auto shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
+    <nav className="fixed bottom-0 inset-x-0 z-40 bg-invert-bg text-invert-fg pb-[env(safe-area-inset-bottom)]">
+      <div className="max-w-md mx-auto grid grid-cols-5">
         {tabs.map(({ href, label, Icon }) => {
           const active = path.startsWith(href);
           return (

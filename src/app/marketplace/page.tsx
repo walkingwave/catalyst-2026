@@ -1,66 +1,56 @@
 import Link from "next/link";
 import { requireFan } from "@/lib/fan";
+import { attendedArtists } from "@/lib/current";
 import { Page, Headline, Panel, SectionHeader, Empty, Points, List, Row } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { RedeemButton } from "./RedeemButton";
-import type { Artist, Reward } from "@/lib/types";
+import { IconChevron } from "@/components/icons";
+import type { Reward } from "@/lib/types";
 
-/** Rewards for one artist/team at a time. Defaults to the artist of the fan's latest show. */
-export default async function MarketplacePage({ searchParams }: { searchParams: Promise<{ artist?: string }> }) {
+/** Rewards for the current event only. Points shown are that event's pool. */
+export default async function MarketplacePage() {
   const { supabase, user } = await requireFan("/marketplace");
-  const sp = await searchParams;
+  const { current } = await attendedArtists(supabase, user.id);
+  const artistId = current?.artist.id;
 
-  const [{ data: pools }, { data: artists }, { data: bands }, { data: redemptions }] = await Promise.all([
-    supabase.from("user_artist_points").select("artist_id, balance").eq("user_id", user.id),
-    supabase.from("artists").select("id, slug, name, kind, image_url").order("name"),
-    supabase.from("bands").select("concert:concerts(artist_id, date)").eq("user_id", user.id),
+  const [{ data: rewards }, { data: redemptions }] = await Promise.all([
+    artistId ? supabase.from("rewards").select("*").eq("artist_id", artistId).order("cost") : Promise.resolve({ data: [] as Reward[] }),
     supabase
       .from("redemptions")
       .select("id, created_at, reward:rewards(name, type, artist_id), code:reward_codes(code)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
   ]);
-
-  // Latest show the fan holds a band for -> default artist.
-  const latest = (bands ?? [])
-    .map((b) => (Array.isArray(b.concert) ? b.concert[0] : b.concert) as { artist_id: string | null; date: string } | null)
-    .filter((c): c is { artist_id: string | null; date: string } => !!c?.artist_id)
-    .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-  const all = (artists ?? []) as Artist[];
-  const artistId = sp.artist ?? latest?.artist_id ?? all[0]?.id;
-  const artist = all.find((a) => a.id === artistId) ?? null;
-  const balance = (pools ?? []).find((p) => p.artist_id === artistId)?.balance ?? 0;
-
-  const { data: rewards } = artistId
-    ? await supabase.from("rewards").select("*").eq("artist_id", artistId).order("cost")
-    : { data: [] };
   const mine = (redemptions ?? []).filter((rd) => {
     const r = Array.isArray(rd.reward) ? rd.reward[0] : rd.reward;
     return r?.artist_id === artistId;
   });
+  const balance = current?.balance ?? 0;
 
   return (
     <Page>
       <Header />
-      <Headline kicker={<><Points value={balance} /> pts with {artist?.name ?? "—"}</>}>Rewards</Headline>
+      <Headline>Rewards</Headline>
 
-      {all.length > 1 && (
-        <div className="hscroll flex gap-1 overflow-x-auto mb-4 -mx-4 px-4">
-          {all.map((a) => (
-            <Link
-              key={a.id}
-              href={`/marketplace?artist=${a.id}`}
-              className={`shrink-0 h-10 px-4 flex items-center label whitespace-nowrap ${a.id === artistId ? "bg-invert-bg text-invert-fg" : "bg-surface-2 text-ink-2"}`}
-            >
-              {a.name}
-            </Link>
-          ))}
+      {/* Event + points counter */}
+      <Link href="/events?next=/marketplace" className="block bg-invert-bg text-invert-fg p-5 press" data-testid="rewards-counter">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="mono-caps text-[10px] opacity-70">Current event</p>
+            <p className="display d-md truncate mt-1">{current ? current.artist.name : "No event yet"}</p>
+          </div>
+          <span className="label opacity-70 flex items-center gap-1 shrink-0">Switch <IconChevron size={16} /></span>
         </div>
-      )}
+        <div className="flex items-end gap-3 mt-5">
+          <Points value={balance} className="display text-[64px] leading-[0.8]" />
+          <span className="display d-md pb-1">pts to spend</span>
+        </div>
+      </Link>
 
+      <SectionHeader>Available</SectionHeader>
       {!rewards || rewards.length === 0 ? (
-        <Empty>No rewards for {artist?.name ?? "this event"} yet.</Empty>
+        <Empty>No rewards for {current?.artist.name ?? "this event"} yet.</Empty>
       ) : (
         <div className="space-y-3">
           {(rewards as Reward[]).map((r) => (
