@@ -67,18 +67,21 @@ test.describe("Admin console", () => {
       await page.getByRole("combobox").first().selectOption(ev.id);
       await expect(page.getByText(/2 activities · 0 bands/i)).toBeVisible();
       await page.getByRole("button", { name: /fan zone/i }).click();
-      await page.getByRole("button", { name: /go live: fan zone/i }).click();
-      await expect(page.getByText(/any phone tapping a band/i)).toBeVisible();
+      await page.getByRole("button", { name: /open station/i }).click();
+      const station = page.getByTestId("station");
+      await station.getByRole("button", { name: /go live/i }).click();
+      await expect(station.getByRole("button", { name: /live station on/i })).toBeVisible();
 
-      await page.getByPlaceholder("Band UID").fill(uid);
-      await page.locator("form").getByRole("button", { name: /^tap$/i }).click();
+      await station.getByPlaceholder("Band UID").fill(uid);
+      await station.getByRole("button", { name: /^tap$/i }).click();
       const overlay = page.getByRole("paragraph").filter({ hasText: /^\+75$/ });
       await expect(overlay).toBeVisible();
       await overlay.click();
-      await expect(page.getByText(/2 activities · 1 band \(/i)).toBeVisible();
 
-      await page.getByRole("button", { name: /turn off/i }).click();
-      await expect(page.getByText(/^off$/i)).toBeVisible();
+      await station.getByRole("button", { name: /live station on/i }).click();
+      await expect(station.getByRole("button", { name: /go live/i })).toBeVisible();
+      await station.getByRole("button", { name: /back to admin/i }).click();
+      await expect(page.getByText(/2 activities · 1 band \(/i)).toBeVisible();
     } finally {
       await deleteEvent(request, ev.id);
     }

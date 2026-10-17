@@ -456,28 +456,6 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
         })}
       </div>
 
-      {/* iPhone-friendly: make the selected activity the live station. Any tap of a band URL logs it. */}
-      <Panel invert={isLive} className="p-4 mb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className={`label ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>Live station</p>
-            <p className="display d-md mt-1">{liveActivity ? liveActivity.name : "Off"}</p>
-            {liveActivity && <p className={`t-foot mt-1 ${isLive ? "text-invert-fg/70" : "text-ink-2"}`}>Any phone tapping a band logs this activity.</p>}
-          </div>
-        </div>
-        <div className="flex gap-2 mt-3">
-          {!isLive && activityId && (
-            <button onClick={() => setLive(activityId)} disabled={liveBusy} className={`flex-1 h-11 label ${isLive ? "bg-invert-fg text-invert-bg" : "bg-invert-bg text-invert-fg"}`}>
-              {liveBusy ? "…" : `Go live: ${activity?.name ?? ""}`}
-            </button>
-          )}
-          {liveActivity && (
-            <button onClick={() => setLive(null)} disabled={liveBusy} className={`flex-1 h-11 label border-2 ${isLive ? "border-invert-fg" : "border-line"}`}>
-              Turn off
-            </button>
-          )}
-        </div>
-      </Panel>
 
       <div className="mb-3">
         <Button onClick={startScanning} disabled={!activityId}>
@@ -522,6 +500,8 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
           nfcSupported={nfcSupported}
           nfcError={nfcError}
           isLive={isLive}
+          liveBusy={liveBusy}
+          onToggleLive={() => void setLive(isLive ? null : activityId || null)}
           log={log}
           mode={mode}
           onMode={(m) => {
@@ -548,6 +528,8 @@ function StationScreen({
   nfcSupported,
   nfcError,
   isLive,
+  liveBusy,
+  onToggleLive,
   log,
   mode,
   onMode,
@@ -562,6 +544,8 @@ function StationScreen({
   nfcSupported: boolean;
   nfcError: string | null;
   isLive: boolean;
+  liveBusy: boolean;
+  onToggleLive: () => void;
   log: ScanResult[];
   mode: "scan" | "reset" | "read" | "write";
   onMode: (m: "scan" | "reset" | "read" | "write") => void;
@@ -615,6 +599,11 @@ function StationScreen({
           <>
             <p className="display d-hero mt-3">{activity?.name ?? "Pick an activity"}</p>
             {activity && <p className="display d-md opacity-70 mt-2">+{activity.points} pts</p>}
+            {activity && (
+              <button onClick={onToggleLive} disabled={liveBusy} className={`mt-4 h-9 px-3 label ${isLive ? "bg-success text-white" : "bg-invert-fg/10 opacity-80"}`}>
+                {liveBusy ? "…" : isLive ? "Live station on · any phone tap counts" : "Go live: let any phone tap count here"}
+              </button>
+            )}
           </>
         )}
 
