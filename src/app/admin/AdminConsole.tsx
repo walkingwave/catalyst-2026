@@ -334,7 +334,8 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
         // Write-on-tap: if the physical tag doesn't carry its band URL yet, write it now while it's in the field.
         if (opts.reader && (j.ok || j.status === "duplicate")) {
           const url = `${window.location.origin}/b/${res.band_uid}`;
-          const hasUrl = (opts.records ?? []).some((r) => r.recordType === "url" && r.data && r.data.replace(/^\x00+/, "").includes(`/b/${res.band_uid}`));
+          // Only count the tag as set if it carries THIS site's URL for this band; a stale host gets rewritten.
+          const hasUrl = (opts.records ?? []).some((r) => r.recordType === "url" && r.data && r.data.replace(/^\x00+/, "").trim() === url);
           if (hasUrl) res.wrote = "already";
           else {
             try {
