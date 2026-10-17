@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   const [{ data: concerts }, { data: activities }, { data: artists }, { data: bands }] = await Promise.all([
     db.from("concerts").select("*").order("date", { ascending: false }),
     db.from("activities").select("*").order("points"),
-    db.from("artists").select("id, slug, name, kind").order("name"),
+    db.from("artists").select("id, slug, name, kind, bio, image_url, access_code").order("name"),
     db.from("bands").select("uid, concert_id, user_id, archived"),
   ]);
   const counts = new Map<string, { total: number; claimed: number }>();
@@ -110,12 +110,53 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true, event: { ...concert, activities: created ?? [] } });
 }
 
-/** PATCH: { id, live_activity_id: string | null } sets the live station for an event. */
+/**
+ * PATCH: { id, ...fields } edits an event. Fields: name, description, venue, address, date, doors_at,
+ * artist_id, image_url, venue_image_url, map_image_url, live_activity_id (sets the live station).
+ */
 export async function PATCH(req: Request) {
   if (!checkStaffPin(staffPinFromRequest(req))) return NextResponse.json({ ok: false }, { status: 401 });
-  const b = (await req.json().catch(() => ({}))) as { id?: string; live_activity_id?: string | null };
+  const b = (await req.json().catch(() => ({}))) as {
+    id?: string;
+    live_activity_id?: string | null;
+    name?: string;
+    description?: string;
+    venue?: string;
+    address?: string | null;
+    date?: string;
+    doors_at?: string | null;
+    artist_id?: string | null;
+    image_url?: string | null;
+    venue_image_url?: string | null;
+    map_image_url?: string | null;
+  };
   if (!b.id) return NextResponse.json({ ok: false, message: "id required" }, { status: 400 });
   const db = createAdminClient();
+
+  const fields: Record<string, unknown> = {};
+  if (b.name !== undefined) fields.name = String(b.name).trim().slice(0, 120);
+  if (b.description !== undefined) fields.description = String(b.description).trim().slice(0, 600);
+  if (b.venue !== undefined) fields.venue = String(b.venue).trim().slice(0, 120);
+  if (b.address !== undefined) fields.address = b.address ? String(b.address).trim().slice(0, 160) : null;
+  if (b.date !== undefined) fields.date = b.date;
+  if (b.doors_at !== undefined) fields.doors_at = b.doors_at ? String(b.doors_at).trim().slice(0, 20) : null;
+  if (b.image_url !== undefined) fields.image_url = b.image_url || null;
+  if (b.venue_image_url !== undefined) fields.venue_image_url = b.venue_image_url || null;
+  if (b.map_image_url !== undefined) fields.map_image_url = b.map_image_url || null;
+  if (b.artist_id !== undefined) {
+    fields.artist_id = b.artist_id || null;
+    if (b.artist_id) {
+      const { data: a } = await db.from("artists").select("name").eq("id", b.artist_id).maybeSingle();
+      if (a) fields.artist = a.name;
+    }
+  }
+  if (fields.name === "" || fields.venue === "") return NextResponse.json({ ok: false, message: "Name and venue required" }, { status: 400 });
+  if (Object.keys(fields).length) {
+    const { error } = await db.from("concerts").update(fields).eq("id", b.id);
+    if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
+  }
+  if (b.live_activity_id === undefined) return NextResponse.json({ ok: true });
+
   if (b.live_activity_id) {
     const { data: a } = await db.from("activities").select("concert_id").eq("id", b.live_activity_id).maybeSingle();
     if (a?.concert_id !== b.id) return NextResponse.json({ ok: false, message: "Activity not in this event" }, { status: 400 });
