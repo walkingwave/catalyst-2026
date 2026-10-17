@@ -121,6 +121,17 @@ The staff station reads the tag's hardware serial (`NDEFReadingEvent.serialNumbe
 
 Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewrite them.
 
+## Android NFC checklist
+
+1. Chrome on Android (any recent version), NFC on in Settings → Connections.
+2. Open the **production HTTPS URL** (Web NFC refuses plain http and LAN IPs).
+3. `/admin` → Write → **Test NFC (read only)**, hold a band to the top-back of the phone. You should see its serial and any records. If Chrome asks for NFC permission, allow it.
+4. Then **Turn phone into NFC writer**: each band gets registered to the current event and its `/b/<serial>` URL written. Hold still until the green "Written" screen.
+5. Tap the band with an iPhone or another phone: it opens the band page.
+6. Tap tab → pick an activity → Start NFC scanning → hold bands for the +N overlay.
+
+Errors are spelled out on screen (permission denied, NFC off, tag moved during write). Screen stays awake while a session runs.
+
 ## Staff station
 
 1. Android phone, Chrome, NFC on. Open `https://<domain>/staff` (Web NFC requires HTTPS; `localhost` also works).
