@@ -30,7 +30,7 @@ export function SocialSubmit({ activityId, network, points }: { activityId: stri
       <p className="t-foot text-ink-2">Paste your {network ?? "post"} link. +{points} pts after approval.</p>
       <div className="flex gap-2">
         <Input type="url" placeholder="Post link" value={url} onChange={(e) => setUrl(e.target.value)} required />
-        <button type="submit" disabled={busy || !url} className="h-14 px-4 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40">
+        <button type="submit" disabled={busy || !url} className="h-14 px-4 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
           {busy ? "…" : "Submit"}
         </button>
       </div>

@@ -37,7 +37,7 @@ export function DropCard({ drop }: { drop: Drop & { artist_name: string } }) {
           <button
             onClick={claim}
             disabled={busy}
-            className="w-full h-12 bg-invert-fg text-invert-bg display d-sm disabled:opacity-40"
+            className="w-full h-12 bg-invert-fg text-invert-bg display d-sm disabled:opacity-40 press"
           >
             {busy ? "…" : "Claim"}
           </button>

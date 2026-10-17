@@ -38,7 +38,7 @@ export default async function LeaderboardPage({
         {mode === "concert" ? concert?.artist : artist?.name}
       </Headline>
 
-      <div className="flex border-2 border-line overflow-x-auto mb-3">
+      <div className="hscroll flex gap-1 overflow-x-auto mb-3 -mx-4 px-4">
         {artists?.map((a) => (
           <Tab key={a.id} href={`/leaderboard?artist=${a.id}`} active={mode === "artist" && a.id === artistId}>
             {a.name}
@@ -83,9 +83,7 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
   return (
     <Link
       href={href}
-      className={`shrink-0 h-11 px-4 flex items-center label whitespace-nowrap border-r-2 border-line last:border-r-0 ${
-        active ? "bg-invert-bg text-invert-fg" : "text-ink-2"
-      }`}
+      className={`shrink-0 h-10 px-4 flex items-center label whitespace-nowrap ${active ? "bg-invert-bg text-invert-fg" : "bg-surface-2 text-ink-2"}`}
     >
       {children}
     </Link>
@@ -94,7 +92,7 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
 
 function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
-    <Link href={href} className={`shrink-0 h-9 px-3 flex items-center t-foot font-semibold border border-line ${active ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>
+    <Link href={href} className={`shrink-0 h-9 px-3 flex items-center t-foot font-semibold ${active ? "bg-invert-bg text-invert-fg" : "bg-surface-2 text-ink-2"}`}>
       {children}
     </Link>
   );

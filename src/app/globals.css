@@ -6,7 +6,8 @@
 :root {
   --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f3f3f3;
+  --surface-2: #f4f4f4;     /* tonal card */
+  --surface-3: #e9e9e9;     /* pressed / nested */
   --ink: #000000;          /* text + lines */
   --ink-2: #000000a6;      /* 65% */
   --ink-3: #00000066;      /* 40% */
@@ -24,7 +25,8 @@
   :root:not([data-theme="light"]) {
     --bg: #000000;
     --surface: #000000;
-    --surface-2: #141414;
+    --surface-2: #161616;
+    --surface-3: #222222;
     --ink: #ffffff;
     --ink-2: #ffffffb3;
     --ink-3: #ffffff73;
@@ -41,7 +43,8 @@
 :root[data-theme="dark"] {
   --bg: #000000;
   --surface: #000000;
-  --surface-2: #141414;
+  --surface-2: #161616;
+  --surface-3: #222222;
   --ink: #ffffff;
   --ink-2: #ffffffb3;
   --ink-3: #ffffff73;
@@ -59,6 +62,7 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
@@ -105,8 +109,18 @@ body {
 
 .photo { filter: var(--photo-filter); }
 
-/* Hard rules between list rows */
+/* Hairlines between list rows */
 .rules > * + * { border-top: 1px solid var(--line-soft); }
+
+/* Wallet-style perforation */
+.perf { background-image: linear-gradient(to right, var(--invert-fg) 40%, transparent 40%); background-size: 10px 1px; background-repeat: repeat-x; height: 1px; opacity: 0.35; }
+
+/* Horizontal scroller without a scrollbar */
+.hscroll { scrollbar-width: none; -ms-overflow-style: none; }
+.hscroll::-webkit-scrollbar { display: none; }
+
+.press { transition: transform 120ms ease, opacity 120ms ease; }
+.press:active { transform: scale(0.98); opacity: 0.9; }
 
 input,
 select,

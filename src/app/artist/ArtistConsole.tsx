@@ -117,7 +117,7 @@ export function ArtistConsole() {
 
   return (
     <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-10">
-      <div className="flex items-center justify-between h-14 border-b-2 border-line">
+      <div className="flex items-center justify-between h-14">
         <div>
           <p className="label text-ink-2">{data.artist.kind === "team" ? "Team console" : "Artist console"}</p>
           <h1 className="display d-md">{data.artist.name}</h1>
@@ -141,14 +141,12 @@ export function ArtistConsole() {
         <Stat label="To review" value={data.stats.pending_posts} />
       </div>
 
-      <div className="flex border-2 border-line overflow-x-auto mt-4">
+      <div className="hscroll flex gap-1 overflow-x-auto mt-4 bg-surface-2 p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`shrink-0 h-11 px-3 label whitespace-nowrap border-r-2 border-line last:border-r-0 flex items-center gap-1.5 ${
-              tab === t.id ? "bg-invert-bg text-invert-fg" : "text-ink-2"
-            }`}
+            className={`shrink-0 h-10 px-3 label whitespace-nowrap flex items-center gap-1.5 ${tab === t.id ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}
           >
             {t.label}
             {t.count ? <span className={`px-1.5 ${tab === t.id ? "bg-invert-fg text-invert-bg" : "bg-invert-bg text-invert-fg"}`}>{t.count}</span> : null}
@@ -267,7 +265,7 @@ function FansTab({
       </SectionHeader>
       <div className="flex gap-2 mb-3">
         {[5, 10, 25].map((n) => (
-          <button key={n} onClick={() => onSelectTop(n)} className="h-10 px-3 border-2 border-line label">
+          <button key={n} onClick={() => onSelectTop(n)} className="h-10 px-3 bg-surface-2 label">
             Top {n}
           </button>
         ))}
@@ -343,7 +341,7 @@ function MessageTab({
         </div>
         <Field label={`Message (${body.length}/320)`}>
           <textarea
-            className="w-full min-h-28 bg-surface border-2 border-line p-3 t-body outline-none focus:bg-surface-2"
+            className="w-full min-h-28 bg-surface-2 p-3 t-body outline-none"
             maxLength={320}
             placeholder="Message"
             value={body}
@@ -423,7 +421,7 @@ function DropTab({
         </Field>
         <Field label="Message">
           <textarea
-            className="w-full min-h-24 bg-surface border-2 border-line p-3 t-body outline-none focus:bg-surface-2"
+            className="w-full min-h-24 bg-surface-2 p-3 t-body outline-none"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             maxLength={500}
@@ -542,7 +540,7 @@ function Pick({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className={`h-10 px-3 border-2 border-line label ${active ? "bg-invert-bg text-invert-fg" : ""}`}
+      className={`h-10 px-3 label ${active ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}
     >
       {children}
     </button>

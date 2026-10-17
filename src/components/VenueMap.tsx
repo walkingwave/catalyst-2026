@@ -18,8 +18,8 @@ export function VenueMap({
   const current = pins.find((p) => p.id === active) ?? null;
 
   return (
-    <div className="border border-line">
-      <svg viewBox="0 0 100 140" className="w-full block bg-surface" role="group" aria-label={`${venue} floor plan`}>
+    <div className="bg-surface-2">
+      <svg viewBox="0 0 100 140" className="w-full block" role="group" aria-label={`${venue} floor plan`}>
         {/* stage */}
         <path d="M20 6 h60 v16 q-30 9 -60 0z" className="fill-ink" />
         <text x="50" y="16" textAnchor="middle" fontSize="4.5" fontWeight="700" letterSpacing="0.5" className="fill-surface">
@@ -39,7 +39,7 @@ export function VenueMap({
         <rect x="6" y="28" width="5" height="58" className="fill-line-soft" />
         <rect x="89" y="28" width="5" height="58" className="fill-line-soft" />
         {/* lobby */}
-        <rect x="8" y="94" width="84" height="38" className="fill-none stroke-line" strokeWidth="0.8" />
+        <rect x="8" y="94" width="84" height="38" className="fill-surface" />
         <text x="50" y="104" textAnchor="middle" fontSize="4" fontWeight="700" letterSpacing="0.5" className="fill-ink-3">
           LOBBY
         </text>
@@ -95,7 +95,7 @@ export function VenueMap({
       </svg>
 
       {current && (
-        <div className="border-t border-line px-4 py-3 flex items-center bg-surface">
+        <div className="px-4 py-3 flex items-center border-t border-line-soft">
           <div className="flex-1 min-w-0">
             <p className="display d-sm truncate">{current.name}</p>
             <p className="t-foot text-ink-2 truncate mt-1">{current.location ?? venue}</p>

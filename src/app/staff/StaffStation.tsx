@@ -173,7 +173,7 @@ export function StaffStation() {
   // ---------- station ----------
   return (
     <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-10 relative">
-      <div className="flex items-center justify-between h-14 border-b-2 border-line mb-4">
+      <div className="flex items-center justify-between h-14 mb-2">
         <h1 className="display d-lg">Scan station</h1>
         <button
           className="label underline underline-offset-4 h-11 px-2"
@@ -191,7 +191,7 @@ export function StaffStation() {
 
       <label className="label text-ink-2 block mb-2">Concert</label>
       <select
-        className="w-full h-14 bg-surface border-2 border-line px-4 t-body mb-4"
+        className="w-full h-14 bg-surface-2 px-4 t-body mb-4"
         value={concertId}
         onChange={(e) => {
           setConcertId(e.target.value);
@@ -213,9 +213,7 @@ export function StaffStation() {
             <button
               key={a.id}
               onClick={() => setActivityId(a.id)}
-              className={`min-h-[64px] px-3 py-2 text-left border-2 border-line ${
-                on ? "bg-invert-bg text-invert-fg" : "bg-surface"
-              }`}
+              className={`min-h-[64px] px-3 py-2 text-left ${on ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}
             >
               <p className="display d-sm">{a.name}</p>
               <p className={`t-foot mt-1 ${on ? "text-invert-fg/70" : "text-ink-2"}`}>+{a.points} pts</p>
@@ -263,7 +261,7 @@ export function StaffStation() {
         <button
           type="submit"
           disabled={!activityId || !manualUid}
-          className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40"
+          className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press"
         >
           Log
         </button>

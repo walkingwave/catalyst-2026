@@ -19,7 +19,6 @@ export default async function Dashboard({
   const [{ data: pts }, { data: pools }, { data: artists }, { data: bands }, scans, { data: drops }, { data: messages }] =
     await Promise.all([
       supabase.from("user_points").select("earned, spent, balance").eq("user_id", user.id).maybeSingle(),
-      // Views have no FK metadata, so no embed here; join artists in code.
       supabase.from("user_artist_points").select("artist_id, earned, spent, balance").eq("user_id", user.id),
       supabase.from("artists").select("id, slug, name, kind, image_url"),
       supabase
@@ -39,7 +38,6 @@ export default async function Dashboard({
   const concerts = [...byId.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
   const tonight = concerts[0];
 
-  // Rank with tonight's artist (the fandom pool), plus rank at the show itself.
   let artistRank: { rank: number; total: number } | null = null;
   let showRank: { rank: number; total: number } | null = null;
   if (tonight) {
@@ -72,29 +70,36 @@ export default async function Dashboard({
       <Header
         right={
           <form action="/auth/signout" method="post">
-            <button className="label text-ink h-11 px-2 underline underline-offset-4">Sign out</button>
+            <button className="label text-ink h-11 px-2">Sign out</button>
           </form>
         }
       />
 
-      {claimed && (
-        <div className="mb-3">
-          <Banner>Band claimed. Your points are saved to this number.</Banner>
-        </div>
-      )}
+      {claimed && <div className="mb-3"><Banner>Band claimed.</Banner></div>}
       {tap && (
         <div className="mb-3">
           {dup ? <Banner tone="warning">Already tapped in at {tap}</Banner> : <Banner>+{tapPts} pts · {tap}</Banner>}
         </div>
       )}
 
-      <Panel invert className="p-5 mt-2">
-        <p className="label text-invert-fg/70">{firstName}</p>
-        <div className="flex items-end gap-3 mt-3">
-          <Points value={pts?.balance ?? 0} className="display text-[72px] leading-[0.85]" />
-          <span className="display d-md pb-1">pts</span>
+      {/* Points pass */}
+      <Panel invert className="mt-2">
+        <div className="p-5">
+          <div className="flex items-start justify-between">
+            <p className="label text-invert-fg/70">{firstName}</p>
+            {tonight && <p className="label text-invert-fg/70">{formatDate(tonight.date)}</p>}
+          </div>
+          <div className="flex items-end gap-3 mt-6">
+            <Points value={pts?.balance ?? 0} className="display text-[80px] leading-[0.8]" />
+            <span className="display d-md pb-1">pts</span>
+          </div>
         </div>
-        {pts && pts.spent > 0 && <p className="t-foot text-invert-fg/70 mt-3">{pts.spent.toLocaleString()} redeemed</p>}
+        <div className="perf mx-5" />
+        <div className="grid grid-cols-3 px-5 py-4">
+          <Stat label="Show" value={showRank ? `#${showRank.rank}` : "—"} sub={showRank ? `of ${showRank.total}` : ""} />
+          <Stat label="Fandom" value={artistRank ? `#${artistRank.rank}` : "—"} sub={artistRank ? `of ${artistRank.total}` : ""} />
+          <Stat label="Redeemed" value={(pts?.spent ?? 0).toLocaleString()} sub="pts" />
+        </div>
       </Panel>
 
       {inbox.length > 0 && (
@@ -103,10 +108,7 @@ export default async function Dashboard({
           <div className="space-y-3">
             {inbox.map((i) =>
               i.kind === "drop" ? (
-                <DropCard
-                  key={i.d.id}
-                  drop={{ ...i.d, artist_name: (Array.isArray(i.d.artist) ? i.d.artist[0] : i.d.artist)?.name ?? "Artist" }}
-                />
+                <DropCard key={i.d.id} drop={{ ...i.d, artist_name: (Array.isArray(i.d.artist) ? i.d.artist[0] : i.d.artist)?.name ?? "Artist" }} />
               ) : (
                 <Panel key={i.m.id} className="p-4">
                   <p className="label text-ink-2">
@@ -122,22 +124,25 @@ export default async function Dashboard({
 
       <SectionHeader action={<Link href="/leaderboard">Ranks</Link>}>Fandoms</SectionHeader>
       {fandoms.length === 0 ? (
-        <Panel><Empty>No fandoms yet.</Empty></Panel>
+        <Empty>No fandoms yet.</Empty>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="hscroll flex gap-3 overflow-x-auto -mx-4 px-4 snap-x">
           {fandoms.map((f) => (
-            <Link key={f.artist_id} href={`/leaderboard?artist=${f.artist_id}`} className="block active:opacity-70">
-              <Panel className="overflow-hidden h-full">
-                <div className="relative aspect-[16/9] bg-surface-2 border-b border-line">
-                  {f.artist!.image_url && <Image src={f.artist!.image_url} alt="" fill className="object-cover photo" />}
-                  <span className="absolute left-2 top-2 label bg-invert-bg text-invert-fg px-1.5 py-1">{f.artist!.kind}</span>
+            <Link key={f.artist_id} href={`/leaderboard?artist=${f.artist_id}`} className="press shrink-0 w-[62%] snap-start">
+              <div className="relative aspect-[4/5] bg-invert-bg overflow-hidden">
+                {f.artist!.image_url ? (
+                  <Image src={f.artist!.image_url} alt="" fill className="object-cover photo" />
+                ) : (
+                  <p className="absolute inset-0 flex items-center justify-center display text-[120px] text-invert-fg/15 select-none">
+                    {f.artist!.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("")}
+                  </p>
+                )}
+                <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 via-black/40 to-transparent text-white">
+                  <p className="label text-white/70">{f.artist!.kind}</p>
+                  <p className="display d-md mt-1">{f.artist!.name}</p>
+                  <p className="display d-lg t-num mt-2">{f.balance.toLocaleString()}<span className="d-sm ml-1">pts</span></p>
                 </div>
-                <div className="p-3">
-                  <p className="display d-sm truncate">{f.artist!.name}</p>
-                  <p className="display d-lg t-num mt-2">{f.balance.toLocaleString()}</p>
-                  <p className="t-foot text-ink-2">pts</p>
-                </div>
-              </Panel>
+              </div>
             </Link>
           ))}
         </div>
@@ -145,40 +150,25 @@ export default async function Dashboard({
 
       {tonight && (
         <>
-          <SectionHeader action={formatDate(tonight.date)}>Latest show</SectionHeader>
-          <Link href={`/concerts/${tonight.id}`} className="block active:opacity-70">
-            <Panel className="overflow-hidden">
-              {tonight.image_url && (
-                <div className="relative aspect-[16/10] border-b border-line">
-                  <Image src={tonight.image_url} alt={tonight.artist} fill className="object-cover photo" priority />
-                  <p className="absolute left-3 bottom-3 display d-lg text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-                    {tonight.artist}
-                  </p>
+          <SectionHeader>Latest show</SectionHeader>
+          <Link href={`/concerts/${tonight.id}`} className="block press -mx-4">
+            <div className="relative aspect-[16/10]">
+              {tonight.image_url && <Image src={tonight.image_url} alt={tonight.artist} fill className="object-cover photo" priority />}
+              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white flex items-end justify-between">
+                <div>
+                  <p className="label text-white/70">{tonight.venue}</p>
+                  <p className="display d-lg mt-1">{tonight.artist}</p>
                 </div>
-              )}
-              <div className="grid grid-cols-2 rules-x border-b border-line">
-                <div className="px-4 py-3 border-r border-line">
-                  <p className="label text-ink-2">Show</p>
-                  <p className="display d-md t-num mt-1">{showRank ? `#${showRank.rank}` : "—"}<span className="t-foot text-ink-2 ml-1 normal-case font-sans">of {showRank?.total ?? 0}</span></p>
-                </div>
-                <div className="px-4 py-3">
-                  <p className="label text-ink-2">Fandom</p>
-                  <p className="display d-md t-num mt-1">{artistRank ? `#${artistRank.rank}` : "—"}<span className="t-foot text-ink-2 ml-1 normal-case font-sans">of {artistRank?.total ?? 0}</span></p>
-                </div>
+                <IconChevron size={22} className="mb-1" />
               </div>
-              <div className="flex items-center px-4 py-3">
-                <p className="t-sub flex-1 truncate">{tonight.venue}</p>
-                <span className="label mr-1">Venue map</span>
-                <IconChevron size={18} className="text-ink-3" />
-              </div>
-            </Panel>
+            </div>
           </Link>
         </>
       )}
 
       <SectionHeader action={<Link href="/concerts">All</Link>}>Activity</SectionHeader>
       {recent.length === 0 ? (
-        <Panel><Empty>No activity yet.</Empty></Panel>
+        <Empty>No activity yet.</Empty>
       ) : (
         <List>
           {recent.map((s) => (
@@ -189,5 +179,15 @@ export default async function Dashboard({
 
       <Nav />
     </Page>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div>
+      <p className="label text-invert-fg/70">{label}</p>
+      <p className="display d-lg t-num mt-1">{value}</p>
+      <p className="t-foot text-invert-fg/70">{sub}</p>
+    </div>
   );
 }
