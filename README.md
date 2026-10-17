@@ -123,7 +123,19 @@ Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewr
 4. Hold bands to the back of the phone. Each tap: full-screen green `+N` (new), amber `Done` (already did this activity), red error.
 5. Desktop / iPhone: type a UID in the manual box and press **Log**.
 
-Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-pin`. Response includes points, whether the band is claimed, owner name, and rank tonight.
+Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-pin`. Admin routes (`/api/admin/events`, `/api/admin/bands`) use the same header. Response includes points, whether the band is claimed, owner name, and rank tonight.
+
+## Admin console
+
+`/admin`, unlocked with `STAFF_PIN`. Built for demos without real tap stations.
+
+- **Current event** switcher at the top, remembered per device. Everything below acts on that event.
+- **Tap**: pick an activity, then tap bands (Web NFC on Android Chrome) or type a UID. Same `/api/scan` as the staff station, so switching events and tapping simulates a fan moving between shows.
+- **Write**: turns the phone into an NFC writer. Each tapped tag is registered to the current event (`POST /api/admin/bands`) and gets `https://<domain>/b/<serial>` written as an NDEF URL (`NDEFReader.write`, overwrite on). Full-screen green/red result per tag. Desktop fallback: register a UID manually, write the URL with NFC Tools.
+- **Bands**: look up any UID (owner, event, scans, tag URL), move it to another event, unclaim, archive/restore, clear scans. Lists all bands at the current event with points.
+- **Events**: create an event with name, description, location, address, date, doors, artist or team (existing, or create one with a generated console access code), and activities with points. The possible-points total updates as you type. New events open in Write so you can start writing bands.
+
+Staff station `/staff` is the slimmed-down tap-only version for booth workers.
 
 ## Artists and fandoms
 
