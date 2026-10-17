@@ -94,4 +94,6 @@ export type ScanResult = {
   owner_name?: string;
   rank?: number | null;
   total_tonight?: number;
+  /** Set by the station when it also wrote the tag URL during this tap. */
+  wrote?: "written" | "already" | "failed";
 };

@@ -296,7 +296,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
     setTimeout(() => setResult((cur) => (cur === res ? null : cur)), RESULT_MS);
   }
 
-  async function scan(raw: string, opts: { manual?: boolean } = {}) {
+  async function scan(raw: string, opts: { manual?: boolean; reader?: NDEFReader; records?: { recordType: string; data: string | null }[] } = {}) {
       const uid = normalizeUid(raw);
       const act = activityRef.current;
       if (!uid) return;
@@ -330,7 +330,22 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
       try {
         const r = await fetch("/api/scan", { method: "POST", headers: headers(), body: JSON.stringify({ band_uid: uid, activity_id: act }) });
         const j = (await r.json()) as ScanResult;
-        show({ ...j, band_uid: j.band_uid ?? uid });
+        const res: ScanResult = { ...j, band_uid: j.band_uid ?? uid };
+        // Write-on-tap: if the physical tag doesn't carry its band URL yet, write it now while it's in the field.
+        if (opts.reader && (j.ok || j.status === "duplicate")) {
+          const url = `${window.location.origin}/b/${res.band_uid}`;
+          const hasUrl = (opts.records ?? []).some((r) => r.recordType === "url" && r.data && r.data.replace(/^\x00+/, "").includes(`/b/${res.band_uid}`));
+          if (hasUrl) res.wrote = "already";
+          else {
+            try {
+              await writeUrl(opts.reader, url);
+              res.wrote = "written";
+            } catch {
+              res.wrote = "failed";
+            }
+          }
+        }
+        show(res);
         if (j.ok) onChanged(); // refresh band counts in the header
       } catch {
         show({ ok: false, status: "error", message: "Network error", band_uid: uid });
@@ -344,7 +359,7 @@ function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; 
     if (!nfcSupported) return;
     try {
       sessionRef.current = await startNfc({
-        onTag: (serial) => void scan(serial),
+        onTag: (serial, reader, records) => void scan(serial, { reader, records }),
         onError: (message) => show({ ok: false, status: "error", message }),
       });
       setScanning(true);
@@ -568,6 +583,7 @@ function StationScreen({
                   <IconNfc size={48} />
                 </div>
                 <p className="label mt-5">Hold band here</p>
+                <p className="t-foot opacity-60 mt-2">Logs the tap and writes the band URL if the tag is blank</p>
               </>
             ) : (
               <>
@@ -1202,6 +1218,11 @@ function Overlay({ result, activityName, onClose }: { result: ScanResult; activi
         {result.status === "reset" ? "Reset" : result.ok ? `+${result.points}` : result.status === "duplicate" ? "Done" : "Error"}
       </p>
       <p className="display d-lg mt-4">{result.status === "reset" ? "Scans cleared, unclaimed" : result.ok ? activityName ?? result.activity : result.message}</p>
+      {result.wrote && (
+        <p className="label mt-3 opacity-80">
+          {result.wrote === "written" ? "Tag written" : result.wrote === "already" ? "Tag already set" : "Tag write failed, hold still and tap again"}
+        </p>
+      )}
       {result.ok && result.status !== "reset" && (
         <p className="t-body mt-3 opacity-90">
           {result.claimed ? `${result.owner_name || "Fan"}${result.rank ? ` · #${result.rank} tonight` : ""}` : "Unclaimed band · points saved"}
