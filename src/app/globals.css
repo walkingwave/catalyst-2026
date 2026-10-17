@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* ---- ConcertConnect design tokens ----
+   Cues from fandrop.com: monochrome, zero radius, condensed uppercase display type,
+   hard 2px rules, black-and-white photography, inverted blocks for emphasis. */
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f3f3f3;
+  --ink: #000000;          /* text + lines */
+  --ink-2: #000000a6;      /* 65% */
+  --ink-3: #00000066;      /* 40% */
+  --line: #000000;
+  --line-soft: #00000026;
+  --invert-bg: #000000;    /* inverted block */
+  --invert-fg: #ffffff;
+  --success: #16a34a;
+  --warning: #ea8a00;
+  --danger: #e5142b;
+  --photo-filter: grayscale(1) contrast(1.08);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000;
+    --surface: #000000;
+    --surface-2: #141414;
+    --ink: #ffffff;
+    --ink-2: #ffffffb3;
+    --ink-3: #ffffff73;
+    --line: #ffffff;
+    --line-soft: #ffffff33;
+    --invert-bg: #ffffff;
+    --invert-fg: #000000;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ff3b3b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #141414;
+  --ink: #ffffff;
+  --ink-2: #ffffffb3;
+  --ink-3: #ffffff73;
+  --line: #ffffff;
+  --line-soft: #ffffff33;
+  --invert-bg: #ffffff;
+  --invert-fg: #000000;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ff3b3b;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-invert-bg: var(--invert-bg);
+  --color-invert-fg: var(--invert-fg);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: "General Sans", var(--font-geist-sans), system-ui, sans-serif;
+  --font-display: "Clash Display", "General Sans", system-ui, sans-serif;
+  --font-mono: "Roboto Mono", var(--font-geist-mono), ui-monospace, monospace;
+  --radius: 0px;
+}
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ---- Type ---- */
+.display   { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; line-height: 0.95; letter-spacing: -0.01em; }
+.d-hero    { font-size: 44px; }
+.d-xl      { font-size: 36px; }
+.d-lg      { font-size: 28px; }
+.d-md      { font-size: 22px; }
+.d-sm      { font-size: 16px; letter-spacing: 0.02em; }
+.label     { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; line-height: 1; }
+.t-body    { font-size: 17px; line-height: 1.35; font-weight: 500; }
+.t-sub     { font-size: 15px; line-height: 1.35; font-weight: 500; }
+.t-foot    { font-size: 13px; line-height: 1.35; font-weight: 500; }
+.t-num     { font-variant-numeric: tabular-nums; }
+
+.photo { filter: var(--photo-filter); }
+
+/* Hard rules between list rows */
+.rules > * + * { border-top: 1px solid var(--line-soft); }
+
+input,
+select,
+textarea {
+  font-size: 17px;
+  border-radius: 0;
+}
+
+button,
+a {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+}

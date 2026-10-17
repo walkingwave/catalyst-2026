@@ -1,0 +1,2 @@
+- our-lady-peace.jpg: "Our Lady Peace at Virgin Festival Ontario day 2 2009" via Wikimedia Commons, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Our_Lady_Peace_at_Virgin_Festival_Ontario_day_2_2009.JPG
+- massey-hall.jpg: "South facade of Massey Hall, 2017 08 04" via Wikimedia Commons, CC0. https://commons.wikimedia.org/wiki/File:South_facade_of_Massey_Hall,_2017_08_04_-a_(35686026623).jpg
