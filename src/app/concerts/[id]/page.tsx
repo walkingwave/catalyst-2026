@@ -5,16 +5,18 @@ import { Page, List, Row, SectionHeader, Points } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { VenueMap } from "@/components/VenueMap";
+import { SocialSubmit } from "@/components/SocialSubmit";
 import type { Activity, Concert } from "@/lib/types";
 
 export default async function ConcertPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireFan(`/concerts/${id}`);
+  const { supabase, user } = await requireFan(`/concerts/${id}`);
 
-  const [{ data: concert }, { data: activities }, scans] = await Promise.all([
+  const [{ data: concert }, { data: activities }, scans, { data: posts }] = await Promise.all([
     supabase.from("concerts").select("*").eq("id", id).maybeSingle(),
     supabase.from("activities").select("*").eq("concert_id", id).order("points"),
     fanScans(supabase),
+    supabase.from("social_posts").select("activity_id, status").eq("user_id", user.id),
   ]);
   if (!concert) notFound();
   const c = concert as Concert;
@@ -22,6 +24,10 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   const mine = scans.filter((s) => s.activity?.concert_id === id);
   const doneNames = new Set(mine.map((s) => s.activity?.name));
   const doneIds = new Set(acts.filter((a) => doneNames.has(a.name)).map((a) => a.id));
+  const postBy = new Map((posts ?? []).map((p) => [p.activity_id, p.status]));
+  for (const [aid, st] of postBy) if (st === "approved") doneIds.add(aid);
+  const scanActs = acts.filter((a) => a.kind !== "social");
+  const socialActs = acts.filter((a) => a.kind === "social");
   const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0);
   const possible = acts.reduce((n, a) => n + a.points, 0);
 
@@ -46,7 +52,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
       </List>
 
       <SectionHeader action={`${earned} / ${possible} pts`}>Venue map</SectionHeader>
-      <VenueMap activities={acts} done={doneIds} venue={c.venue} />
+      <VenueMap activities={scanActs} done={doneIds} venue={c.venue} />
 
       {c.venue_image_url && (
         <div className="relative aspect-[16/9] mt-3 border border-line overflow-hidden">
@@ -57,9 +63,31 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <SectionHeader>Activities</SectionHeader>
+      {socialActs.length > 0 && (
+        <>
+          <SectionHeader>Post and earn</SectionHeader>
+          <div className="border border-line rules">
+            {socialActs.map((a) => {
+              const st = postBy.get(a.id);
+              return (
+                <div key={a.id}>
+                  <Row
+                    title={a.name}
+                    subtitle={a.location ?? undefined}
+                    value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
+                    valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
+                  />
+                  {!st && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <SectionHeader>Tap-in activities</SectionHeader>
       <List>
-        {acts.map((a) => (
+        {scanActs.map((a) => (
           <Row
             key={a.id}
             title={a.name}

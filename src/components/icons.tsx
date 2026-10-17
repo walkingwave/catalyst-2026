@@ -89,3 +89,9 @@ export const IconPhone = ({ size = 24, ...p }: P) => (
     <path d="M11 18h2" />
   </svg>
 );
+export const IconUser = ({ size = 24, ...p }: P) => (
+  <svg {...base(size, p)}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);

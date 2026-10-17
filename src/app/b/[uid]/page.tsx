@@ -3,13 +3,18 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUser } from "@/lib/supabase/server";
 import { normalizeUid, isValidUid } from "@/lib/uid";
-import { Page, Panel, LinkButton, Points, List, Row, SectionHeader, Headline } from "@/components/ui";
+import { Page, Panel, LinkButton, Points, List, Row, SectionHeader, Headline, Banner } from "@/components/ui";
+import { recordSelfTap, type TapOutcome } from "@/lib/tap";
 import { Header } from "@/components/Header";
 import { ClaimFlow } from "./ClaimFlow";
 
 export default async function BandPage({ params }: { params: Promise<{ uid: string }> }) {
   const { uid: raw } = await params;
   const uid = normalizeUid(raw);
+
+  // Self-tap: if the event has a live station, this page load IS the tap (works from any iPhone).
+  const tap: TapOutcome = isValidUid(uid) ? await recordSelfTap(uid) : { kind: "none" };
+  const tapQuery = tap.kind === "scanned" ? `?tap=${encodeURIComponent(tap.activity)}&pts=${tap.points}` : tap.kind === "duplicate" ? `?tap=${encodeURIComponent(tap.activity)}&dup=1` : "";
 
   const db = createAdminClient();
   const { data: band } = isValidUid(uid)
@@ -35,12 +40,13 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
   const user = await getUser();
   const concert = Array.isArray(band.concert) ? band.concert[0] : band.concert;
 
-  if (band.user_id && user && band.user_id === user.id) redirect("/dashboard");
+  if (band.user_id && user && band.user_id === user.id) redirect(`/dashboard${tapQuery}`);
 
   if (band.user_id) {
     return (
       <Page>
         <Header />
+        <TapBanner tap={tap} />
         <Headline
           sub={
             user
@@ -81,6 +87,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
   return (
     <Page>
       <Header />
+      <TapBanner tap={tap} />
       {concert && (
         <div className="relative aspect-[16/10] mt-2 border border-line overflow-hidden">
           {concert.image_url && (
@@ -121,5 +128,18 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
       </p>
       <ClaimFlow uid={uid} signedIn={!!user} />
     </Page>
+  );
+}
+
+function TapBanner({ tap }: { tap: TapOutcome }) {
+  if (tap.kind === "none") return null;
+  return (
+    <div className="mt-2">
+      {tap.kind === "scanned" ? (
+        <Banner>+{tap.points} pts · {tap.activity}</Banner>
+      ) : (
+        <Banner tone="warning">Already tapped in at {tap.activity}</Banner>
+      )}
+    </div>
   );
 }

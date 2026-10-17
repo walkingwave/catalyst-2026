@@ -89,6 +89,19 @@ async function main() {
   await wipe();
   const userIds = await createUsers();
 
+  console.log("[seed] creating artists");
+  await db.from("artists").delete().in("slug", ["our-lady-peace", "neon-harbor", "toronto-marlies"]);
+  const { data: artists, error: artErr } = await db
+    .from("artists")
+    .insert([
+      { slug: "our-lady-peace", name: "Our Lady Peace", kind: "artist", image_url: "/img/our-lady-peace.jpg", bio: "Toronto alt-rock since 1992.", access_code: "OLP2026" },
+      { slug: "neon-harbor", name: "Neon Harbor", kind: "artist", bio: "Synth-pop from the east end.", access_code: "NEON2026" },
+      { slug: "toronto-marlies", name: "Toronto Marlies", kind: "team", bio: "AHL hockey at Coca-Cola Coliseum.", access_code: "MARLIES2026" },
+    ])
+    .select();
+  if (artErr || !artists) fail("insert artists", artErr);
+  const artistId = (slug: string) => artists.find((a) => a.slug === slug)!.id;
+
   console.log("[seed] creating concerts + activities");
   const today = new Date().toISOString().slice(0, 10);
   const { data: concert, error: cErr } = await db
@@ -103,6 +116,7 @@ async function main() {
       image_url: "/img/our-lady-peace.jpg",
       venue_image_url: "/img/massey-hall.jpg",
       date: today,
+      artist_id: artistId("our-lady-peace"),
     })
     .select()
     .single();
@@ -110,7 +124,7 @@ async function main() {
 
   const { data: pastConcert, error: pErr } = await db
     .from("concerts")
-    .insert({ name: "Neon Harbor: Warehouse Sessions", artist: "Neon Harbor", venue: "The Warehouse", address: "1 Polson St, Toronto, ON", doors_at: "8:00 PM", date: "2025-10-11" })
+    .insert({ name: "Neon Harbor: Warehouse Sessions", artist: "Neon Harbor", venue: "The Warehouse", address: "1 Polson St, Toronto, ON", doors_at: "8:00 PM", date: "2025-10-11", artist_id: artistId("neon-harbor") })
     .select()
     .single();
   if (pErr || !pastConcert) fail("insert past concert", pErr);
@@ -122,6 +136,7 @@ async function main() {
     { name: "Photo Wall", points: 75, map_x: 78, map_y: 80, location: "Main lobby, east wall", icon: "photo" },
     { name: "Trivia", points: 120, map_x: 15, map_y: 46, location: "Centuries Bar, level 2", icon: "trivia" },
     { name: "Meet & Greet", points: 200, map_x: 84, map_y: 14, location: "Stage door, backstage left", icon: "meet" },
+    { name: "Post on Instagram", points: 150, kind: "social", social_network: "instagram", location: "Tag @ourladypeace", icon: "social" },
   ];
   const { data: activities, error: aErr } = await db
     .from("activities")
@@ -190,13 +205,15 @@ async function main() {
   if (sErr) fail("insert scans", sErr);
 
   console.log("[seed] creating rewards");
+  const olp = artistId("our-lady-peace");
   const { data: rewards, error: rErr } = await db
     .from("rewards")
     .insert([
-      { name: "20% off merch", description: "Show the code at the merch booth tonight.", cost: 150, type: "discount_code", stock: 5 },
-      { name: "Free poster", description: "Limited run tour poster. Pick up at merch.", cost: 300, type: "merch", stock: 10 },
-      { name: "Signed setlist", description: "One of five. Collect at the info desk.", cost: 500, type: "merch", stock: 5 },
-      { name: "$10 off next show", description: "Code for the next Catalyst Fest ticket.", cost: 400, type: "discount_code", stock: 3 },
+      { name: "20% off merch", description: "Show the code at the merch booth tonight.", cost: 150, type: "discount_code", stock: 5, artist_id: olp },
+      { name: "Free poster", description: "Limited run tour poster. Pick up at merch.", cost: 300, type: "merch", stock: 10, artist_id: olp },
+      { name: "Signed setlist", description: "One of five. Collect at the info desk.", cost: 500, type: "merch", stock: 5, artist_id: olp },
+      { name: "$10 off next show", description: "Code for the next tour date.", cost: 400, type: "discount_code", stock: 3, artist_id: olp },
+      { name: "Marlies puck", description: "Game-used puck. Pick up at guest services.", cost: 120, type: "merch", stock: 20, artist_id: artistId("toronto-marlies") },
     ])
     .select();
   if (rErr || !rewards) fail("insert rewards", rErr);
