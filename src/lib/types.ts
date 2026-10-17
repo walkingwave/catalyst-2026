@@ -1,7 +1,17 @@
+export type Artist = {
+  id: string;
+  slug: string;
+  name: string;
+  kind: "artist" | "team";
+  image_url?: string | null;
+  bio?: string;
+};
+
 export type Concert = {
   id: string;
   name: string;
   artist: string;
+  artist_id?: string | null;
   venue: string;
   date: string;
   image_url?: string | null;
@@ -20,6 +30,38 @@ export type Activity = {
   map_y?: number | null;
   location?: string | null;
   icon?: string | null;
+  kind?: "scan" | "social";
+  social_network?: string | null;
+};
+
+export type SocialPost = {
+  id: string;
+  user_id: string;
+  activity_id: string;
+  url: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+};
+
+export type Drop = {
+  id: string;
+  artist_id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  code: string | null;
+  claimed_at: string | null;
+  created_at: string;
+};
+
+export type Message = {
+  id: string;
+  artist_id: string;
+  user_id: string;
+  channel: "inbox" | "sms";
+  body: string;
+  sms_status: string | null;
+  created_at: string;
 };
 
 export type Band = {
@@ -37,6 +79,7 @@ export type Reward = {
   cost: number;
   type: "merch" | "discount_code";
   stock: number;
+  artist_id?: string | null;
 };
 
 export type ScanResult = {

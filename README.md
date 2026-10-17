@@ -18,6 +18,7 @@ supabase/migrations/0001_init.sql   schema, views, RLS, redeem_reward(), archive
 supabase/migrations/0002_*.sql      function grants (advisor fixes)
 supabase/migrations/0003_*.sql      keep users.phone in E.164
 supabase/migrations/0004_*.sql      concert imagery/description + activity map pins
+supabase/migrations/0005_*.sql      artists/teams, per-artist pools, socials, social posts, messages, drops
 scripts/seed.ts                     demo data (npm run seed)
 src/proxy.ts                        refreshes Supabase session cookie on every request
 src/lib/supabase/{server,client,admin}.ts
@@ -36,12 +37,16 @@ src/app/api/cron/archive            daily: archive unclaimed bands 30d after sho
 
 | table | notes |
 |---|---|
-| `users` | `id` = auth user id, `name`, `phone`. Auto-created by trigger on `auth.users` insert. |
-| `concerts` | `name`, `artist`, `venue`, `date`, `image_url`, `venue_image_url`, `description`, `doors_at`, `address` |
+| `users` | `id` = auth user id, `name`, `phone`, `instagram`, `tiktok`, `x_handle`. Auto-created by trigger on `auth.users` insert. |
+| `artists` | `slug`, `name`, `kind` (artist \| team), `image_url`, `bio`, `access_code` (console login, never exposed to clients) |
+| `social_posts` | fan-submitted proof for `social` activities: `url`, `status` pending/approved/rejected |
+| `messages` | artist → fan, `channel` inbox/sms, `sms_status` |
+| `drops` | artist → fan gift: `title`, `message`, `code`, `claimed_at` |
+| `concerts` | `artist_id`, `name`, `artist`, `venue`, `date`, `image_url`, `venue_image_url`, `description`, `doors_at`, `address` |
 | `bands` | `uid` PK (tag serial, uppercase hex, no colons), `concert_id`, `user_id` nullable, `claimed_at`, `archived` |
 | `activities` | per concert: `name`, `points`, `map_x`/`map_y` (percent on venue map), `location`, `icon`. Seed adds an "Entry" activity for attendance. |
 | `scans` | `band_uid` + `activity_id`, unique together (no farming) |
-| `rewards` | `cost`, `type` (`merch` \| `discount_code`), `stock` |
+| `rewards` | `artist_id`, `cost`, `type` (`merch` \| `discount_code`), `stock` |
 | `reward_codes` | one row per code, `redeemed_by` nullable |
 | `redemptions` | `user_id`, `reward_id`, `code_id` |
 
@@ -119,6 +124,22 @@ Tip: lock the tags after writing (NFC Tools -> Other -> Lock) so fans can't rewr
 5. Desktop / iPhone: type a UID in the manual box and press **Log**.
 
 Each tap POSTs `{ band_uid, activity_id }` to `/api/scan` with header `x-staff-pin`. Response includes points, whether the band is claimed, owner name, and rank tonight.
+
+## Artists and fandoms
+
+Points are pooled **per artist or team**, not globally. A fan has a separate balance with Our Lady Peace, Neon Harbor, and the Toronto Marlies, and spends each only on that artist's rewards. `user_artist_points` is the source of truth; `user_points` sums it for the headline number. Leaderboards: per show (`leaderboard_concert`), per artist all-time (`leaderboard_artist`), and overall (`leaderboard_alltime`).
+
+**Artist console** at `/artist`, unlocked with the artist's access code (`artists.access_code`; seeded: `OLP2026`, `NEON2026`, `MARLIES2026`):
+
+- Top fans: rank, points, shows attended, linked socials, phone on file (last 4 only). Tap to select, or pick Top 5/10/25.
+- Message: SMS + inbox or inbox only, to selected fans or Top N. SMS goes via Twilio when `SMS_NOTIFICATIONS=true`, otherwise recorded as `simulated`. Everything lands in the fan's inbox regardless.
+- Drop: send a gift (title, message, optional code prefix numbered per fan) to selected fans or Top N. Fans claim it on their home screen.
+- Social: approve or reject fan post submissions. Approval awards the activity's points to that artist's pool.
+- Log: recent drops and messages.
+
+APIs under `/api/artist/*` take header `x-artist-code`.
+
+**Fan side**: `/profile` links Instagram, TikTok and X handles. Shows can include `social` activities (e.g. "Post on Instagram", +150). The fan pastes the post link on the show page; points arrive after the artist approves.
 
 ## Design
 

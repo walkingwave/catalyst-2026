@@ -3,13 +3,14 @@ import { Page, Headline, Panel, List, Row, SectionHeader, Empty, Points } from "
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { RedeemButton } from "./RedeemButton";
-import type { Reward } from "@/lib/types";
+import type { Artist, Reward } from "@/lib/types";
 
 export default async function MarketplacePage() {
   const { supabase, user } = await requireFan("/marketplace");
 
-  const [{ data: pts }, { data: rewards }, { data: redemptions }] = await Promise.all([
-    supabase.from("user_points").select("balance").eq("user_id", user.id).maybeSingle(),
+  const [{ data: pools }, { data: artists }, { data: rewards }, { data: redemptions }] = await Promise.all([
+    supabase.from("user_artist_points").select("artist_id, balance").eq("user_id", user.id),
+    supabase.from("artists").select("id, slug, name, kind, image_url").order("name"),
     supabase.from("rewards").select("*").order("cost"),
     supabase
       .from("redemptions")
@@ -18,43 +19,44 @@ export default async function MarketplacePage() {
       .order("created_at", { ascending: false }),
   ]);
 
-  const balance = pts?.balance ?? 0;
+  const balanceBy = new Map((pools ?? []).map((p) => [p.artist_id, p.balance]));
+  const groups = (artists ?? [])
+    .map((a) => ({ artist: a as Artist, balance: balanceBy.get(a.id) ?? 0, rewards: ((rewards ?? []) as Reward[]).filter((r) => r.artist_id === a.id) }))
+    .filter((g) => g.rewards.length > 0)
+    .sort((a, b) => b.balance - a.balance);
 
   return (
     <Page>
       <Header />
-      <Headline
-        kicker={<><Points value={balance} /> pts to spend</>}
-        sub="Trade points for merch and codes. Pick-ups happen at the merch booth tonight."
-      >
-        Rewards
-      </Headline>
+      <Headline sub="Points are per artist. Spend them on that artist's rewards.">Rewards</Headline>
 
-      {!rewards || rewards.length === 0 ? (
-        <Panel>
-          <Empty>No rewards yet.</Empty>
-        </Panel>
+      {groups.length === 0 ? (
+        <Panel><Empty>No rewards yet.</Empty></Panel>
       ) : (
-        <div className="space-y-3">
-          {(rewards as Reward[]).map((r) => (
-            <Panel key={r.id} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="display d-md">{r.name}</p>
-                  <p className="t-sub text-ink-2 mt-1">{r.description}</p>
-                  <p className="label text-ink-2 mt-3">
-                    {r.stock > 0 ? `${r.stock} left` : "Sold out"} ·{" "}
-                    {r.type === "discount_code" ? "Digital code" : "Pick up at merch"}
-                  </p>
-                </div>
-                <p className="display d-lg t-num whitespace-nowrap">{r.cost}</p>
-              </div>
-              <div className="mt-4">
-                <RedeemButton reward={r} balance={balance} />
-              </div>
-            </Panel>
-          ))}
-        </div>
+        groups.map((g) => (
+          <section key={g.artist.id}>
+            <SectionHeader action={<><Points value={g.balance} /> pts</>}>{g.artist.name}</SectionHeader>
+            <div className="space-y-3">
+              {g.rewards.map((r) => (
+                <Panel key={r.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="display d-md">{r.name}</p>
+                      <p className="t-sub text-ink-2 mt-1">{r.description}</p>
+                      <p className="label text-ink-2 mt-3">
+                        {r.stock > 0 ? `${r.stock} left` : "Sold out"} · {r.type === "discount_code" ? "Digital code" : "Pick up at merch"}
+                      </p>
+                    </div>
+                    <p className="display d-lg t-num whitespace-nowrap">{r.cost}</p>
+                  </div>
+                  <div className="mt-4">
+                    <RedeemButton reward={r} balance={g.balance} />
+                  </div>
+                </Panel>
+              ))}
+            </div>
+          </section>
+        ))
       )}
 
       {redemptions && redemptions.length > 0 && (
