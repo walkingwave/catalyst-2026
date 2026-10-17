@@ -1,3 +1,4 @@
 {
-  "crons": [{ "path": "/api/cron/archive", "schedule": "0 4 * * *" }]
+  "installCommand": "sh -c 'env -u npm_config_allow_scripts -u NPM_CONFIG_ALLOW_SCRIPTS npm ci'",
+  "framework": "nextjs"
 }

@@ -201,4 +201,6 @@ npx vercel --prod
 
 Or in the Vercel dashboard: Add New Project -> import the GitHub repo -> paste the env vars -> Deploy.
 
-`vercel.json` schedules `/api/cron/archive` daily (flags unclaimed bands 30 days after their concert). Set `NEXT_PUBLIC_SITE_URL` to the production URL and write that domain into the tags. Web NFC on `/staff` needs HTTPS, so the staff phone must use the deployed URL (or `localhost` on the dev box).
+Daily archive cron: add `"crons": [{ "path": "/api/cron/archive", "schedule": "0 4 * * *" }]` to `vercel.json` once the project is claimed (anonymous deployments can't define crons). `/api/cron/archive` can also be hit by hand.
+
+No login? `npx vercel deploy --temporary` with `-b`/`-e` env flags gives a claimable URL that lives ~1 hour. `vercel.json` already strips the `allow_scripts` setting the CLI injects, which npm 11 rejects. Set `NEXT_PUBLIC_SITE_URL` to the production URL and write that domain into the tags. Web NFC on `/staff` needs HTTPS, so the staff phone must use the deployed URL (or `localhost` on the dev box).
