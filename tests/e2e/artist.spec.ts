@@ -113,3 +113,126 @@ test.describe("Artist console", () => {
     }
   });
 });
+
+test.describe("SMS delivery feedback", () => {
+  // Mock the artist APIs so these UI regressions cannot text real fans or alter demo data.
+  async function mockConsole(page: import("@playwright/test").Page, enabled: boolean) {
+    await page.route("**/api/artist/verify", (route) => route.fulfill({ json: { ok: true } }));
+    await page.route("**/api/artist/overview", (route) => route.fulfill({ json: {
+      artist: { id: "artist", name: "Test Artist", kind: "artist" },
+      sms_enabled: enabled, stats: { fans: 1, shows: 1, pending_posts: 0 },
+      top_fans: [{ user_id: "fan", name: "Test Fan", rank: 1, points: 10, shows: 1, has_phone: true }],
+      concerts: [], pending_posts: [], messages: [], drops: [],
+      templates: [{ id: "template", title: "Saved gift", message: "A gift for you", code_prefix: "GIFT" }],
+    } }));
+    await page.route("**/api/artist/fan?*", (route) => route.fulfill({ json: { fan: {
+      id: "fan", name: "Test Fan", has_phone: true, phone_hint: "···0001",
+      points: { earned: 10, spent: 0, balance: 10 }, shows: [], scans: [], messages: [], drops: [],
+    } } }));
+    await open(page);
+    await expect(page.getByRole("heading", { name: "Test Artist" })).toBeVisible();
+  }
+
+  test("shows SMS failure separately from inbox success and makes drop SMS optional", async ({ page }) => {
+    await mockConsole(page, true);
+    await page.route("**/api/artist/message", async (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({ channel: "sms", body: "SMS UI test" });
+      await route.fulfill({ json: {
+        ok: true, sent: 1, live: true,
+        delivery: { inbox: 1, inbox_failed: 0, sms_sent: 0, sms_failed: 1, sms_skipped: 0, status_failed: 0 },
+      } });
+    });
+    await page.getByRole("button", { name: /^message/i }).click();
+    await page.getByRole("button", { name: /^set$/i }).click();
+    await expect(page.getByText(/SMS is available/)).toBeVisible();
+    await page.getByPlaceholder("Message").fill("SMS UI test");
+    await page.getByRole("button", { name: /send to 1 fan$/i }).click();
+    await expect(page.getByRole("status")).toContainText("Sent to 1 fan in the inbox.");
+    await expect(page.getByRole("status")).toContainText("1 SMS failed");
+
+    await page.getByRole("button", { name: /^drop/i }).click();
+    const alert = page.getByRole("checkbox", { name: "Send an SMS alert" });
+    await expect(alert).not.toBeChecked();
+    await alert.check();
+    await page.route("**/api/artist/drop", async (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({ title: "Test gift", notify_sms: true });
+      await route.fulfill({ json: {
+        ok: true, sent: 1,
+        delivery: { inbox: 1, inbox_failed: 0, sms_sent: 1, sms_failed: 0, sms_skipped: 0, status_failed: 0 },
+      } });
+    });
+    await page.getByRole("button", { name: "Saved gift", exact: true }).click();
+    await expect(page.getByPlaceholder("Title")).toHaveValue("Saved gift");
+    await expect(page.getByPlaceholder("Message")).toHaveValue("A gift for you");
+    await page.getByPlaceholder("Title").fill("Test gift");
+    await page.getByRole("button", { name: /drop to 1 fan$/i }).click();
+    await expect(page.getByRole("status")).toContainText("1 SMS accepted");
+  });
+
+  test("shows unavailable SMS and keeps inbox sending enabled", async ({ page }) => {
+    await mockConsole(page, false);
+    await page.getByRole("button", { name: /^message/i }).click();
+    await page.getByRole("button", { name: /^set$/i }).click();
+    await expect(page.getByRole("button", { name: "SMS + inbox" })).toBeDisabled();
+    await expect(page.getByText(/SMS is unavailable/)).toBeVisible();
+    await page.route("**/api/artist/message", async (route) => {
+      expect(route.request().postDataJSON().channel).toBe("inbox");
+      await route.fulfill({ json: {
+        ok: true, sent: 1, live: false,
+        delivery: { inbox: 1, inbox_failed: 0, sms_sent: 0, sms_failed: 0, sms_skipped: 0, status_failed: 0 },
+      } });
+    });
+    await page.getByPlaceholder("Message").fill("Inbox UI test");
+    await page.getByRole("button", { name: /send to 1 fan$/i }).click();
+    await expect(page.getByRole("status")).toHaveText("Sent to 1 fan in the inbox.");
+    await page.getByRole("button", { name: /^drop/i }).click();
+    await expect(page.getByRole("checkbox", { name: "Send an SMS alert" })).toBeDisabled();
+  });
+
+  test("individual fan panel sends SMS and a saved drop with delivery results inside the panel", async ({ page }) => {
+    await mockConsole(page, true);
+    await page.getByPlaceholder("Search name or @handle").fill("Test Fan");
+    await page.getByRole("button", { name: /Test Fan/ }).click();
+    const sheet = page.getByTestId("fan-sheet");
+    await expect(sheet.getByRole("heading", { name: "Test Fan" })).toBeVisible();
+    await sheet.getByRole("button", { name: /^message$/i }).click();
+    await page.route("**/api/artist/message", async (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({ user_ids: ["fan"], channel: "sms", body: "Personal message" });
+      await route.fulfill({ json: {
+        ok: true, sent: 1, live: true,
+        delivery: { inbox: 1, inbox_failed: 0, sms_sent: 1, sms_failed: 0, sms_skipped: 0, status_failed: 0 },
+      } });
+    });
+    await sheet.getByPlaceholder("Message Test Fan").fill("Personal message");
+    await sheet.getByRole("button", { name: "SMS + inbox" }).click();
+    await expect(sheet.getByRole("status")).toContainText("1 SMS accepted");
+    await sheet.getByRole("button", { name: /^drop$/i }).click();
+    await sheet.getByRole("button", { name: "Saved gift", exact: true }).click();
+    await expect(sheet.getByPlaceholder("Title")).toHaveValue("Saved gift");
+    const smsAlert = sheet.getByRole("checkbox", { name: "Send an SMS alert" });
+    await expect(smsAlert).not.toBeChecked();
+    await smsAlert.check();
+    await page.route("**/api/artist/drop", async (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({ user_ids: ["fan"], title: "Saved gift", code: "GIFT", notify_sms: true });
+      await route.fulfill({ json: {
+        ok: true, sent: 1,
+        delivery: { inbox: 1, inbox_failed: 0, sms_sent: 0, sms_failed: 1, sms_skipped: 0, status_failed: 0 },
+      } });
+    });
+    await sheet.getByRole("button", { name: "Drop to Test Fan" }).click();
+    await expect(sheet.getByRole("heading", { name: "Taps" })).toBeVisible();
+    await expect(sheet.getByRole("status")).toContainText("Dropped to 1 fan. 0 SMS accepted · 1 SMS failed");
+  });
+
+  test("individual fan panel keeps inbox available when SMS is disabled", async ({ page }) => {
+    await mockConsole(page, false);
+    await page.getByRole("button", { name: /Test Fan/ }).click();
+    const sheet = page.getByTestId("fan-sheet");
+    await sheet.getByRole("button", { name: /^message$/i }).click();
+    await sheet.getByPlaceholder("Message Test Fan").fill("Personal inbox message");
+    await expect(sheet.getByRole("button", { name: "SMS + inbox" })).toBeDisabled();
+    await expect(sheet.getByRole("button", { name: "Inbox", exact: true })).toBeEnabled();
+    await sheet.getByRole("button", { name: /^drop$/i }).click();
+    await expect(sheet.getByRole("checkbox", { name: "Send an SMS alert" })).toBeDisabled();
+  });
+});

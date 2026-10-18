@@ -61,7 +61,7 @@ RLS: fans read only their own users/bands/scans/codes/redemptions. Concerts, act
 
 ## Env vars
 
-Copy `.env.example` to `.env.local`:
+Create `.env.local` with these settings (the file is gitignored):
 
 | var | purpose |
 |---|---|
@@ -69,13 +69,15 @@ Copy `.env.example` to `.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project API settings |
 | `SUPABASE_SERVICE_ROLE_KEY` | server only; scan/claim routes and seed |
 | `STAFF_PIN` | unlocks `/staff` and `/api/scan` |
-| `SMS_NOTIFICATIONS` | `true` to text fans after each scan on a claimed band (default off) |
-| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` | only needed when `SMS_NOTIFICATIONS=true` |
+| `SMS_NOTIFICATIONS` | `true` enables artist messages, drop alerts and scan texts (default off) |
+| `TEXTBELT_KEY` | paid Textbelt key; takes precedence over Twilio. Define it only once. |
+| `SUPABASE_SMS_HOOK_SECRET` | signing secret for the Supabase Send SMS hook (OTP login) |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` | optional alternative when no Textbelt key is set |
 | `CRON_SECRET` | protects `/api/cron/archive`; Vercel sets the header automatically |
 
 ## Supabase setup
 
-Live project: **concertconnect** (`ivjrbaiiphqfvoynxwuc`, ca-central-1, org "wavy"). All three migrations are applied, demo data is seeded, phone auth is enabled. `.env.local` has the URL and anon key.
+Live project: **banddrop** (Supabase project slug still `concertconnect`) (`ivjrbaiiphqfvoynxwuc`, ca-central-1, org "wavy"). All three migrations are applied, demo data is seeded, phone auth is enabled. `.env.local` has the URL and anon key.
 
 Still needed once: **Settings -> API Keys -> Legacy -> service_role** into `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Band pages, staff scans and claims use it.
 
@@ -84,24 +86,105 @@ Still needed once: **Settings -> API Keys -> Legacy -> service_role** into `SUPA
 - Sign-in: Supabase *test OTP* numbers log in with code `123456`, no text sent. `/admin` → **Phones** adds any number on the spot (needs `SUPABASE_ACCESS_TOKEN`, a personal access token from supabase.com/dashboard/account/tokens; no signup, you're already logged in). Without the token, edit the list in Authentication → Phone → Test OTPs.
 - Notifications: every scan on a claimed band writes "+100 pts at Merch Booth. You're #3 tonight." to the fan's in-app inbox. Artist messages do the same. SMS is an optional extra on top.
 
-Demo sign-in without Twilio: the Phone provider has test numbers registered (valid until 2026-11-30). Enter `555 010 0099` (new fan) or `555 010 0001`..`0006` (seeded fans) on the login screen, code `123456`. No SMS is sent. Any other number goes to Twilio, which currently holds placeholder credentials, so real SMS fails until you paste real Twilio creds in Authentication -> Sign In / Providers -> Phone.
+Demo sign-in without SMS: the Phone provider has test numbers registered (valid until 2026-11-30). Enter `555 010 0099` (new fan) or `555 010 0001`..`0006` (seeded fans) on the login screen, code `123456`. No SMS is sent. For real numbers, enable the Send SMS hook below.
 
 Fresh project instead: run `supabase/migrations/*.sql` in order in the SQL editor, then `npm run seed`.
 
 Scans on an unknown UID auto-register the band to the activity's concert, so you never need to pre-load band rows.
 
-## Twilio setup
+## Textbelt and notification setup
 
-1. Create a Twilio account, buy a number with SMS.
-2. **Trial accounts can only text verified numbers.** Twilio Console -> Phone Numbers -> Verified Caller IDs -> add every phone you'll demo with (yours, teammates', judges' if they'll sign up live).
-3. Put SID/token/number in Supabase phone auth (step 3 above). The same creds go in `.env.local` only if you turn on `SMS_NOTIFICATIONS`.
-4. Trial messages carry a "Sent from your Twilio trial account" prefix. Fine for a demo.
+1. Set `TEXTBELT_KEY` to the paid key and `SMS_NOTIFICATIONS=true` in `.env.local`. Do not add a second `TEXTBELT_KEY=textbelt` entry: that free key would override the paid one.
+2. For the live site, set the same variables in **Vercel → Project → Settings → Environment Variables → Production**, together with the Supabase URL, anon key and service-role key. Redeploy to apply them. Local env changes do not update Vercel.
+3. For phone login only, enable **Supabase → Authentication → Hooks → Send SMS → HTTPS**, pointing at `https://<site>/api/hooks/send-sms`. Set its signing secret as `SUPABASE_SMS_HOOK_SECRET` on the deployment handling that URL. A local server needs a public tunnel. The hook replaces Supabase's SMS provider dropdown; Textbelt does not need to appear there.
+4. Notification sends go directly from the app to Textbelt and do not need the Supabase hook. OTP sends bypass `SMS_NOTIFICATIONS`; artist/drop/scan notifications respect it.
+
+To test using your own phone:
+
+1. Sign in with your real number and claim a band for the artist's event. This puts you in their fan audience. Seeded fake phone numbers cannot receive texts.
+2. Open `/artist`, enter the artist's access code, select only your fan in **Fans**, then **Message → SMS + inbox**. Send a short test. The result reports how many SMS requests the provider accepted, failed or skipped; **Log** shows each fan's status.
+3. Open `/dashboard` as the fan. The inbox updates every 15 seconds while visible and when you return to the tab, even if SMS failed.
+4. In **Drop**, optionally check **Send an SMS alert** before sending a gift. The drop itself always appears in the fan inbox.
+5. In `/staff` or `/admin → Tap`, scan a claimed band at an activity it has not completed. The scan creates an inbox notification and, when enabled, a text. Duplicate scans do not send another notification.
+
+The artist console's individual fan panel also supports **Message → SMS + inbox** and **Drop → Send an SMS alert**, with results shown inside the panel. Fan search, custom Top N selection, saved drop templates and the searchable log remain available.
+
+Messages are saved before attempting SMS. `sent` means the provider accepted the request, not confirmed delivery to the handset. Failures are saved in `sms_status`; timeouts are not retried automatically because the provider may already have accepted the text. Scan notifications use Next.js `after()` so Vercel keeps the work alive after responding. This is not a durable retry queue; check the log before manually resending.
+
+The app adds its STOP footer until a successful SMS is recorded for that fan. Concurrent first sends may both include it, and provider-added opt-out wording is outside the app's control.
+
+**Artist scheduling:** Message and Drop send immediately; scan notifications are triggered by activity. Event-wide scheduling is available in the admin/staff Notifications tab (see below). Notifications mean SMS and the dashboard inbox, not browser push notifications.
+
+## Event notifications (admin and staff)
+
+Select an event in `/admin` or a concert in `/staff`, then open **Notifications**.
+The shared panel shows the current audience, supports **Inbox only** or **SMS + inbox**,
+and lets staff **Send now** or **Schedule** for a local date/time. Each fan gets one
+copy, even if they own multiple active bands at that event. Unclaimed and archived
+bands are excluded. Scheduled audiences are resolved when sending begins, so
+new claims before that time are included. The selected timezone is displayed;
+timestamps are stored in UTC.
+
+**Scheduled & sent** shows progress, inbox/SMS counts and failures. A queued
+notification can be cancelled until delivery starts. SMS acceptance does not
+guarantee handset delivery. Events without an artist are supported; inbox
+messages are attributed to the event, separately from artist messages.
+
+### One-time database setup
+
+Apply `supabase/migrations/0009_event_notifications.sql` in the Supabase SQL editor
+before deploying this feature. It adds the queue, service-role-only worker functions,
+and optional event attribution on inbox messages. Earlier migrations must already
+be applied. The service-role API key cannot run schema migrations.
+
+### Running locally
+
+With migration 0009 applied, run these in separate terminals:
+
+```bash
+npm run dev
+npm run notifications:worker
+```
+
+The worker reads `.env.local` and checks the persistent database queue every 15
+seconds. It will send any due notifications in that database, so use a separate
+Supabase project for isolated testing. Stop it with Ctrl+C. Closing the browser
+does not stop it, but stopping the worker pauses scheduled delivery.
+
+### Running on Vercel
+
+Set `CRON_SECRET` to a random secret in the deployment, alongside the existing
+Supabase and SMS variables. Deploy `/api/cron/notifications`, then arrange a
+once-per-minute authenticated GET or POST to that endpoint. It fails closed if
+the secret is absent or incorrect.
+
+For Supabase Cron (works without adding a per-minute Vercel Hobby cron):
+
+1. In Supabase Vault, save `banddrop_site_url` as the deployed origin (no trailing
+   slash) and `banddrop_cron_secret` as the same `CRON_SECRET`.
+2. Run `supabase/notification_scheduler.sql` in the SQL editor.
+3. Check the Cron execution history. The Notifications panel's offline notice
+   disappears after a successful worker check-in.
+
+Alternatively, configure an external scheduler or a Vercel plan that supports
+minute-level cron to call `/api/cron/notifications` with
+`Authorization: Bearer <CRON_SECRET>`. The existing daily archive cron is separate.
+Never put the secret into source control. Use the deployed URL, not an expiring
+development tunnel, for ongoing scheduling.
+
+Timing is best-effort: jobs start on the next worker tick, usually within a minute,
+and large audiences take multiple batches. **Send now** also starts a worker task
+immediately; the recurring worker continues any remaining batches. Overlapping
+workers use database locks and recipient reservations to avoid duplicate sends.
+An interrupted reservation becomes uncertain after five minutes and is not
+automatically re-texted. Review uncertain outcomes before creating a new send.
+An offline worker is shown in the UI; queued jobs persist and resume when it returns.
 
 ## Run
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in
+# Create .env.local with the settings above
 npm run seed                 # optional re-seed (live project is already seeded)
 npm run dev                  # http://localhost:3000
 ```
@@ -174,8 +257,8 @@ Points are pooled **per artist or team**, not globally. A fan has a separate bal
 **Artist console** at `/artist`, unlocked with the artist's access code (`artists.access_code`; seeded: `OLP2026`, `NEON2026`, `MARLIES2026`):
 
 - Top fans: rank, points, shows attended, linked socials, phone on file (last 4 only). Tap to select, or pick Top 5/10/25.
-- Message: SMS + inbox or inbox only, to selected fans or Top N. SMS goes via Twilio when `SMS_NOTIFICATIONS=true`, otherwise recorded as `simulated`. Everything lands in the fan's inbox regardless.
-- Drop: send a gift (title, message, optional code prefix numbered per fan) to selected fans or Top N. Fans claim it on their home screen.
+- Message: SMS + inbox or inbox only, to selected fans or Top N. SMS uses Textbelt when configured, otherwise Twilio. SMS availability is shown in the console; disabled SMS is not silently simulated. The inbox copy remains if the SMS fails.
+- Drop: send a gift (title, message, optional code prefix numbered per fan) to selected fans or Top N, with an optional SMS alert. Fans claim it on their home screen.
 - Social: approve or reject fan post submissions. Approval awards the activity's points to that artist's pool.
 - Log: recent drops and messages.
 
@@ -211,7 +294,7 @@ Repo remote: `github.com/walkingwave/catalyst-2026`. Vercel Hobby is free.
 ```bash
 git push -u origin main
 npx vercel login
-npx vercel link            # create project "concertconnect" in walkingwave's projects
+npx vercel link            # create project "banddrop" in walkingwave's projects
 npx vercel env add NEXT_PUBLIC_SUPABASE_URL production      # paste from .env.local, repeat for:
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, STAFF_PIN, SMS_NOTIFICATIONS
 npx vercel --prod

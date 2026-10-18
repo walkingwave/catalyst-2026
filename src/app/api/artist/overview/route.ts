@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { artistFromRequest } from "@/lib/artist";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { smsEnabled } from "@/lib/sms";
 
 /** Everything the artist console needs in one call: top fans, shows, pending social posts, recent sends. */
 export async function GET(req: Request) {
@@ -67,6 +68,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     artist,
+    sms_enabled: smsEnabled(),
     stats: {
       fans: topFans.length,
       shows: concerts?.length ?? 0,

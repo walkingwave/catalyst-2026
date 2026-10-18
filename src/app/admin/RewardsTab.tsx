@@ -10,8 +10,9 @@ import type { Artist } from "@/lib/types";
 type RewardRow = { id: string; name: string; description: string; cost: number; type: "merch" | "discount_code"; stock: number; codes: { total: number; free: number } };
 
 /** Rewards + artist profile for one artist/team at a time. */
-export function RewardsTab({ artists, headers, flash, onArtistsChanged }: { artists: Artist[]; headers: H; flash: (m: string) => void; onArtistsChanged: () => Promise<void> | void }) {
-  const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
+export function RewardsTab({ artists, headers, flash, onArtistsChanged, fixedArtistId }: { artists: Artist[]; headers: H; flash: (m: string) => void; onArtistsChanged: () => Promise<void> | void; fixedArtistId?: string | null }) {
+  const [pickedId, setArtistId] = useState(artists[0]?.id ?? "");
+  const artistId = fixedArtistId ?? pickedId;
   const [rewards, setRewards] = useState<RewardRow[]>([]);
   const [editing, setEditing] = useState<RewardRow | "new" | null>(null);
   const [profile, setProfile] = useState(false);
@@ -30,9 +31,13 @@ export function RewardsTab({ artists, headers, flash, onArtistsChanged }: { arti
     <>
       <label className="label text-ink-2 block mt-4 mb-2">Artist or team</label>
       <div className="flex gap-2">
-        <select className="flex-1 min-w-0 h-14 bg-surface-2 px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
-          {artists.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
+        {fixedArtistId ? (
+          <p className="flex-1 min-w-0 h-14 bg-surface-2 px-4 t-body flex items-center truncate">{artist?.name ?? "No artist"}</p>
+        ) : (
+          <select className="flex-1 min-w-0 h-14 bg-surface-2 px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
+            {artists.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        )}
         <button onClick={() => setProfile(true)} className="h-14 px-4 bg-surface-2 label shrink-0">Profile</button>
       </div>
 

@@ -1,4 +1,4 @@
--- ConcertConnect schema
+-- BandDrop schema
 -- Run in Supabase SQL editor or via `supabase db push`.
 
 create extension if not exists pgcrypto;

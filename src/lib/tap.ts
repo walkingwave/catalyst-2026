@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendSms, smsEnabled } from "@/lib/sms";
+import { smsEnabled } from "@/lib/sms";
+import { notifyFans } from "@/lib/notifications";
+import { after } from "next/server";
 
 export type TapOutcome =
   | { kind: "scanned"; activity: string; points: number }
@@ -56,8 +58,14 @@ export async function recordSelfTap(uid: string): Promise<TapOutcome> {
       db.from("concerts").select("artist_id").eq("id", band.concert_id).maybeSingle(),
     ]);
     const text = `+${act.points} pts at ${act.name}.`;
-    if (c?.artist_id) void db.from("messages").insert({ artist_id: c.artist_id, user_id: band.user_id, channel: "inbox", body: text });
-    if (owner?.phone && smsEnabled()) void sendSms(owner.phone, text);
+    if (c?.artist_id) {
+      const userId = band.user_id;
+      after(async () => {
+        await notifyFans(db, [{
+          artistId: c.artist_id, userId, phone: owner?.phone ?? null, body: text, sms: smsEnabled(),
+        }]);
+      });
+    }
   }
   return { kind: "scanned", activity: act.name, points: act.points };
 }

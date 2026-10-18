@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkStaffPin, staffPinFromRequest } from "@/lib/staff";
 import { normalizeUid, isValidUid } from "@/lib/uid";
-import { sendSms, smsEnabled } from "@/lib/sms";
+import { smsEnabled } from "@/lib/sms";
+import { notifyFans } from "@/lib/notifications";
 import type { ScanResult } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -121,12 +122,15 @@ export async function POST(req: Request) {
 
     const rankText = me?.rank ? ` You're #${me.rank} tonight.` : "";
     const text = `+${activity.points} pts at ${activity.name}.${rankText}`;
-    // In-app inbox always (no SMS provider needed); SMS only when enabled. Never block the scan.
-    const live = smsEnabled() && !!owner?.phone;
+    // Next keeps the task alive after responding, including on Vercel.
     if (concert?.artist_id) {
-      void db.from("messages").insert({ artist_id: concert.artist_id, user_id: band.user_id, channel: live ? "sms" : "inbox", body: text, sms_status: live ? "sent" : null });
+      after(async () => {
+        await notifyFans(db, [{
+          artistId: concert.artist_id, userId: band.user_id!, phone: owner?.phone ?? null,
+          body: text, sms: smsEnabled(),
+        }]);
+      });
     }
-    if (live) void sendSms(owner!.phone!, text);
   }
 
   return reply(result);
