@@ -11,9 +11,22 @@ export type SmsResult = { ok: boolean; provider: "textbelt" | "twilio" | "none";
 const OPT_OUT_FOOTER = "\n\nReply STOP to unsubscribe.";
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://banddrop.vercel.app").replace(/\/$/, "");
 
-/** Every fan text ends with a link back into BandDrop. */
+/**
+ * Link back into BandDrop at the end of fan texts. Textbelt rejects texts containing URLs until the key is
+ * whitelisted (textbelt.com/whitelist), so links are opt-in via SMS_LINKS=true; the inbox has the full message.
+ */
 export function withSiteLink(body: string, path = "/dashboard"): string {
-  return `${body}\n${SITE}${path}`;
+  return process.env.SMS_LINKS === "true" ? `${body}\n${SITE}${path}` : body;
+}
+
+/** Provider errors can echo the API key (Textbelt puts it in a whitelist URL); never log, store or show it. */
+export function safeProviderError(error: string | undefined): string | undefined {
+  if (!error) return error;
+  if (/send URLs via text is limited/i.test(error)) return "Textbelt blocks links until the key is verified (set SMS_LINKS=false or verify at textbelt.com/whitelist)";
+  const key = process.env.TEXTBELT_KEY;
+  let out = key ? error.split(key).join("[key]") : error;
+  out = out.replace(/https?:\/\/\S+/g, "[link]");
+  return out.slice(0, 200);
 }
 
 /** Failed, disabled and pending sends must not suppress the first successful send's notice. */
@@ -47,8 +60,9 @@ export async function sendSms(to: string, body: string, opts: { force?: boolean 
         signal: AbortSignal.timeout(opts.force ? 4000 : 8000),
       });
       const j = (await r.json()) as { success: boolean; error?: string; quotaRemaining?: number };
-      if (!j.success) console.error("[sms] textbelt:", j.error);
-      return { ok: j.success, provider: "textbelt", error: j.error, quota: j.quotaRemaining };
+      const error = safeProviderError(j.error);
+      if (!j.success) console.error("[sms] textbelt:", error);
+      return { ok: j.success, provider: "textbelt", error, quota: j.quotaRemaining };
     } catch (err) {
       const error = err instanceof Error && err.name === "TimeoutError" ? "SMS request timed out; delivery unknown" : "SMS provider request failed";
       console.error("[sms]", error);

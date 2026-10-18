@@ -273,7 +273,7 @@ No login? `npx vercel deploy --temporary` with `-b`/`-e` env flags gives a claim
 
 ## Images and links
 
-Drops, drop templates and messages take an optional image (JPG, PNG, WebP, GIF or SVG, 8 MB max), uploaded from the artist console to the public `media` bucket through `/api/artist/upload`. Fans see it in the inbox card. SMS is text only, so every outgoing text ends with a link to `NEXT_PUBLIC_SITE_URL` (defaults to https://banddrop.vercel.app) so the fan can open the full drop or message. Migration `0011_media_messages.sql`.
+Drops, drop templates and messages take an optional image (JPG, PNG, WebP, GIF or SVG, 8 MB max), uploaded from the artist console to the public `media` bucket through `/api/artist/upload`. Fans see it in the inbox card. SMS is text only. Set `SMS_LINKS=true` to end every fan text with a link to `NEXT_PUBLIC_SITE_URL` (defaults to https://banddrop.vercel.app); leave it off until the Textbelt key is verified at textbelt.com/whitelist, because Textbelt rejects texts containing URLs from unverified keys. Migration `0011_media_messages.sql`.
 
 ## Live polls
 

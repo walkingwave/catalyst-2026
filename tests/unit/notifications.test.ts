@@ -82,10 +82,22 @@ describe("fan notifications", () => {
     expect(rows[0].sms_status).toBe("sent");
     const first = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(first).toMatchObject({ phone: notification.phone, key: "test-paid-key", sender: "BandDrop" });
-    expect(first.message).toBe(`${notification.smsBody}\nhttps://banddrop.vercel.app/dashboard\n\nReply STOP to unsubscribe.`);
+    // No link by default: Textbelt rejects URLs until the key is whitelisted.
+    expect(first.message).toBe(`${notification.smsBody}\n\nReply STOP to unsubscribe.`);
 
+    vi.stubEnv("SMS_LINKS", "true");
     await notifyFan(db, notification);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).message).toBe(`${notification.smsBody}\nhttps://banddrop.vercel.app/dashboard`);
+  });
+
+  it("never stores or returns the provider key from a Textbelt error", async () => {
+    const { db, rows } = messageDb();
+    fetchMock.mockResolvedValueOnce({ json: async () => ({ success: false, error: "Sorry, ability to send URLs via text is limited to verified accounts. Please go to https://textbelt.com/whitelist?key=test-paid-key or email support" }) });
+    await notifyFan(db, notification);
+    expect(rows[0].sms_status).not.toContain("test-paid-key");
+    expect(rows[0].sms_status).toMatch(/blocks links/);
+    const r = await sendSms("+15550100001", "x");
+    expect(JSON.stringify(r)).not.toContain("test-paid-key");
   });
 
   it("keeps the inbox on provider rejection and includes the notice on the next attempt", async () => {
