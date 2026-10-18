@@ -161,3 +161,53 @@ test.describe("Fan pages", () => {
     await expect(card.getByText(/E2EDROP/)).toBeVisible();
   });
 });
+
+test.describe("Fan polls", () => {
+  const h = { "x-artist-code": "OLP2026", "content-type": "application/json" };
+
+  test("vote on a live poll, change vote, see results; closed poll locks", async ({ page, request }) => {
+    const q = `E2E Encore ${Date.now()}`;
+    const created = await (await request.post("/api/artist/polls", { headers: h, data: { question: q, options: ["Clumsy", "Starseed"], open: true } })).json();
+    expect(created.ok).toBeTruthy();
+    const id = created.poll_id as string;
+    try {
+      await page.goto("/dashboard");
+      const card = page.getByTestId("poll-card").filter({ hasText: q });
+      await expect(card).toBeVisible();
+      await expect(card.getByText(/^live poll/i)).toBeVisible();
+      await card.getByRole("button", { name: /^clumsy$/i }).click();
+      await expect(card.getByRole("button", { name: /clumsy/i })).toHaveAttribute("aria-pressed", "true");
+      await expect(card.getByText(/you voted · 1 vote/i)).toBeVisible();
+      await expect(card.getByRole("button", { name: /clumsy/i })).toContainText("100%");
+      // change vote
+      await card.getByRole("button", { name: /^starseed/i }).click();
+      await expect(card.getByRole("button", { name: /starseed/i })).toHaveAttribute("aria-pressed", "true");
+      await expect(card.getByRole("button", { name: /starseed/i })).toContainText("100%");
+      // artist sees 1 vote; fan API agrees
+      const fanView = await (await page.request.get(`/api/polls/${id}`)).json();
+      expect(fanView.poll.total).toBe(1);
+      // close it; card flips to closed without reload (realtime / fallback poll)
+      await request.patch("/api/artist/polls", { headers: h, data: { id, action: "close" } });
+      await expect(card.getByText(/^poll closed/i)).toBeVisible({ timeout: 10_000 });
+      await expect(card.getByRole("button", { name: /clumsy/i })).toBeDisabled();
+      // shows on the concert page too
+      await page.goto("/concerts");
+      await page.getByRole("link", { name: /our lady peace/i }).first().click();
+      await expect(page.getByTestId("poll-card").filter({ hasText: q })).toBeVisible();
+    } finally {
+      await request.delete(`/api/artist/polls?id=${id}`, { headers: h });
+    }
+  });
+
+  test("draft polls are hidden from fans", async ({ page, request }) => {
+    const q = `E2E Draft ${Date.now()}`;
+    const created = await (await request.post("/api/artist/polls", { headers: h, data: { question: q, options: ["a", "b"] } })).json();
+    try {
+      await page.goto("/dashboard");
+      await expect(page.getByText(q)).toHaveCount(0);
+      expect((await page.request.get(`/api/polls/${created.poll_id}`)).status()).toBe(404);
+    } finally {
+      await request.delete(`/api/artist/polls?id=${created.poll_id}`, { headers: h });
+    }
+  });
+});

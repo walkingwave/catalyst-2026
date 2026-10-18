@@ -69,3 +69,26 @@ export function timeAgo(iso: string) {
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
 }
+
+/** Published polls for one artist (open first, then latest closed), with results and the fan's own vote. */
+export async function fanPolls(supabase: Awaited<ReturnType<typeof createClient>>, artistId: string, limitClosed = 2) {
+  const { data: polls } = await supabase
+    .from("polls")
+    .select("*")
+    .eq("artist_id", artistId)
+    .in("status", ["open", "closed"])
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const list = polls ?? [];
+  const open = list.filter((p) => p.status === "open" && (!p.closes_at || Date.parse(p.closes_at) > Date.now()));
+  const closed = list.filter((p) => !open.includes(p)).slice(0, limitClosed);
+  const chosen = [...open, ...closed];
+  if (chosen.length === 0) return [];
+  const ids = chosen.map((p) => p.id);
+  const [{ data: results }, { data: mine }] = await Promise.all([
+    supabase.from("poll_results").select("*").in("poll_id", ids),
+    supabase.from("poll_votes").select("poll_id, option_id").in("poll_id", ids),
+  ]);
+  const { assemble } = await import("@/lib/polls");
+  return assemble(chosen, results ?? [], mine ?? []);
+}

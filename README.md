@@ -305,3 +305,12 @@ Or in the Vercel dashboard: Add New Project -> import the GitHub repo -> paste t
 Daily archive cron: add `"crons": [{ "path": "/api/cron/archive", "schedule": "0 4 * * *" }]` to `vercel.json` once the project is claimed (anonymous deployments can't define crons). `/api/cron/archive` can also be hit by hand.
 
 No login? `npx vercel deploy --temporary` with `-b`/`-e` env flags gives a claimable URL that lives ~1 hour. `vercel.json` already strips the `allow_scripts` setting the CLI injects, which npm 11 rejects. Set `NEXT_PUBLIC_SITE_URL` to the production URL and write that domain into the tags. Web NFC on `/staff` needs HTTPS, so the staff phone must use the deployed URL (or `localhost` on the dev box).
+
+## Live polls
+
+Artists run polls from the **Polls** tab in the console: a question, 2–6 options, an optional timer, and an optional show (defaults to all fans). Open now or save as a draft, then Open / Close / Reopen from the list. Opening a poll drops an inbox note to the artist's fans.
+
+Fans see open polls at the top of Home (for their current event) and on the show page. One tap votes, tapping another option changes the vote while the poll is open. Results stream in via Supabase Realtime (`polls`, `poll_votes`) with a 4s fetch fallback, and the card flips to "Poll closed" when the artist closes it or the timer runs out.
+
+Tables: `polls`, `poll_options`, `poll_votes` (one row per fan per poll), view `poll_results`, RPC `cast_vote` (security definer: rejects closed polls, enforces the timer). Migration `0010_live_polls.sql`.
+

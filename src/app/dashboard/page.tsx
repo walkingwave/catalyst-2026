@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { requireFan, fanScans, fanMessages, timeAgo, formatDate } from "@/lib/fan";
+import { requireFan, fanScans, fanMessages, fanPolls, timeAgo, formatDate } from "@/lib/fan";
+import { PollCard } from "@/components/PollCard";
 import { attendedArtists } from "@/lib/current";
 import { Page, Panel, Points, List, Row, SectionHeader, Banner, Empty, Ticket, TicketField } from "@/components/ui";
 import { Header } from "@/components/Header";
@@ -26,6 +27,7 @@ export default async function Dashboard({
   ]);
   const concertBy = new Map((concerts ?? []).map((c) => [c.id, c]));
 
+  const polls = current ? await fanPolls(supabase, current.artist.id) : [];
   const latestShow = current?.shows[0] ?? null;
   let showRank: { rank: number; total: number } | null = null;
   let eventTotal = 0;
@@ -105,6 +107,15 @@ export default async function Dashboard({
           }
         />
       </div>
+
+      {polls.length > 0 && (
+        <>
+          <SectionHeader>{polls.some((p) => p.live) ? "Live poll" : "Polls"}</SectionHeader>
+          <div className="space-y-3">
+            {polls.map((p) => <PollCard key={p.id} poll={p} />)}
+          </div>
+        </>
+      )}
 
       {inbox.length > 0 && (
         <>

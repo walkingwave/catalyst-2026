@@ -236,3 +236,41 @@ test.describe("SMS delivery feedback", () => {
     await expect(sheet.getByRole("checkbox", { name: "Send an SMS alert" })).toBeDisabled();
   });
 });
+
+test.describe("Artist polls", () => {
+  test("create, open, watch results, close, delete", async ({ page, request }) => {
+    await open(page);
+    await page.getByRole("button", { name: /^polls$/i }).click();
+    await page.getByRole("button", { name: /new poll/i }).click();
+    const q = `E2E What song next ${Date.now()}`;
+    await page.getByPlaceholder("What song next?").fill(q);
+    await page.getByPlaceholder("Option 1").fill("Clumsy");
+    await page.getByPlaceholder("Option 2").fill("Starseed");
+    await page.getByRole("button", { name: /add option/i }).click();
+    await page.getByPlaceholder("Option 3").fill("Superman's Dead");
+    await page.getByRole("button", { name: /^open now$/i }).click();
+    const row = page.getByTestId("poll-row").filter({ hasText: q });
+    await expect(row).toBeVisible();
+    await expect(row.getByText(/^live/i)).toBeVisible();
+    await expect(row.getByText(/0 votes/i)).toBeVisible();
+    await row.getByRole("button", { name: /close poll/i }).click();
+    await expect(row.getByText(/^closed/i)).toBeVisible();
+    // reopen with a timer, countdown shows, then clean up
+    await row.getByLabel("Timer minutes").fill("5");
+    await row.getByRole("button", { name: /^reopen$/i }).click();
+    await expect(row.getByText(/4:\d\d left/)).toBeVisible();
+    page.once("dialog", (d) => d.accept());
+    await row.getByRole("button", { name: /delete poll/i }).click();
+    await expect(row).toBeHidden();
+    const list = await (await request.get("/api/artist/polls", { headers: { "x-artist-code": OLP_CODE } })).json();
+    expect(list.polls.some((p: { question: string }) => p.question === q)).toBe(false);
+  });
+
+  test("API validates: needs 2 options, max 6, question required", async ({ request }) => {
+    const h = { "x-artist-code": OLP_CODE, "content-type": "application/json" };
+    expect((await request.post("/api/artist/polls", { headers: h, data: { question: "x", options: ["a"] } })).status()).toBe(400);
+    expect((await request.post("/api/artist/polls", { headers: h, data: { question: "", options: ["a", "b"] } })).status()).toBe(400);
+    expect((await request.post("/api/artist/polls", { headers: h, data: { question: "x", options: ["a", "b", "c", "d", "e", "f", "g"] } })).status()).toBe(400);
+    expect((await request.get("/api/artist/polls")).status()).toBe(401);
+  });
+});
