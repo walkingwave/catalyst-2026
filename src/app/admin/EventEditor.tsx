@@ -189,7 +189,7 @@ function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRo
           </div>
           <Input placeholder="Location (e.g. Main lobby)" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
           <div className="flex gap-1 bg-surface p-1">
-            {([["scan", "Tap-in"], ["social", "Social post"], ["song_request", "Song request"]] as const).map(([k, label]) => (
+            {([["scan", "Live concert"], ["social", "Digital"], ["song_request", "Poll"]] as const).map(([k, label]) => (
               <button key={k} type="button" onClick={() => setDraft({ ...draft, kind: k, pre_event: k === "scan" ? false : draft.pre_event })} className={`flex-1 h-9 label ${draft.kind === k ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>{label}</button>
             ))}
           </div>
@@ -220,7 +220,7 @@ function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRo
               <button onClick={() => startEdit(a)} className="flex-1 min-w-0 text-left py-2 press">
                 <p className="t-body truncate">
                   {a.pre_event && <span className="label text-warning border border-warning px-1.5 mr-2 align-middle">Pre-event</span>}
-                  {a.name} <span className="t-foot text-ink-2">{a.kind === "social" ? "· social" : a.kind === "song_request" ? "· song request" : ""}</span>
+                  {a.name} <span className="t-foot text-ink-2">{a.kind === "social" ? "· digital" : a.kind === "song_request" ? "· poll" : "· live concert"}</span>
                 </p>
                 <p className="t-foot text-ink-2 truncate">{a.location ?? "No location"}{a.map_x != null || (a.kind ?? "scan") !== "scan" ? "" : " · not on map"}</p>
               </button>

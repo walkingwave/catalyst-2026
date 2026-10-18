@@ -356,7 +356,7 @@ test.describe("Admin content management", () => {
       await expect(editor.getByText(/2 activities · 125 pts/i)).toBeVisible();
 
       // edit points of Entry
-      await editor.getByRole("button", { name: /^entry no location/i }).click();
+      await editor.getByRole("button", { name: /^entry · live concert/i }).click();
       await form.getByPlaceholder("pts").fill("60");
       await form.getByRole("button", { name: /^save$/i }).click();
       await expect(editor.getByText(/2 activities · 135 pts/i)).toBeVisible();

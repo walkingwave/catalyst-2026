@@ -286,9 +286,9 @@ Tables: `polls`, `poll_options`, `poll_votes` (one row per fan per poll), view `
 
 ## Pre-event activities and invites
 
-In the event editor (**/admin → Edit → Activities → + Add**) an activity is a **Tap-in** (staff scan at the venue),
-**Social post** (fan pastes a link, the artist approves it in Review) or **Song request** (fan names a song, points
-land on submit). Social posts and song requests can be marked **Pre-event**: fans can do them before the show,
+In the event editor (**/admin → Edit → Activities → + Add**) an activity is **Live concert** (staff scan the
+wristband at the venue), **Digital** (fan pastes a social post link, the artist approves it in Review) or **Poll** (fan
+names a song request, points land on submit). Digital and Poll activities can be marked **Pre-event**: fans can do them before the show,
 they're highlighted with a Pre-event badge at the top of the show's Activities, and they lock at doors (the event
 date plus its Doors time, Toronto time). There are no social activities by default; they exist only when an admin
 adds one.
