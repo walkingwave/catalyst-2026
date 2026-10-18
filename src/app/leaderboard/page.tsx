@@ -35,8 +35,8 @@ export default async function LeaderboardPage({
   return (
     <Page>
       <Header />
-      <Headline kicker={mode === "concert" ? `${concert?.name} · ${formatDate(concert!.date)}` : "All shows"}>
-        {mode === "concert" ? concert?.artist : artist?.name}
+      <Headline kicker={mode === "concert" ? `${concert?.artist} · ${formatDate(concert!.date)}` : "All shows"}>
+        {mode === "concert" ? concert?.name : artist?.name}
       </Headline>
 
       <div className="hscroll flex gap-1 overflow-x-auto mb-3 -mx-4 px-4">

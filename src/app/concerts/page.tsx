@@ -54,9 +54,9 @@ export default async function ConcertsPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0 px-4 py-3">
-                      <p className="display d-md truncate">{c.artist}</p>
+                      <p className="display d-md truncate">{c.name}</p>
                       <p className="t-foot text-ink-2 truncate mt-1">
-                        {c.venue} · {formatDate(c.date)}
+                        {c.artist} · {c.venue} · {formatDate(c.date)}
                       </p>
                       <p className="t-foot text-ink-2 mt-2">
                         {mine.length} {mine.length === 1 ? "activity" : "activities"} ·{" "}

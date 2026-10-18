@@ -44,8 +44,8 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
       <div className="relative aspect-[4/5] mt-2 -mx-4 overflow-hidden">
         {c.image_url && <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" priority />}
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white">
-          <p className="label text-white/70">{formatDate(c.date)} · {c.venue}</p>
-          <h1 className="display d-hero mt-1">{c.artist}</h1>
+          <p className="label text-white/70">{c.artist} · {formatDate(c.date)} · {c.venue}</p>
+          <h1 className="display d-hero mt-1">{c.name}</h1>
         </div>
       </div>
       <p className="t-body text-ink-2 mt-4">{c.description}</p>
@@ -59,7 +59,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
 
       <SectionHeader>Details</SectionHeader>
       <List>
-        <Row title="Show" value={<span className="t-sub normal-case font-sans font-medium">{c.name}</span>} />
+        <Row title="Artist" value={<span className="t-sub normal-case font-sans font-medium">{c.artist}</span>} />
         <Row title="Venue" value={<span className="t-sub normal-case font-sans font-medium">{c.venue}</span>} />
         {c.doors_at && <Row title="Doors" value={<span className="t-sub normal-case font-sans font-medium">{c.doors_at}</span>} />}
         {c.address && <Row title="Address" value={<span className="t-sub normal-case font-sans font-medium">{c.address}</span>} />}

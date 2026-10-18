@@ -171,8 +171,8 @@ export default async function Dashboard({
               {latestShow.image_url && <Image src={latestShow.image_url} alt="" fill className="object-cover photo" priority />}
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white flex items-end justify-between">
                 <div>
-                  <p className="label text-white/70">{latestShow.venue} · {formatDate(latestShow.date)}</p>
-                  <p className="display d-lg mt-1">{current?.artist.name}</p>
+                  <p className="label text-white/70">{current?.artist.name} · {latestShow.venue} · {formatDate(latestShow.date)}</p>
+                  <p className="display d-lg mt-1">{latestShow.name}</p>
                 </div>
                 <IconChevron size={22} className="mb-1" />
               </div>
