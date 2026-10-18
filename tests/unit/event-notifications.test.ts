@@ -7,6 +7,7 @@ import * as admin from "@/lib/supabase/admin";
 
 vi.mock("next/server", async (original) => ({ ...await original<typeof import("next/server")>(), after: vi.fn() }));
 vi.mock("@/lib/sms", () => ({
+  isFictionalPhone: vi.fn(() => false),
   sendSms: vi.fn(), smsEnabled: vi.fn(), smsWithOptOut: vi.fn(async (_db, _id, body) => body),
 }));
 const input = {

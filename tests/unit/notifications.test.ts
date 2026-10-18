@@ -50,7 +50,7 @@ function messageDb({ failInsert = false, failUpdate = false } = {}) {
 }
 
 const notification = {
-  artistId: "artist", userId: "fan", phone: "+15550100001",
+  artistId: "artist", userId: "fan", phone: "+14165551234",
   body: "Meet us at the merch booth.", smsBody: "Artist: Meet us at the merch booth.", sms: true,
 };
 
@@ -90,13 +90,20 @@ describe("fan notifications", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).message).toBe(`${notification.smsBody}\nhttps://banddrop.vercel.app/dashboard`);
   });
 
+  it("skips fictional 555-01xx demo numbers without calling the provider", async () => {
+    const { db, rows } = messageDb();
+    expect(await notifyFan(db, { ...notification, phone: "+15550100001" })).toMatchObject({ inbox: true, sms: "skipped" });
+    expect(rows[0].sms_status).toBe("demo_number");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("never stores or returns the provider key from a Textbelt error", async () => {
     const { db, rows } = messageDb();
     fetchMock.mockResolvedValueOnce({ json: async () => ({ success: false, error: "Sorry, ability to send URLs via text is limited to verified accounts. Please go to https://textbelt.com/whitelist?key=test-paid-key or email support" }) });
     await notifyFan(db, notification);
     expect(rows[0].sms_status).not.toContain("test-paid-key");
     expect(rows[0].sms_status).toMatch(/blocks links/);
-    const r = await sendSms("+15550100001", "x");
+    const r = await sendSms("+14165551234", "x");
     expect(JSON.stringify(r)).not.toContain("test-paid-key");
   });
 
@@ -195,5 +202,13 @@ describe("artist notification audience", () => {
     expect(await artistRecipients(db, "artist", { top: 1 })).toEqual([{ id: fan, phone: null }]);
     await expect(artistRecipients(db, "artist", { top: 101 })).rejects.toThrow("between 1 and 100");
     await expect(artistRecipients(db, "artist", { user_ids: Array(101).fill(fan) })).rejects.toThrow("up to 100 fans");
+  });
+});
+
+describe("fictional phone numbers", () => {
+  it("matches seed (555 area code) and demo (555-01xx) numbers only", async () => {
+    const { isFictionalPhone } = await import("@/lib/sms");
+    for (const p of ["+15550100001", "+15550100099", "+14165550155", "+13655550139"]) expect(isFictionalPhone(p)).toBe(true);
+    for (const p of ["+14163716182", "+16473550002", "+14165551234", null]) expect(isFictionalPhone(p)).toBe(false);
   });
 });
