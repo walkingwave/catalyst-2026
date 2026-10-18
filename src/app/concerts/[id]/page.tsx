@@ -30,7 +30,6 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   const postBy = new Map((posts ?? []).map((p) => [p.activity_id, p.status]));
   for (const [aid, st] of postBy) if (st === "approved") doneIds.add(aid);
   const scanActs = acts.filter((a) => a.kind !== "social");
-  const socialActs = acts.filter((a) => a.kind === "social");
   const socialEarned = acts.filter((a) => a.kind === "social" && postBy.get(a.id) === "approved").reduce((n, a) => n + a.points, 0);
   const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0) + socialEarned;
   const possible = acts.reduce((n, a) => n + a.points, 0);
@@ -74,40 +73,35 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {socialActs.length > 0 && (
-        <>
-          <SectionHeader>Social</SectionHeader>
-          <div className="rules">
-            {socialActs.map((a) => {
-              const st = postBy.get(a.id);
-              return (
-                <div key={a.id}>
-                  <Row
-                    title={a.name}
-                    subtitle={a.location ?? undefined}
-                    value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
-                    valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
-                  />
-                  {!st && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
+      {/* Social posts are just activities an admin creates; they keep their post box inline. */}
       <SectionHeader>Activities</SectionHeader>
-      <List>
-        {scanActs.map((a) => (
-          <Row
-            key={a.id}
-            title={a.name}
-            subtitle={a.location ?? undefined}
-            value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
-            valueTone={doneIds.has(a.id) ? "success" : "default"}
-          />
-        ))}
-      </List>
+      <div className="rules">
+        {acts.map((a) => {
+          if (a.kind !== "social") {
+            return (
+              <Row
+                key={a.id}
+                title={a.name}
+                subtitle={a.location ?? undefined}
+                value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
+                valueTone={doneIds.has(a.id) ? "success" : "default"}
+              />
+            );
+          }
+          const st = postBy.get(a.id);
+          return (
+            <div key={a.id}>
+              <Row
+                title={a.name}
+                subtitle={a.location ?? undefined}
+                value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
+                valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
+              />
+              {!st && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
+            </div>
+          );
+        })}
+      </div>
       <Nav />
     </Page>
   );

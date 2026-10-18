@@ -35,7 +35,8 @@ test.describe("Fan pages", () => {
       await expect(page.getByText(/main lobby, west wall/i).first()).toBeVisible();
     });
     await expect(page.getByRole("heading", { name: /^activities$/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^social$/i })).toBeVisible();
+    // Social posts are no longer a default section; they only exist as admin-created activities.
+    await expect(page.getByRole("heading", { name: /^social$/i })).toHaveCount(0);
   });
 
   test("leaderboard: artist tabs, show chips, you highlighted", async ({ page }) => {
@@ -78,7 +79,9 @@ test.describe("Fan pages", () => {
       expect(claim.ok(), await claim.text()).toBeTruthy();
 
       await page.goto(`/concerts/${ev.id}`);
-      await expect(page.getByRole("heading", { name: /^social$/i })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /^social$/i })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: /^activities$/i })).toBeVisible();
+      await expect(page.getByText("Post on Instagram")).toBeVisible();
       const url = page.getByPlaceholder("Post link");
       await url.fill("not a url");
       await page.getByRole("button", { name: /^submit$/i }).click();

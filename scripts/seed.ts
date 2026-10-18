@@ -136,7 +136,6 @@ async function main() {
     { name: "Photo Wall", points: 75, map_x: 78, map_y: 80, location: "Main lobby, east wall", icon: "photo" },
     { name: "Trivia", points: 120, map_x: 15, map_y: 46, location: "Centuries Bar, level 2", icon: "trivia" },
     { name: "Meet & Greet", points: 200, map_x: 84, map_y: 14, location: "Stage door, backstage left", icon: "meet" },
-    { name: "Post on Instagram", points: 150, kind: "social", social_network: "instagram", location: "Tag @ourladypeace", icon: "social" },
   ];
   const { data: activities, error: aErr } = await db
     .from("activities")

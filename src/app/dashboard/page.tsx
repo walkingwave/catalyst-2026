@@ -18,14 +18,20 @@ export default async function Dashboard({
   const { supabase, user, profile } = await requireFan("/dashboard");
   const { claimed, tap, pts: tapPts, dup } = await searchParams;
 
-  const [{ list, current }, scans, { data: drops }, { data: messages }, { data: concerts }] = await Promise.all([
+  const [{ list, current }, scans, { data: concerts }] = await Promise.all([
     attendedArtists(supabase, user.id),
     fanScans(supabase),
-    supabase.from("drops").select("*, artist:artists(name)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
-    fanMessages(supabase, user.id),
     supabase.from("concerts").select("id, artist, venue, date, artist_id"),
   ]);
   const concertBy = new Map((concerts ?? []).map((c) => [c.id, c]));
+  // Inbox follows the current event, like activity: only this artist's drops, messages and show alerts.
+  const scope = current ? { artistId: current.artist.id, concertIds: (concerts ?? []).filter((c) => c.artist_id === current.artist.id).map((c) => c.id) } : undefined;
+  let dropQuery = supabase.from("drops").select("*, artist:artists(name)").eq("user_id", user.id);
+  if (scope) dropQuery = dropQuery.eq("artist_id", scope.artistId);
+  const [{ data: drops }, { data: messages }] = await Promise.all([
+    dropQuery.order("created_at", { ascending: false }).limit(5),
+    fanMessages(supabase, user.id, scope),
+  ]);
 
   const polls = current ? await fanPolls(supabase, current.artist.id) : [];
   const latestShow = current?.shows[0] ?? null;
