@@ -50,7 +50,7 @@ function messageDb({ failInsert = false, failUpdate = false } = {}) {
 }
 
 const notification = {
-  artistId: "artist", userId: "fan", phone: "+15550100001",
+  artistId: "artist", userId: "fan", phone: "+14165550123",
   body: "Meet us at the merch booth.", smsBody: "Artist: Meet us at the merch booth.", sms: true,
 };
 
