@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Badge, Empty } from "@/components/ui";
 import { IconCheck, IconX, IconLock, IconChevron } from "@/components/icons";
 import type { Artist } from "@/lib/types";
+import { PollsTab } from "./PollsTab";
 
 const KEY = "cc_artist_code";
 
@@ -53,7 +54,7 @@ type FanDetail = {
   drops: { id: string; title: string; code: string | null; claimed_at: string | null; created_at: string }[];
 };
 
-type Tab = "fans" | "message" | "drop" | "review" | "log";
+type Tab = "fans" | "message" | "drop" | "polls" | "review" | "log";
 
 type DropPayload = { title: string; message: string; code?: string; notify_sms: boolean };
 type Delivery = {
@@ -154,6 +155,7 @@ export function ArtistConsole() {
     { id: "fans", label: "Fans", count: data.stats.fans || undefined },
     { id: "message", label: "Message" },
     { id: "drop", label: "Drop" },
+    { id: "polls", label: "Polls" },
     { id: "review", label: "Review", count: data.stats.pending_posts || undefined },
     { id: "log", label: "Log" },
   ];
@@ -246,6 +248,7 @@ export function ArtistConsole() {
           }}
         />
       )}
+      {tab === "polls" && <PollsTab headers={headers} concerts={data.concerts} flash={flash} />}
       {tab === "log" && <LogTab messages={data.messages} drops={data.drops} />}
 
       {sendResult && !detailId && <p role="status" className="t-foot mt-4">{sendResult}</p>}

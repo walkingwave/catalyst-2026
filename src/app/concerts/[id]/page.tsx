@@ -6,6 +6,8 @@ import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { VenueMap } from "@/components/VenueMap";
 import { SocialSubmit } from "@/components/SocialSubmit";
+import { PollCard } from "@/components/PollCard";
+import { fanPolls } from "@/lib/fan";
 import type { Activity, Concert } from "@/lib/types";
 
 export default async function ConcertPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +22,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   ]);
   if (!concert) notFound();
   const c = concert as Concert;
+  const polls = c.artist_id ? await fanPolls(supabase, c.artist_id, 1) : [];
   const acts = (activities ?? []) as Activity[];
   const mine = scans.filter((s) => s.activity?.concert_id === id);
   const doneNames = new Set(mine.map((s) => s.activity?.name));
@@ -43,6 +46,13 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
       <p className="t-body text-ink-2 mt-4">{c.description}</p>
+
+      {polls.length > 0 && (
+        <>
+          <SectionHeader>{polls.some((p) => p.live) ? "Live poll" : "Poll"}</SectionHeader>
+          <div className="space-y-3">{polls.map((p) => <PollCard key={p.id} poll={p} />)}</div>
+        </>
+      )}
 
       <SectionHeader>Details</SectionHeader>
       <List>
