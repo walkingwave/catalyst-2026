@@ -70,6 +70,7 @@ Create `.env.local` with these settings (the file is gitignored):
 | `SUPABASE_SERVICE_ROLE_KEY` | server only; scan/claim routes and seed |
 | `STAFF_PIN` | unlocks `/staff` and `/api/scan` |
 | `SMS_NOTIFICATIONS` | `true` enables artist messages, drop alerts and scan texts (default off) |
+| `SMS_LINK` | `true` appends a BandDrop link to every text. Leave off until Textbelt verifies the key for URLs (textbelt.com/whitelist) |
 | `DEMO_PHONES` | Optional comma-separated E.164 numbers that never receive real texts. Supabase test OTP numbers (+1555…) are always skipped |
 | `TEXTBELT_KEY` | paid Textbelt key; takes precedence over Twilio. Define it only once. |
 | `SUPABASE_SMS_HOOK_SECRET` | signing secret for the Supabase Send SMS hook (OTP login) |
@@ -274,7 +275,7 @@ No login? `npx vercel deploy --temporary` with `-b`/`-e` env flags gives a claim
 
 ## Images and links
 
-Drops, drop templates and messages take an optional image (JPG, PNG, WebP, GIF or SVG, 8 MB max), uploaded from the artist console to the public `media` bucket through `/api/artist/upload`. Fans see it in the inbox card. SMS is text only, so every outgoing text ends with a link to `NEXT_PUBLIC_SITE_URL` (defaults to https://banddrop.vercel.app) so the fan can open the full drop or message. Migration `0011_media_messages.sql`.
+Drops, drop templates and messages take an optional image (JPG, PNG, WebP, GIF or SVG, 8 MB max), uploaded from the artist console to the public `media` bucket through `/api/artist/upload`. Fans see it in the inbox card. SMS is text only, so with `SMS_LINK=true` every outgoing text ends with a link to `NEXT_PUBLIC_SITE_URL` (defaults to https://banddrop.vercel.app). Textbelt only allows URLs from verified keys; request verification at textbelt.com/whitelist first. Migration `0011_media_messages.sql`.
 
 ## Live polls
 
