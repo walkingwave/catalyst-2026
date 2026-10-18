@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { smsEnabled } from "@/lib/sms";
 import { notifyFans } from "@/lib/notifications";
 import { artistRecipients } from "@/lib/artist-recipients";
+import { cleanImage } from "@/lib/media";
 
 export const maxDuration = 300;
 
@@ -15,8 +16,9 @@ export const maxDuration = 300;
 export async function POST(req: Request) {
   const artist = await artistFromRequest(req);
   if (!artist) return NextResponse.json({ ok: false }, { status: 401 });
-  const { body, user_ids, top, channel = "inbox" } = (await req.json().catch(() => ({}))) as {
+  const { body, user_ids, top, channel = "inbox", image_url } = (await req.json().catch(() => ({}))) as {
     body?: string;
+    image_url?: string | null;
     user_ids?: string[];
     top?: number;
     channel?: "sms" | "inbox";
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
   }
   const delivery = await notifyFans(db, fans.map((fan) => ({
     artistId: artist.id, userId: fan.id, phone: fan.phone, body: text,
-    smsBody: `${artist.name}: ${text}`, sms: channel === "sms",
+    smsBody: `${artist.name}: ${text}`, sms: channel === "sms", imageUrl: cleanImage(image_url),
   })));
   return NextResponse.json({ ok: true, sent: delivery.inbox, live: channel === "sms", delivery });
 }

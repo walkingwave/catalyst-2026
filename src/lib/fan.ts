@@ -21,12 +21,12 @@ export async function requireFan(nextPath: string) {
 /** Keep the existing inbox readable while the event-notification migration rolls out. */
 export async function fanMessages(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const result = await supabase.from("messages")
-    .select("id, body, channel, created_at, artist:artists(name), concert:concerts(name)")
+    .select("id, body, channel, image_url, created_at, artist:artists(name), concert:concerts(name)")
     .eq("user_id", userId).or("channel.eq.inbox,concert_id.is.null")
     .order("created_at", { ascending: false }).limit(5);
   if (result.error && ["PGRST200", "42703"].includes(result.error.code)) {
     const legacy = await supabase.from("messages")
-      .select("id, body, channel, created_at, artist:artists(name)")
+      .select("id, body, channel, image_url, created_at, artist:artists(name)")
       .eq("user_id", userId).order("created_at", { ascending: false }).limit(5);
     return { ...legacy, data: legacy.data?.map((message) => ({ ...message, concert: null })) ?? null };
   }
@@ -68,4 +68,27 @@ export function timeAgo(iso: string) {
   const h = Math.round(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
+}
+
+/** Published polls for one artist (open first, then latest closed), with results and the fan's own vote. */
+export async function fanPolls(supabase: Awaited<ReturnType<typeof createClient>>, artistId: string, limitClosed = 2) {
+  const { data: polls } = await supabase
+    .from("polls")
+    .select("*")
+    .eq("artist_id", artistId)
+    .in("status", ["open", "closed"])
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const list = polls ?? [];
+  const open = list.filter((p) => p.status === "open" && (!p.closes_at || Date.parse(p.closes_at) > Date.now()));
+  const closed = list.filter((p) => !open.includes(p)).slice(0, limitClosed);
+  const chosen = [...open, ...closed];
+  if (chosen.length === 0) return [];
+  const ids = chosen.map((p) => p.id);
+  const [{ data: results }, { data: mine }] = await Promise.all([
+    supabase.from("poll_results").select("*").in("poll_id", ids),
+    supabase.from("poll_votes").select("poll_id, option_id").in("poll_id", ids),
+  ]);
+  const { assemble } = await import("@/lib/polls");
+  return assemble(chosen, results ?? [], mine ?? []);
 }

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { requireFan, fanScans, fanMessages, timeAgo, formatDate } from "@/lib/fan";
+import { requireFan, fanScans, fanMessages, fanPolls, timeAgo, formatDate } from "@/lib/fan";
+import { PollCard } from "@/components/PollCard";
 import { attendedArtists } from "@/lib/current";
 import { Page, Panel, Points, List, Row, SectionHeader, Banner, Empty, Ticket, TicketField } from "@/components/ui";
 import { Header } from "@/components/Header";
@@ -26,6 +27,7 @@ export default async function Dashboard({
   ]);
   const concertBy = new Map((concerts ?? []).map((c) => [c.id, c]));
 
+  const polls = current ? await fanPolls(supabase, current.artist.id) : [];
   const latestShow = current?.shows[0] ?? null;
   let showRank: { rank: number; total: number } | null = null;
   let eventTotal = 0;
@@ -106,6 +108,15 @@ export default async function Dashboard({
         />
       </div>
 
+      {polls.length > 0 && (
+        <>
+          <SectionHeader>{polls.some((p) => p.live) ? "Live poll" : "Polls"}</SectionHeader>
+          <div className="space-y-3">
+            {polls.map((p) => <PollCard key={p.id} poll={p} />)}
+          </div>
+        </>
+      )}
+
       {inbox.length > 0 && (
         <>
           <SectionHeader>Inbox</SectionHeader>
@@ -118,6 +129,11 @@ export default async function Dashboard({
                   <p className="label text-ink-2">
                     {(Array.isArray(i.m.artist) ? i.m.artist[0] : i.m.artist)?.name ?? (Array.isArray(i.m.concert) ? i.m.concert[0] : i.m.concert)?.name ?? "Event"} · {timeAgo(i.m.created_at)}
                   </p>
+                  {i.m.image_url && (
+                    <div className="relative w-full aspect-[16/9] mt-3 overflow-hidden">
+                      <Image src={i.m.image_url} alt="" fill className="object-cover" unoptimized />
+                    </div>
+                  )}
                   <p className="t-body mt-2">{i.m.body}</p>
                 </Panel>
               ),

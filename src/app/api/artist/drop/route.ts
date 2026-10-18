@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { smsEnabled } from "@/lib/sms";
 import { notifyFans } from "@/lib/notifications";
 import { artistRecipients } from "@/lib/artist-recipients";
+import { cleanImage } from "@/lib/media";
 
 export const maxDuration = 300;
 
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
     user_ids?: string[];
     top?: number;
     notify_sms?: boolean;
+    image_url?: string | null;
   };
   const title = typeof b.title === "string" ? b.title.trim().slice(0, 80) : "";
   if (!title) return NextResponse.json({ ok: false, message: "Title is empty" }, { status: 400 });
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
     user_id,
     title,
     message: typeof b.message === "string" ? b.message.trim().slice(0, 500) : "",
+    image_url: cleanImage(b.image_url),
     code: typeof b.code === "string" && b.code.trim() ? `${b.code.trim().toUpperCase()}${ids.length > 1 ? `-${String(i + 1).padStart(3, "0")}` : ""}` : null,
   }));
   const { error } = await db.from("drops").insert(rows);
