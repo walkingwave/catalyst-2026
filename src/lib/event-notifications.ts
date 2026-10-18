@@ -21,20 +21,14 @@ export type EventNotification = {
 export const isUuid = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
-export function parseEventNotification(input: unknown, now = Date.now(), allowPast = false) {
-  if (!input || typeof input !== "object") throw new Error("Invalid notification.");
+/** Alerts always send immediately; there is no scheduling. */
+export function parseEventNotification(input: unknown) {
+  if (!input || typeof input !== "object") throw new Error("Invalid alert.");
   const b = input as Record<string, unknown>;
   if (!isUuid(b.id) || !isUuid(b.concert_id)) throw new Error("Select an event.");
   if (typeof b.body !== "string" || !b.body.trim() || b.body.trim().length > 320) throw new Error("Enter a message of 1–320 characters.");
   if (b.channel !== "sms" && b.channel !== "inbox") throw new Error("Choose SMS or Inbox.");
-  let scheduled_at: string | null = null;
-  if (b.scheduled_at !== null && b.scheduled_at !== undefined) {
-    if (typeof b.scheduled_at !== "string" || !/(Z|[+-]\d{2}:\d{2})$/i.test(b.scheduled_at)) throw new Error("Choose a valid date and time.");
-    const timestamp = Date.parse(b.scheduled_at);
-    if (!Number.isFinite(timestamp) || (!allowPast && timestamp <= now) || timestamp > now + 365 * 86400000) throw new Error("Choose a future time within the next year.");
-    scheduled_at = new Date(timestamp).toISOString();
-  }
-  return { id: b.id, concert_id: b.concert_id, body: b.body.trim(), channel: b.channel, scheduled_at };
+  return { id: b.id, concert_id: b.concert_id, body: b.body.trim(), channel: b.channel, scheduled_at: null };
 }
 
 type Delivery = { delivery_id: string; user_id: string; phone: string | null; body: string; channel: "inbox" | "sms"; event_name: string };
@@ -64,18 +58,13 @@ async function deliver(db: SupabaseClient, delivery: Delivery) {
   if (saveError || !data) throw new Error("Could not save notification delivery status.");
 }
 
-/** Database reservations prevent concurrent cron / immediate calls from duplicating a send. */
-export async function runEventNotifications(db: SupabaseClient, notificationId?: string) {
-  // Only a recurring worker updates this, not a one-off "Send now" request.
-  if (!notificationId) {
-    const { error } = await db.from("notification_worker").upsert({ id: true, last_seen_at: new Date().toISOString() });
-    if (error) throw new Error("Notification queue is unavailable. Apply migration 0009.");
-  }
-  const deadline = Date.now() + 45000;
+/** Sends one alert to completion. Database reservations stop concurrent calls from duplicating a send. */
+export async function runEventNotifications(db: SupabaseClient, notificationId: string, budgetMs = 100000) {
+  const deadline = Date.now() + budgetMs;
   let processed = 0;
-  for (let batch = 0; batch < 10 && Date.now() < deadline; batch++) {
+  while (Date.now() < deadline) {
     const { data, error } = await db.rpc("claim_event_notification_batch", {
-      p_notification_id: notificationId ?? null, p_limit: 20,
+      p_notification_id: notificationId, p_limit: 20,
     });
     if (error) throw new Error("Could not claim notification queue.");
     const deliveries = (data ?? []) as Delivery[];

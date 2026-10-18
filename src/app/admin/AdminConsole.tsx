@@ -6,6 +6,7 @@ import { IconCheck, IconChevron, IconLock, IconNfc, IconX } from "@/components/i
 import { normalizeUid } from "@/lib/uid";
 import { EventEditor, type EventRow } from "./EventEditor";
 import { RewardsTab } from "./RewardsTab";
+import { PeopleTab } from "./PeopleTab";
 import { EventNotifications } from "@/components/EventNotifications";
 import type { Artist } from "@/lib/types";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, writeUrl, type NfcSession } from "@/lib/nfc";
@@ -182,7 +183,7 @@ export function AdminConsole() {
       {tab === "alerts" && event && <EventNotifications key={event.id} eventId={event.id} headers={headers} />}
       {tab === "bands" && event && <BandsTab event={event} events={events} headers={headers} flash={flash} onChanged={load} />}
       {tab === "rewards" && event && <RewardsTab key={event.id} artists={artists} headers={headers} flash={flash} onArtistsChanged={load} fixedArtistId={event.artist_id ?? ""} />}
-      {tab === "people" && event && <PeopleTab key={event.id} eventId={event.id} headers={headers} />}
+      {tab === "people" && event && <PeopleTab key={event.id} eventId={event.id} headers={headers} flash={flash} />}
       {editEvent && (
         <EventEditor
           key={editEvent.id}
@@ -1001,51 +1002,6 @@ function EventsTab({
             ))}
           </List>
         </div>
-      )}
-    </>
-  );
-}
-
-/* ---------------- People: every account with a claimed band at the event ---------------- */
-
-type DemoPhones = { otps?: { phone: string; code: string }[] };
-
-type Person = { id: string; name: string; phone: string | null; bands: string[] };
-
-function PeopleTab({ eventId, headers }: { eventId: string; headers: () => HeadersInit }) {
-  const [data, setData] = useState<DemoPhones | null>(null);
-  const [people, setPeople] = useState<Person[] | null>(null);
-
-  const load = useCallback(async () => {
-    const [demo, roster] = await Promise.all([
-      fetch("/api/admin/demo-phones", { headers: headers() }).then((r) => r.json()).catch(() => ({})),
-      fetch(`/api/admin/people?concert_id=${eventId}`, { headers: headers() }).then((r) => r.json()).catch(() => ({ people: [] })),
-    ]);
-    setData(demo);
-    setPeople(roster.people ?? []);
-  }, [eventId, headers]);
-  const demoSet = new Set((data?.otps ?? []).map((t) => t.phone));
-  useEffect(() => {
-    queueMicrotask(() => void load());
-  }, [load]);
-
-  return (
-    <>
-      <SectionHeader>{people ? `${people.length} ${people.length === 1 ? "person" : "people"}` : "People"}</SectionHeader>
-      {!people ? <p className="t-sub text-ink-2">Loading people…</p> : people.length === 0 ? <Empty>No one has claimed a band at this event yet.</Empty> : (
-        <div data-testid="people-list"><List>
-          {people.map((p) => {
-            const demo = !!p.phone && demoSet.has(p.phone.replace(/^\+/, ""));
-            return (
-              <Row
-                key={p.id}
-                title={p.name || "Unnamed fan"}
-                subtitle={<><span className="font-mono">{p.phone ?? "No phone"}</span> · {p.bands.length} {p.bands.length === 1 ? "band" : "bands"}</>}
-                value={<Badge tone={demo ? "warning" : "ink"}>{demo ? "Demo" : "Real"}</Badge>}
-              />
-            );
-          })}
-        </List></div>
       )}
     </>
   );

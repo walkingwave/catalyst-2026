@@ -17,11 +17,12 @@ Viewport is iPhone 14 in Chromium (Web NFC paths show their fallbacks, like a re
 
 ## Coverage
 
-Event notifications: `tests/unit/event-notifications.test.ts` checks schedule/timezone
-validation, PIN/cron guards, idempotent requests and worker outcomes with SMS mocked.
-The "Event notification controls" tests in `tests/e2e/admin.spec.ts` exercise both
-admin and staff with mocked APIs (no messages are sent), including schedule/cancel,
-event switching, timezone conversion and mobile overflow.
+Event alerts: `tests/unit/event-notifications.test.ts` checks validation (alerts always
+send immediately), PIN guards, idempotent requests and delivery outcomes with SMS mocked.
+The "Event alert controls" tests in `tests/e2e/admin.spec.ts` exercise both admin and
+staff with mocked APIs (no messages are sent), including immediate send, event
+switching and mobile overflow. "Admin people" covers listing, creating a demo user
+with a random number, editing and deleting, also with mocked APIs.
 
 `tests/event-notifications.sql` bootstraps minimal fixtures and applies migration
 0009 in an **empty disposable PostgreSQL database**. Run it with
