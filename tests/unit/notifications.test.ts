@@ -93,7 +93,7 @@ describe("fan notifications", () => {
   it("skips fictional 555-01xx demo numbers without calling the provider", async () => {
     const { db, rows } = messageDb();
     expect(await notifyFan(db, { ...notification, phone: "+15550100001" })).toMatchObject({ inbox: true, sms: "skipped" });
-    expect(rows[0].sms_status).toBe("demo_number");
+    expect(rows[0].sms_status).toBe("demo");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -205,10 +205,10 @@ describe("artist notification audience", () => {
   });
 });
 
-describe("fictional phone numbers", () => {
-  it("matches seed (555 area code) and demo (555-01xx) numbers only", async () => {
-    const { isFictionalPhone } = await import("@/lib/sms");
-    for (const p of ["+15550100001", "+15550100099", "+14165550155", "+13655550139"]) expect(isFictionalPhone(p)).toBe(true);
-    for (const p of ["+14163716182", "+16473550002", "+14165551234", null]) expect(isFictionalPhone(p)).toBe(false);
+describe("demo phone numbers", () => {
+  it("matches seed (555 area code) and admin-created demo (555-01xx) numbers only", async () => {
+    const { isDemoPhone } = await import("@/lib/phone");
+    for (const p of ["+15550100001", "+15550100099", "+14165550155", "+13655550139"]) expect(isDemoPhone(p)).toBe(true);
+    for (const p of ["+14163716182", "+16473550002", "+14165551234", null]) expect(isDemoPhone(p)).toBe(false);
   });
 });

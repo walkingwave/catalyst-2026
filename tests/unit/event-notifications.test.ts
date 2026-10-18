@@ -7,7 +7,6 @@ import * as admin from "@/lib/supabase/admin";
 
 vi.mock("next/server", async (original) => ({ ...await original<typeof import("next/server")>(), after: vi.fn() }));
 vi.mock("@/lib/sms", () => ({
-  isFictionalPhone: vi.fn(() => false),
   sendSms: vi.fn(), smsEnabled: vi.fn(), smsWithOptOut: vi.fn(async (_db, _id, body) => body),
 }));
 const input = {
@@ -46,7 +45,7 @@ describe("worker delivery", () => {
     const db = { rpc, from: () => ({ upsert }) } as unknown as SupabaseClient;
     return { db, rpc, upsert };
   }
-  const row = { delivery_id: "delivery", user_id: "fan", phone: "+15550100001", body: "Hello", channel: "sms", event_name: "Event A" };
+  const row = { delivery_id: "delivery", user_id: "fan", phone: "+14165551234", body: "Hello", channel: "sms", event_name: "Event A" };
 
   it("sends only database-reserved recipients and records provider acceptance", async () => {
     const { db, rpc } = database([row]);

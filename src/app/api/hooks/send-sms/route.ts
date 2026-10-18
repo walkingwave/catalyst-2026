@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { isFictionalPhone, sendSms } from "@/lib/sms";
+import { sendSms } from "@/lib/sms";
+import { isDemoPhone } from "@/lib/phone";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   if (!phone || !otp) return NextResponse.json({ error: { http_code: 400, message: "missing phone or otp" } }, { status: 400 });
 
   // Demo numbers sign in with Supabase's fixed test code; there is no handset to text.
-  if (isFictionalPhone(phone)) return NextResponse.json({});
+  if (isDemoPhone(phone)) return NextResponse.json({});
   // OTP always goes out when a provider exists, regardless of the notifications toggle.
   const res = await sendSms(phone, `${otp} is your BandDrop code.`, { force: true });
   if (!res.ok) {

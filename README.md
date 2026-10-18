@@ -70,6 +70,7 @@ Create `.env.local` with these settings (the file is gitignored):
 | `SUPABASE_SERVICE_ROLE_KEY` | server only; scan/claim routes and seed |
 | `STAFF_PIN` | unlocks `/staff` and `/api/scan` |
 | `SMS_NOTIFICATIONS` | `true` enables artist messages, drop alerts and scan texts (default off) |
+| `DEMO_PHONES` | Optional comma-separated E.164 numbers that never receive real texts. Supabase test OTP numbers (+1555…) are always skipped |
 | `TEXTBELT_KEY` | paid Textbelt key; takes precedence over Twilio. Define it only once. |
 | `SUPABASE_SMS_HOOK_SECRET` | signing secret for the Supabase Send SMS hook (OTP login) |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` | optional alternative when no Textbelt key is set |

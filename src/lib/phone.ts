@@ -8,3 +8,16 @@ export function normalizePhone(input: string): string | null {
   if (digits.length > 10) return `+${digits}`;
   return null;
 }
+
+/**
+ * Demo and test numbers never receive real texts. Covers the Supabase test OTP range
+ * (+1555…), the fictional 555-0100..0199 exchange used for admin-created demo users
+ * (e.g. +1 416 555 0142), and anything else listed in DEMO_PHONES (comma separated, E.164).
+ */
+export function isDemoPhone(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, "");
+  if (/^1?555\d{7}$/.test(digits) || /^1?\d{3}55501\d{2}$/.test(digits)) return true;
+  const extra = (process.env.DEMO_PHONES ?? "").split(",").map((p) => p.replace(/\D/g, "")).filter(Boolean);
+  return extra.includes(digits);
+}

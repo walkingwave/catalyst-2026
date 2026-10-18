@@ -95,7 +95,7 @@ test.describe("Admin people", () => {
 
   test("lists everyone, creates a demo user with a random number, edits and deletes", async ({ page }) => {
     const people = [
-      { id: "00000000-0000-0000-0000-0000000000a1", name: "Real Fan", phone: "+14165550123", bands: ["04AAAA"], demo: false },
+      { id: "00000000-0000-0000-0000-0000000000a1", name: "Real Fan", phone: "+14165551234", bands: ["04AAAA"], demo: false },
       { id: "00000000-0000-0000-0000-0000000000a2", name: "Riley P.", phone: "+15550100001", bands: ["04BBBB"], demo: true },
     ];
     const calls: { method: string; body?: Record<string, string>; url: string }[] = [];
@@ -124,7 +124,7 @@ test.describe("Admin people", () => {
     await page.getByRole("button", { name: /^people$/i }).click();
     const list = page.getByTestId("people-list");
     await expect(list.getByText("Real Fan")).toBeVisible();
-    await expect(list.getByText("+14165550123")).toBeVisible();
+    await expect(list.getByText("+14165551234")).toBeVisible();
     await expect(list.getByText("Demo", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /\+ demo user/i }).click();

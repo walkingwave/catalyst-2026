@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isDemoPhone } from "@/lib/phone";
 
 /**
  * Outbound SMS. Provider picked by env:
@@ -41,14 +42,6 @@ export async function smsWithOptOut(db: SupabaseClient, userId: string, body: st
   return count ? linked : linked + OPT_OUT_FOOTER;
 }
 
-/**
- * Fake numbers used by seed and demo users: area code 555 (unassigned) or the reserved 555-0100..0199 exchange.
- * There is no handset behind them, and texting them only burns Textbelt's daily limit.
- */
-export function isFictionalPhone(phone: string | null | undefined): boolean {
-  return !!phone && /^\+1(555\d{7}|\d{3}55501\d{2})$/.test(phone);
-}
-
 export function smsEnabled(): boolean {
   return process.env.SMS_NOTIFICATIONS === "true" && (
     !!process.env.TEXTBELT_KEY ||
@@ -58,7 +51,7 @@ export function smsEnabled(): boolean {
 
 export async function sendSms(to: string, body: string, opts: { force?: boolean } = {}): Promise<SmsResult> {
   if (!opts.force && process.env.SMS_NOTIFICATIONS !== "true") return { ok: false, provider: "none", error: "SMS_NOTIFICATIONS is off" };
-  if (isFictionalPhone(to)) return { ok: false, provider: "none", error: "Demo number, no text sent" };
+  if (isDemoPhone(to)) return { ok: false, provider: "none", error: "demo number" };
 
   if (process.env.TEXTBELT_KEY) {
     try {
