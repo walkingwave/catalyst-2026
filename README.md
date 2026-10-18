@@ -306,6 +306,10 @@ Daily archive cron: add `"crons": [{ "path": "/api/cron/archive", "schedule": "0
 
 No login? `npx vercel deploy --temporary` with `-b`/`-e` env flags gives a claimable URL that lives ~1 hour. `vercel.json` already strips the `allow_scripts` setting the CLI injects, which npm 11 rejects. Set `NEXT_PUBLIC_SITE_URL` to the production URL and write that domain into the tags. Web NFC on `/staff` needs HTTPS, so the staff phone must use the deployed URL (or `localhost` on the dev box).
 
+## Images and links
+
+Drops, drop templates and messages take an optional image (JPG, PNG, WebP, GIF or SVG, 8 MB max), uploaded from the artist console to the public `media` bucket through `/api/artist/upload`. Fans see it in the inbox card. SMS is text only, so every outgoing text ends with a link to `NEXT_PUBLIC_SITE_URL` (defaults to https://banddrop.vercel.app) so the fan can open the full drop or message. Migration `0011_media_messages.sql`.
+
 ## Live polls
 
 Artists run polls from the **Polls** tab in the console: a question, 2–6 options, an optional timer, and an optional show (defaults to all fans). Open now or save as a draft, then Open / Close / Reopen from the list. Opening a poll drops an inbox note to the artist's fans.

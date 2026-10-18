@@ -147,16 +147,26 @@ test.describe("Fan pages", () => {
     }
   });
 
-  test("inbox: drop can be claimed and reveals code", async ({ page, request }) => {
+  test("inbox: drop with image can be claimed and reveals code", async ({ page, request }) => {
     const title = `E2E Drop ${Date.now()}`;
+    // 1x1 PNG uploaded through the artist upload route
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+    const up = await request.post("/api/artist/upload", {
+      headers: { "x-artist-code": "OLP2026" },
+      multipart: { file: { name: "e2e.png", mimeType: "image/png", buffer: png } },
+    });
+    expect(up.ok()).toBeTruthy();
+    const { url } = await up.json();
+    expect(url).toContain("/storage/v1/object/public/media/");
     const r = await request.post("/api/artist/drop", {
       headers: { "x-artist-code": "OLP2026", "content-type": "application/json" },
-      data: { title, message: "test", code: "E2EDROP", top: 100 },
+      data: { title, message: "test", code: "E2EDROP", top: 100, image_url: url },
     });
     expect(r.ok()).toBeTruthy();
     await page.goto("/dashboard");
     const card = page.getByTestId("drop-card").filter({ hasText: title });
     await expect(card).toBeVisible();
+    await expect(card.locator("img")).toHaveAttribute("src", url);
     await card.getByRole("button", { name: /^claim$/i }).click();
     await expect(card.getByText(/E2EDROP/)).toBeVisible();
   });

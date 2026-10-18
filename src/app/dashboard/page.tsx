@@ -129,6 +129,11 @@ export default async function Dashboard({
                   <p className="label text-ink-2">
                     {(Array.isArray(i.m.artist) ? i.m.artist[0] : i.m.artist)?.name ?? (Array.isArray(i.m.concert) ? i.m.concert[0] : i.m.concert)?.name ?? "Event"} · {timeAgo(i.m.created_at)}
                   </p>
+                  {i.m.image_url && (
+                    <div className="relative w-full aspect-[16/9] mt-3 overflow-hidden">
+                      <Image src={i.m.image_url} alt="" fill className="object-cover" unoptimized />
+                    </div>
+                  )}
                   <p className="t-body mt-2">{i.m.body}</p>
                 </Panel>
               ),

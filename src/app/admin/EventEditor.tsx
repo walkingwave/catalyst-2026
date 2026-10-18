@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, Input, Field, List, SectionHeader, Empty } from "@/components/ui";
 import { IconChevron, IconX } from "@/components/icons";
 import { VenueMap } from "@/components/VenueMap";
-import { ImageField } from "./ImageField";
+import { ImageField } from "@/components/ImageField";
 import { call, json, type H } from "./api";
 import type { Activity, Artist, Concert } from "@/lib/types";
 

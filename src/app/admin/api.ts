@@ -12,13 +12,13 @@ export async function call<T = unknown>(url: string, headers: H, init: RequestIn
 export const json = (data: unknown): RequestInit => ({ body: JSON.stringify(data) });
 
 /** Upload an image to the media bucket. Returns the public URL. */
-export async function uploadImage(file: File, folder: string, headers: H): Promise<string> {
+export async function uploadImage(file: File, folder: string, headers: H, endpoint = "/api/admin/upload"): Promise<string> {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("folder", folder);
   const h = { ...headers() } as Record<string, string>;
   delete h["content-type"]; // let the browser set the multipart boundary
-  const r = await fetch("/api/admin/upload", { method: "POST", headers: h, body: fd });
+  const r = await fetch(endpoint, { method: "POST", headers: h, body: fd });
   const j = (await r.json().catch(() => ({}))) as { ok?: boolean; url?: string; message?: string };
   if (!r.ok || !j.url) throw new Error(j.message ?? "Upload failed");
   return j.url;

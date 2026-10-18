@@ -5,6 +5,7 @@ import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Badge,
 import { IconCheck, IconX, IconLock, IconChevron } from "@/components/icons";
 import type { Artist } from "@/lib/types";
 import { PollsTab } from "./PollsTab";
+import { ImageField } from "@/components/ImageField";
 
 const KEY = "cc_artist_code";
 
@@ -20,7 +21,7 @@ type Fan = {
   tiktok: string | null;
   x_handle: string | null;
 };
-type Template = { id: string; title: string; message: string; code_prefix: string | null };
+type Template = { id: string; title: string; message: string; code_prefix: string | null; image_url?: string | null };
 type Overview = {
   artist: Artist;
   sms_enabled: boolean;
@@ -56,7 +57,7 @@ type FanDetail = {
 
 type Tab = "fans" | "message" | "drop" | "polls" | "review" | "log";
 
-type DropPayload = { title: string; message: string; code?: string; notify_sms: boolean };
+type DropPayload = { title: string; message: string; code?: string; notify_sms: boolean; image_url?: string | null };
 type Delivery = {
   inbox: number;
   inbox_failed: number;
@@ -160,9 +161,9 @@ export function ArtistConsole() {
     { id: "log", label: "Log" },
   ];
 
-  async function sendMessage(body: string, channel: "sms" | "inbox", ids: string[]) {
+  async function sendMessage(body: string, channel: "sms" | "inbox", ids: string[], imageUrl: string | null) {
     setSendResult(null);
-    const r = await fetch("/api/artist/message", { method: "POST", headers: headers(), body: JSON.stringify({ body, channel, user_ids: ids }) });
+    const r = await fetch("/api/artist/message", { method: "POST", headers: headers(), body: JSON.stringify({ body, channel, user_ids: ids, image_url: imageUrl }) });
     const j = await r.json();
     if (!r.ok) return j.message ?? "Failed";
     setSendResult(`Sent to ${j.sent} fan${j.sent === 1 ? "" : "s"} in the inbox.${channel === "sms" ? ` ${deliverySummary(j.delivery)}` : j.delivery.inbox_failed ? ` ${j.delivery.inbox_failed} failed.` : ""}`);
@@ -219,7 +220,7 @@ export function ArtistConsole() {
         />
       )}
       {tab === "message" && (
-        <MessageTab recipients={recipients} fanBy={fanBy} fans={data.top_fans} smsEnabled={data.sms_enabled} onSelect={setSelected} onSend={sendMessage} onPickFans={() => setTab("fans")} />
+        <MessageTab recipients={recipients} fanBy={fanBy} fans={data.top_fans} smsEnabled={data.sms_enabled} headers={headers} onSelect={setSelected} onSend={sendMessage} onPickFans={() => setTab("fans")} />
       )}
       {tab === "drop" && (
         <DropTab
@@ -270,7 +271,7 @@ export function ArtistConsole() {
           id={detailId}
           headers={headers}
           onClose={() => setDetailId(null)}
-          onMessage={async (body, channel) => sendMessage(body, channel, [detailId])}
+          onMessage={async (body, channel) => sendMessage(body, channel, [detailId], null)}
           onDrop={async (p) => sendDrop(p, [detailId])}
           templates={data.templates}
           smsEnabled={data.sms_enabled}
@@ -453,6 +454,7 @@ function MessageTab({
   fanBy,
   fans,
   smsEnabled,
+  headers,
   onSelect,
   onSend,
   onPickFans,
@@ -461,11 +463,13 @@ function MessageTab({
   fanBy: Map<string, Fan>;
   fans: Fan[];
   smsEnabled: boolean;
+  headers: () => HeadersInit;
   onSelect: (s: Set<string>) => void;
-  onSend: (body: string, channel: "sms" | "inbox", ids: string[]) => Promise<string | void>;
+  onSend: (body: string, channel: "sms" | "inbox", ids: string[], imageUrl: string | null) => Promise<string | void>;
   onPickFans: () => void;
 }) {
   const [body, setBody] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [channel, setChannel] = useState<"sms" | "inbox">(smsEnabled ? "sms" : "inbox");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -490,6 +494,7 @@ function MessageTab({
         <Field label={`Message (${body.length}/320)`}>
           <textarea className="w-full min-h-28 bg-surface p-3 t-body outline-none" maxLength={320} placeholder="Message" value={body} onChange={(e) => setBody(e.target.value)} />
         </Field>
+        <ImageField label="Image (inbox only)" value={image} folder="messages" headers={headers} endpoint="/api/artist/upload" onChange={setImage} />
         {error && <p className="t-foot text-danger">{error}</p>}
         <Button
           disabled={busy || !body.trim() || recipients.length === 0}
@@ -497,9 +502,12 @@ function MessageTab({
             setBusy(true);
             setError(null);
             try {
-              const err = await onSend(body, channel, recipients);
+              const err = await onSend(body, channel, recipients, image);
               if (err) setError(err);
-              else setBody("");
+              else {
+                setBody("");
+                setImage(null);
+              }
             } catch {
               setError("Could not confirm the result. Check Log before trying again.");
             } finally {
@@ -544,13 +552,14 @@ function DropTab({
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [code, setCode] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [notifySms, setNotifySms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function saveTemplate() {
     if (!title.trim()) return;
-    const r = await fetch("/api/artist/templates", { method: "POST", headers: headers(), body: JSON.stringify({ title, message, code_prefix: code }) });
+    const r = await fetch("/api/artist/templates", { method: "POST", headers: headers(), body: JSON.stringify({ title, message, code_prefix: code, image_url: image }) });
     if (r.ok) {
       flash("Saved as a drop");
       onTemplatesChanged();
@@ -575,7 +584,7 @@ function DropTab({
             <div className="flex flex-wrap gap-1.5">
               {templates.map((t) => (
                 <span key={t.id} className={`h-9 flex items-center ${title === t.title ? "bg-invert-bg text-invert-fg" : "bg-surface"}`}>
-                  <button type="button" onClick={() => { setTitle(t.title); setMessage(t.message); setCode(t.code_prefix ?? ""); }} className="pl-3 pr-2 h-full label">
+                  <button type="button" onClick={() => { setTitle(t.title); setMessage(t.message); setCode(t.code_prefix ?? ""); setImage(t.image_url ?? null); }} className="pl-3 pr-2 h-full label">
                     {t.title}
                   </button>
                   <button type="button" onClick={() => removeTemplate(t.id)} aria-label={`Delete ${t.title}`} className="pr-2 h-full opacity-60"><IconX size={12} /></button>
@@ -591,6 +600,7 @@ function DropTab({
         <Field label="Message">
           <textarea className="w-full min-h-24 bg-surface p-3 t-body outline-none" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={500} placeholder="Message" />
         </Field>
+        <ImageField label="Image" value={image} folder="drops" headers={headers} endpoint="/api/artist/upload" onChange={setImage} />
         <Field label="Code prefix">
           <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Optional, numbered per fan" autoCapitalize="characters" />
         </Field>
@@ -609,7 +619,7 @@ function DropTab({
               setBusy(true);
               setError(null);
               try {
-                const err = await onSend({ title, message, code: code || undefined, notify_sms: notifySms }, recipients);
+                const err = await onSend({ title, message, code: code || undefined, notify_sms: notifySms, image_url: image }, recipients);
                 if (err) setError(err);
               } catch {
                 setError("Could not confirm the result. Check Log before trying again.");
@@ -723,6 +733,7 @@ function FanSheet({
   const [title, setTitle] = useState("");
   const [msg, setMsg] = useState("");
   const [code, setCode] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [notifySms, setNotifySms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -754,7 +765,7 @@ function FanSheet({
     setBusy(true);
     setErr(null);
     try {
-      const error = await onDrop({ title, message: msg, code: code || undefined, notify_sms: notifySms });
+      const error = await onDrop({ title, message: msg, code: code || undefined, notify_sms: notifySms, image_url: image });
       if (error) setErr(error);
       else { setTitle(""); setMsg(""); setCode(""); setMode("info"); void load(); }
     } catch {
@@ -826,12 +837,13 @@ function FanSheet({
               {templates.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {templates.map((t) => (
-                    <button key={t.id} type="button" onClick={() => { setTitle(t.title); setMsg(t.message); setCode(t.code_prefix ?? ""); }} className={`h-9 px-3 label ${title === t.title ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}>{t.title}</button>
+                    <button key={t.id} type="button" onClick={() => { setTitle(t.title); setMsg(t.message); setCode(t.code_prefix ?? ""); setImage(t.image_url ?? null); }} className={`h-9 px-3 label ${title === t.title ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}>{t.title}</button>
                   ))}
                 </div>
               )}
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" maxLength={80} />
               <textarea className="w-full min-h-20 bg-surface-2 p-3 t-body outline-none" value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={500} placeholder="Message" />
+              <ImageField label="Image" value={image} folder="drops" headers={headers} endpoint="/api/artist/upload" onChange={setImage} />
               <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code (optional)" autoCapitalize="characters" />
               <label className="flex items-center gap-3 t-body min-h-11">
                 <input type="checkbox" checked={notifySms} disabled={!smsEnabled || !fan.has_phone || busy} onChange={(e) => setNotifySms(e.target.checked)} />
