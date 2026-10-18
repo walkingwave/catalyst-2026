@@ -12,8 +12,12 @@ export type SmsResult = { ok: boolean; provider: "textbelt" | "twilio" | "none";
 const OPT_OUT_FOOTER = "\n\nReply STOP to unsubscribe.";
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://banddrop.vercel.app").replace(/\/$/, "");
 
-/** Every fan text ends with a link back into BandDrop. */
+/**
+ * Append a link back into BandDrop. Off unless SMS_LINK=true: Textbelt rejects URLs
+ * from unverified keys ("ability to send URLs via text is limited to verified accounts").
+ */
 export function withSiteLink(body: string, path = "/dashboard"): string {
+  if (process.env.SMS_LINK !== "true") return body;
   return `${body}\n${SITE}${path}`;
 }
 

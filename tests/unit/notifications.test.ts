@@ -82,10 +82,10 @@ describe("fan notifications", () => {
     expect(rows[0].sms_status).toBe("sent");
     const first = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(first).toMatchObject({ phone: notification.phone, key: "test-paid-key", sender: "BandDrop" });
-    expect(first.message).toBe(`${notification.smsBody}\nhttps://banddrop.vercel.app/dashboard\n\nReply STOP to unsubscribe.`);
+    expect(first.message).toBe(`${notification.smsBody}\n\nReply STOP to unsubscribe.`);
 
     await notifyFan(db, notification);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).message).toBe(`${notification.smsBody}\nhttps://banddrop.vercel.app/dashboard`);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).message).toBe(notification.smsBody);
   });
 
   it("keeps the inbox on provider rejection and includes the notice on the next attempt", async () => {

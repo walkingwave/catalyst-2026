@@ -27,3 +27,15 @@ describe("isDemoPhone", () => {
     delete process.env.DEMO_PHONES;
   });
 });
+
+import { withSiteLink } from "@/lib/sms";
+
+describe("withSiteLink", () => {
+  it("is off by default and on with SMS_LINK", () => {
+    delete process.env.SMS_LINK;
+    expect(withSiteLink("hi")).toBe("hi");
+    process.env.SMS_LINK = "true";
+    expect(withSiteLink("hi")).toBe("hi\nhttps://banddrop.vercel.app/dashboard");
+    delete process.env.SMS_LINK;
+  });
+});
