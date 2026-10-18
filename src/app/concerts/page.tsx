@@ -10,16 +10,18 @@ import type { Concert } from "@/lib/types";
 export default async function ConcertsPage() {
   const { supabase, user } = await requireFan("/concerts");
 
-  const [{ data: bands }, scans] = await Promise.all([
+  const [{ data: bandRows }, { data: invites }, scans] = await Promise.all([
     supabase
       .from("bands")
       .select("uid, concert:concerts(id, name, artist, venue, date, image_url)")
       .eq("user_id", user.id),
+    supabase.from("event_invites").select("concert:concerts(id, name, artist, venue, date, image_url)").eq("redeemed_by", user.id),
     fanScans(supabase),
   ]);
+  const bands = [...(bandRows ?? []), ...(invites ?? [])];
 
   const byId = new Map<string, Concert>();
-  for (const b of bands ?? []) {
+  for (const b of bands) {
     const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as Concert | null;
     if (c) byId.set(c.id, c);
   }

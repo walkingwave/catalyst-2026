@@ -42,7 +42,7 @@ export async function createArtist(request: APIRequestContext, name: string, kin
 
 export async function createEvent(
   request: APIRequestContext,
-  opts: { name: string; artist_id?: string; new_artist?: { name: string; kind?: "artist" | "team" }; activities?: TestEvent["activities"] | { name: string; points: number; kind?: string; social_network?: string }[] },
+  opts: { name: string; date?: string; artist_id?: string; new_artist?: { name: string; kind?: "artist" | "team" }; activities?: TestEvent["activities"] | { name: string; points: number; kind?: string; social_network?: string; pre_event?: boolean }[] },
 ) {
   const r = await request.post("/api/admin/events", {
     headers: adminHeaders,
@@ -51,7 +51,7 @@ export async function createEvent(
       description: "E2E test event",
       venue: "Test Hall",
       address: "1 Test St",
-      date: new Date().toISOString().slice(0, 10),
+      date: opts.date ?? new Date().toISOString().slice(0, 10),
       doors_at: "7:00 PM",
       artist_id: opts.artist_id,
       new_artist: opts.new_artist,

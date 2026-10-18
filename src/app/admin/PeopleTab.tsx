@@ -61,6 +61,7 @@ export function PeopleTab({ eventId, headers, flash }: { eventId: string; header
           </List>
         </div>
       )}
+      <Invites eventId={eventId} headers={headers} flash={flash} />
       {editing && (
         <PersonEditor
           key={editing === "new" ? "new" : editing.id}
@@ -133,6 +134,84 @@ function PersonEditor({ person, eventId, headers, flash, onClose, onSaved }: {
         <Button disabled={busy || !name.trim() || !phone.trim()} onClick={save}>{busy ? "Saving…" : person ? "Save" : "Create demo user"}</Button>
         {person?.demo && <Button variant="danger" size="md" disabled={busy} onClick={remove}>Delete demo user</Button>}
       </div>
+    </div>
+  );
+}
+
+type Invite = { code: string; label: string | null; redeemed_at: string | null; user: { name: string; phone: string | null } | null };
+
+/** Single-use invite links for ticket buyers, so they can join and do pre-event activities before doors. */
+function Invites({ eventId, headers, flash }: { eventId: string; headers: H; flash: (m: string) => void }) {
+  const [invites, setInvites] = useState<Invite[] | null>(null);
+  const [buyers, setBuyers] = useState("");
+  const [busy, setBusy] = useState(false);
+  const link = (code: string) => `${window.location.origin}/join/${code}`;
+
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/admin/invites?concert_id=${eventId}`, { headers: headers() });
+    const j = await r.json().catch(() => ({}));
+    setInvites(j.invites ?? []);
+  }, [eventId, headers]);
+  useEffect(() => {
+    queueMicrotask(() => void load());
+  }, [load]);
+
+  async function create() {
+    setBusy(true);
+    const labels = buyers.split("\n").map((l) => l.trim()).filter(Boolean);
+    const r = await fetch("/api/admin/invites", { method: "POST", headers: { ...headers(), "content-type": "application/json" }, body: JSON.stringify({ concert_id: eventId, labels }) });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) return flash(j.message ?? "Could not create invites");
+    flash(`${j.created} invite${j.created === 1 ? "" : "s"} created`);
+    setBuyers("");
+    await load();
+  }
+  async function revoke(code: string) {
+    const r = await fetch(`/api/admin/invites?code=${code}`, { method: "DELETE", headers: headers() });
+    if (!r.ok) return flash("Could not revoke");
+    await load();
+  }
+  async function copy(text: string, what: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      flash(`${what} copied`);
+    } catch {
+      flash("Copy failed");
+    }
+  }
+
+  const unused = (invites ?? []).filter((i) => !i.redeemed_at);
+  return (
+    <div data-testid="invites">
+      <div className="flex items-end justify-between pt-8 pb-3">
+        <h2 className="display d-sm">{invites ? `${invites.length} ${invites.length === 1 ? "invite" : "invites"}` : "Invites"}</h2>
+        {unused.length > 0 && (
+          <button onClick={() => copy(unused.map((i) => `${i.label ?? ""}\t${link(i.code)}`).join("\n"), "Unused links")} className="label underline underline-offset-4">Copy unused</button>
+        )}
+      </div>
+      <p className="t-sub text-ink-2 mb-3">One link per ticket buyer. Opening it signs them in and unlocks pre-event activities before doors.</p>
+      <Field label="Ticket buyers (one name or email per line)">
+        <textarea className="w-full min-h-24 bg-surface-2 p-3 t-body outline-none" value={buyers} onChange={(e) => setBuyers(e.target.value)} placeholder={"alex@example.com\nSam Lee"} />
+      </Field>
+      <div className="mt-3"><Button size="md" disabled={busy || !buyers.trim()} onClick={create}>{busy ? "Creating…" : "Create invite links"}</Button></div>
+      {invites && invites.length > 0 && (
+        <List className="mt-4">
+          {invites.map((i) => (
+            <Row
+              key={i.code}
+              title={i.label || "Ticket buyer"}
+              subtitle={i.redeemed_at ? `Joined as ${i.user?.name || i.user?.phone || "fan"}` : <span className="font-mono">/join/{i.code}</span>}
+              value={i.redeemed_at ? <Badge tone="success">Joined</Badge> : (
+                <span className="flex gap-3">
+                  <button onClick={() => copy(link(i.code), "Link")} className="label underline underline-offset-4 normal-case">Copy</button>
+                  <button onClick={() => revoke(i.code)} className="label underline underline-offset-4 normal-case">Revoke</button>
+                </span>
+              )}
+            />
+          ))}
+        </List>
+      )}
     </div>
   );
 }

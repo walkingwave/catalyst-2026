@@ -8,8 +8,9 @@ type Body = {
   name?: string;
   points?: number;
   location?: string | null;
-  kind?: "scan" | "social";
+  kind?: "scan" | "social" | "song_request";
   social_network?: string | null;
+  pre_event?: boolean;
   map_x?: number | null;
   map_y?: number | null;
 };
@@ -18,7 +19,9 @@ const clean = (b: Body) => {
   if (b.name !== undefined) out.name = String(b.name).trim().slice(0, 60);
   if (b.points !== undefined) out.points = Math.max(0, Math.round(Number(b.points) || 0));
   if (b.location !== undefined) out.location = b.location ? String(b.location).trim().slice(0, 80) : null;
-  if (b.kind !== undefined) out.kind = b.kind === "social" ? "social" : "scan";
+  if (b.kind !== undefined) out.kind = b.kind === "social" || b.kind === "song_request" ? b.kind : "scan";
+  // Tap-ins need a staff scanner at the venue, so only remote tasks can run before the show.
+  if (b.pre_event !== undefined) out.pre_event = !!b.pre_event && out.kind !== "scan";
   if (b.social_network !== undefined) out.social_network = b.social_network || null;
   if (b.map_x !== undefined) out.map_x = b.map_x == null ? null : Math.min(100, Math.max(0, Number(b.map_x)));
   if (b.map_y !== undefined) out.map_y = b.map_y == null ? null : Math.min(100, Math.max(0, Number(b.map_y)));

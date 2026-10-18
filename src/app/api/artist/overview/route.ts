@@ -25,11 +25,30 @@ export async function GET(req: Request) {
 
   // Attendance: every fan holding a claimed band at one of this artist's shows, even with 0 points yet.
   const concertIds = new Set((concerts ?? []).map((c) => c.id));
-  const { data: attendance } = concertIds.size
-    ? await db.from("bands").select("user_id, concert_id").in("concert_id", [...concertIds]).not("user_id", "is", null)
-    : { data: [] };
+  // Invited ticket buyers count as fans before they pick up a wristband.
+  const [{ data: bandRows }, { data: inviteRows }, { data: requestRows }] = concertIds.size
+    ? await Promise.all([
+        db.from("bands").select("user_id, concert_id").in("concert_id", [...concertIds]).not("user_id", "is", null),
+        db.from("event_invites").select("user_id:redeemed_by, concert_id").in("concert_id", [...concertIds]).not("redeemed_by", "is", null),
+        db.from("activity_completions").select("response, activity:activities!inner(id, name, concert_id, kind)").in("activity.concert_id", [...concertIds]).eq("activity.kind", "song_request"),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
+  const attendance = [...(bandRows ?? []), ...(inviteRows ?? [])];
+  // Song requests grouped per activity, most-requested first (case-insensitive).
+  const requestBy = new Map<string, { activity_id: string; activity: string; concert_id: string; songs: Map<string, { song: string; count: number }> }>();
+  for (const r of requestRows ?? []) {
+    const a = Array.isArray(r.activity) ? r.activity[0] : r.activity;
+    if (!a) continue;
+    const group = requestBy.get(a.id) ?? { activity_id: a.id, activity: a.name, concert_id: a.concert_id, songs: new Map() };
+    const key = r.response.trim().toLowerCase();
+    const song = group.songs.get(key) ?? { song: r.response.trim(), count: 0 };
+    song.count++;
+    group.songs.set(key, song);
+    requestBy.set(a.id, group);
+  }
+  const songRequests = [...requestBy.values()].map((g) => ({ ...g, songs: [...g.songs.values()].sort((a, b) => b.count - a.count) }));
   const showsBy = new Map<string, Set<string>>();
-  for (const b of attendance ?? []) {
+  for (const b of attendance) {
     if (!showsBy.has(b.user_id!)) showsBy.set(b.user_id!, new Set());
     showsBy.get(b.user_id!)!.add(b.concert_id);
   }
@@ -79,6 +98,7 @@ export async function GET(req: Request) {
     },
     top_fans: topFans,
     concerts: concerts ?? [],
+    song_requests: songRequests,
     pending_posts: (pending ?? [])
       .map((p) => ({
         ...p,

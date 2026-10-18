@@ -270,7 +270,7 @@ function BandInfoCard({ info, invert = false }: { info: BandInfo; invert?: boole
 /* ---------------- Tap: simulate scans at the current event ---------------- */
 
 function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; headers: () => HeadersInit; nfcSupported: boolean; onChanged: () => void }) {
-  const scanActs = event.activities.filter((a) => a.kind !== "social");
+  const scanActs = event.activities.filter((a) => (a.kind ?? "scan") === "scan");
   const [activityId, setActivityId] = useState(scanActs[0]?.id ?? "");
   const [liveBusy, setLiveBusy] = useState(false);
   const liveActivity = scanActs.find((a) => a.id === event.live_activity_id) ?? null;

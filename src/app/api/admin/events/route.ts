@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     doors_at?: string;
     artist_id?: string;
     new_artist?: { name: string; kind?: "artist" | "team" };
-    activities?: { name: string; points: number; location?: string; kind?: "scan" | "social"; social_network?: string }[];
+    activities?: { name: string; points: number; location?: string; kind?: "scan" | "social" | "song_request"; social_network?: string; pre_event?: boolean }[];
   };
   const name = (b.name ?? "").trim();
   const venue = (b.venue ?? "").trim();
@@ -58,8 +58,9 @@ export async function POST(req: Request) {
       name: (a.name ?? "").trim(),
       points: Math.max(0, Math.round(Number(a.points) || 0)),
       location: a.location?.trim() || null,
-      kind: a.kind === "social" ? "social" : "scan",
+      kind: a.kind === "social" || a.kind === "song_request" ? a.kind : "scan",
       social_network: a.kind === "social" ? a.social_network ?? "instagram" : null,
+      pre_event: !!a.pre_event && (a.kind === "social" || a.kind === "song_request"),
     }))
     .filter((a) => a.name);
   if (!acts.length) return NextResponse.json({ ok: false, message: "Add at least one activity" }, { status: 400 });

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createEvent, deleteEvent, deleteArtist, registerBand, scan, testUid, createReward, goLive, FAN_NAME } from "./helpers";
+import { createEvent, createArtist, deleteEvent, deleteArtist, registerBand, scan, testUid, createReward, goLive, adminHeaders, FAN_NAME } from "./helpers";
 
 /* Runs with Demo Fan's session (storageState from auth.setup). */
 
@@ -221,6 +221,73 @@ test.describe("Fan polls", () => {
       expect((await page.request.get(`/api/polls/${created.poll_id}`)).status()).toBe(404);
     } finally {
       await request.delete(`/api/artist/polls?id=${created.poll_id}`, { headers: h });
+    }
+  });
+});
+
+test.describe("Pre-event invites", () => {
+  test("invite link enrolls the fan without a band; pre-event song request scores and reaches the artist", async ({ page, request }) => {
+    const artist = await createArtist(request, `E2E Pre Artist ${Date.now()}`);
+    const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const ev = await createEvent(request, {
+      name: `E2E Pre ${Date.now()}`, date: nextMonth, artist_id: artist.id,
+      activities: [
+        { name: "Entry", points: 50 },
+        { name: "E2E Request a song", points: 40, kind: "song_request", pre_event: true },
+      ],
+    });
+    try {
+      const made = await request.post("/api/admin/invites", { headers: adminHeaders, data: { concert_id: ev.id, labels: ["e2e buyer"] } });
+      expect(made.status()).toBe(201);
+      const { invites } = await (await request.get(`/api/admin/invites?concert_id=${ev.id}`, { headers: adminHeaders })).json();
+      const code = invites[0].code as string;
+
+      await page.goto(`/join/${code}`);
+      await expect(page).toHaveURL(new RegExp(`/concerts/${ev.id}`));
+      const row = page.getByText("E2E Request a song");
+      await expect(row).toBeVisible();
+      await expect(page.getByText("Pre-event", { exact: true })).toBeVisible();
+      await expect(page.getByText(/before doors · closes/i)).toBeVisible();
+
+      await page.getByPlaceholder("Song title").fill("E2E Clumsy");
+      await page.getByRole("button", { name: /^submit$/i }).click();
+      await expect(page.getByText("Requested: E2E Clumsy")).toBeVisible();
+      await expect(page.getByText(/40 \/ 90 pts/)).toBeVisible();
+
+      // Second submit is rejected; the invite is now used by this fan.
+      const again = await page.request.post("/api/activities/complete", { data: { activity_id: ev.activities.find((a) => a.kind === "song_request")!.id, response: "Other" } });
+      expect(again.status()).toBe(409);
+      const after = await (await request.get(`/api/admin/invites?concert_id=${ev.id}`, { headers: adminHeaders })).json();
+      expect(after.invites[0].redeemed_at).toBeTruthy();
+
+      const overview = await (await request.get("/api/artist/overview", { headers: { "x-artist-code": artist.access_code } })).json();
+      expect(overview.song_requests[0].songs[0]).toEqual({ song: "E2E Clumsy", count: 1 });
+      expect(overview.top_fans.some((f: { name: string; points: number }) => f.name === FAN_NAME && f.points === 40)).toBe(true);
+    } finally {
+      await deleteEvent(request, ev.id);
+      await deleteArtist(request, artist.id);
+    }
+  });
+
+  test("unknown invites and pre-event tasks after doors are handled", async ({ page, request }) => {
+    expect((await page.request.post("/api/activities/complete", { data: { activity_id: "00000000-0000-0000-0000-000000000000", response: "x" } })).status()).toBe(404);
+    await page.goto("/join/NOPE1234");
+    await expect(page.getByRole("heading", { name: /invite not found/i })).toBeVisible();
+    // Pre-event closed: show was yesterday.
+    const yesterday = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+    const ev = await createEvent(request, { name: `E2E Closed ${Date.now()}`, date: yesterday, new_artist: { name: `E2E Closed Artist ${Date.now()}` },
+      activities: [{ name: "Entry", points: 50 }, { name: "E2E Late request", points: 40, kind: "song_request", pre_event: true }] });
+    try {
+      const uid = testUid();
+      await registerBand(request, uid, ev.id);
+      expect((await page.request.post("/api/claim", { data: { uid } })).ok()).toBeTruthy();
+      const act = ev.activities.find((a) => a.kind === "song_request")!;
+      expect((await page.request.post("/api/activities/complete", { data: { activity_id: act.id, response: "Too late" } })).status()).toBe(409);
+      await page.goto(`/concerts/${ev.id}`);
+      await expect(page.getByText(/closed at doors/i)).toBeVisible();
+      await expect(page.getByPlaceholder("Song title")).toHaveCount(0);
+    } finally {
+      await deleteEvent(request, ev.id);
     }
   });
 });

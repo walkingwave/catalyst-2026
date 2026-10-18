@@ -283,3 +283,20 @@ Fans see open polls at the top of Home (for their current event) and on the show
 
 Tables: `polls`, `poll_options`, `poll_votes` (one row per fan per poll), view `poll_results`, RPC `cast_vote` (security definer: rejects closed polls, enforces the timer). Migration `0010_live_polls.sql`.
 
+
+## Pre-event activities and invites
+
+In the event editor (**/admin → Edit → Activities → + Add**) an activity is a **Tap-in** (staff scan at the venue),
+**Social post** (fan pastes a link, the artist approves it in Review) or **Song request** (fan names a song, points
+land on submit). Social posts and song requests can be marked **Pre-event**: fans can do them before the show,
+they're highlighted with a Pre-event badge at the top of the show's Activities, and they lock at doors (the event
+date plus its Doors time, Toronto time). There are no social activities by default; they exist only when an admin
+adds one.
+
+**Invites** (**/admin → event → People → Invites**): paste ticket buyers, one per line, to create single-use links
+(`/join/<code>`). Opening one signs the fan in with their phone and enrolls them in the event before they have a
+wristband. Claiming a band at the venue with the same phone keeps everything on one account. Unused links can be
+copied or revoked. Song requests appear grouped with counts in the artist console's **Review** tab, and invited
+fans count as the artist's fans. Migration `0012_pre_event_invites.sql`.
+
+The fan inbox shows only the current event's drops, messages and alerts, matching how activity is scoped.

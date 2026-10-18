@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     .from("activities")
     .select("id, name, points, concert_id")
     .eq("id", activityId)
+    .eq("kind", "scan")
     .maybeSingle();
   if (aErr || !activity) {
     return reply({ ok: false, status: "error", message: "Unknown activity" }, 404);

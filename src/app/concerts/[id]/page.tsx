@@ -6,6 +6,8 @@ import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { VenueMap } from "@/components/VenueMap";
 import { SocialSubmit } from "@/components/SocialSubmit";
+import { SongRequestSubmit } from "@/components/SongRequestSubmit";
+import { activityOpen, preEventClosesAt } from "@/lib/pre-event";
 import { PollCard } from "@/components/PollCard";
 import { fanPolls } from "@/lib/fan";
 import type { Activity, Concert } from "@/lib/types";
@@ -14,24 +16,29 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { supabase, user } = await requireFan(`/concerts/${id}`);
 
-  const [{ data: concert }, { data: activities }, scans, { data: posts }] = await Promise.all([
+  const [{ data: concert }, { data: activities }, scans, { data: posts }, { data: answers }] = await Promise.all([
     supabase.from("concerts").select("*").eq("id", id).maybeSingle(),
     supabase.from("activities").select("*").eq("concert_id", id).order("points"),
     fanScans(supabase),
     supabase.from("social_posts").select("activity_id, status").eq("user_id", user.id),
+    supabase.from("activity_completions").select("activity_id, response").eq("user_id", user.id),
   ]);
   if (!concert) notFound();
   const c = concert as Concert;
   const polls = c.artist_id ? await fanPolls(supabase, c.artist_id, 1) : [];
-  const acts = (activities ?? []) as Activity[];
+  // Pre-event tasks first so fans with only an invite see what they can do now.
+  const acts = ((activities ?? []) as Activity[]).sort((a, b) => Number(!!b.pre_event) - Number(!!a.pre_event));
+  const answerBy = new Map((answers ?? []).map((x) => [x.activity_id, x.response]));
+  const closesAt = preEventClosesAt(c);
   const mine = scans.filter((s) => s.activity?.concert_id === id);
   const doneNames = new Set(mine.map((s) => s.activity?.name));
   const doneIds = new Set(acts.filter((a) => doneNames.has(a.name)).map((a) => a.id));
   const postBy = new Map((posts ?? []).map((p) => [p.activity_id, p.status]));
   for (const [aid, st] of postBy) if (st === "approved") doneIds.add(aid);
-  const scanActs = acts.filter((a) => a.kind !== "social");
-  const socialEarned = acts.filter((a) => a.kind === "social" && postBy.get(a.id) === "approved").reduce((n, a) => n + a.points, 0);
-  const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0) + socialEarned;
+  for (const aid of answerBy.keys()) doneIds.add(aid);
+  const scanActs = acts.filter((a) => (a.kind ?? "scan") === "scan");
+  const remoteEarned = acts.filter((a) => (a.kind === "social" && postBy.get(a.id) === "approved") || answerBy.has(a.id)).reduce((n, a) => n + a.points, 0);
+  const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0) + remoteEarned;
   const possible = acts.reduce((n, a) => n + a.points, 0);
 
   return (
@@ -73,32 +80,52 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {/* Social posts are just activities an admin creates; they keep their post box inline. */}
+      {/* Every activity lives here: tap-ins, plus social posts and song requests with their answer box inline. */}
       <SectionHeader>Activities</SectionHeader>
       <div className="rules">
         {acts.map((a) => {
-          if (a.kind !== "social") {
+          const open = activityOpen(a, c);
+          const title = a.pre_event ? (
+            <><span className="label bg-warning text-black px-1.5 mr-2 align-middle">Pre-event</span>{a.name}</>
+          ) : a.name;
+          const lock = a.pre_event ? (open ? `Before doors · closes ${closesAt.toLocaleString("en-CA", { timeZone: "America/Toronto", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Closed at doors") : undefined;
+          const subtitle = [lock, a.location].filter(Boolean).join(" · ") || undefined;
+          if (a.kind === "social") {
+            const st = postBy.get(a.id);
             return (
-              <Row
-                key={a.id}
-                title={a.name}
-                subtitle={a.location ?? undefined}
-                value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
-                valueTone={doneIds.has(a.id) ? "success" : "default"}
-              />
+              <div key={a.id}>
+                <Row
+                  title={title}
+                  subtitle={subtitle}
+                  value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
+                  valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
+                />
+                {!st && open && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
+              </div>
             );
           }
-          const st = postBy.get(a.id);
+          if (a.kind === "song_request") {
+            const answer = answerBy.get(a.id);
+            return (
+              <div key={a.id}>
+                <Row
+                  title={title}
+                  subtitle={answer ? `Requested: ${answer}` : subtitle}
+                  value={answer ? "Done" : <>+<Points value={a.points} /></>}
+                  valueTone={answer ? "success" : "default"}
+                />
+                {!answer && open && <SongRequestSubmit activityId={a.id} points={a.points} />}
+              </div>
+            );
+          }
           return (
-            <div key={a.id}>
-              <Row
-                title={a.name}
-                subtitle={a.location ?? undefined}
-                value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
-                valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
-              />
-              {!st && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
-            </div>
+            <Row
+              key={a.id}
+              title={title}
+              subtitle={subtitle}
+              value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
+              valueTone={doneIds.has(a.id) ? "success" : "default"}
+            />
           );
         })}
       </div>
