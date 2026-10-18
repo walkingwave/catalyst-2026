@@ -64,3 +64,8 @@ batch reservations, uncertain-delivery recovery and service-only grants.
 - OTP cooldown (60s per number) is a real-world limit: a fan who mistypes the code and goes back to "change number" can't resend for a minute. Consider a visible countdown on the code screen.
 - Marketplace "9,950 more points needed" is informative but long on small screens; consider "Need 9,950 more".
 - Web NFC is Android Chrome only; iPhone staff/admin see the fallback copy. The live-station flow covers iPhone demos.
+
+Some E2E tests send real drops, messages and poll notices to demo fans through the
+artist API. Every test string starts with `E2E `, and `tests/e2e/cleanup.ts` deletes
+those rows before the run (setup) and after it (`teardown` project), so they never
+appear in demo inboxes or the artist Log. An aborted run is cleaned up by the next run.

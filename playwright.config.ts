@@ -18,7 +18,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["iPhone 14"], browserName: "chromium" } },
+    { name: "setup", testMatch: /auth\.setup\.ts/, teardown: "teardown", use: { ...devices["iPhone 14"], browserName: "chromium" } },
+    // Runs after every project that depends on setup: removes E2E drops/messages from demo inboxes.
+    { name: "teardown", testMatch: /global\.teardown\.ts/ },
     // API + public pages: no session.
     { name: "public", testMatch: /(api|public|band|staff|admin|artist|a11y)\.spec\.ts/, dependencies: ["setup"], use: { ...devices["iPhone 14"], browserName: "chromium" } },
     // Fan pages: reuse the signed-in session from setup.
