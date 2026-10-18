@@ -6,6 +6,7 @@ import { IconCheck, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, type NfcSession } from "@/lib/nfc";
 import type { Activity, Concert, ScanResult } from "@/lib/types";
+import { EventNotifications } from "@/components/EventNotifications";
 
 const PIN_KEY = "cc_staff_pin";
 const RESULT_MS = 2500;
@@ -27,6 +28,8 @@ export function StaffStation() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [concertId, setConcertId] = useState("");
   const [activityId, setActivityId] = useState("");
+  const [tab, setTab] = useState<"scan" | "alerts">("scan");
+  const headers = useCallback(() => ({ "x-staff-pin": pin ?? "", "content-type": "application/json" }), [pin]);
 
   const [nfcSupported] = useState<boolean>(() => nfcOk());
   const [scanning, setScanning] = useState(false);
@@ -54,7 +57,6 @@ export function StaffStation() {
       .then((j: { concerts: Concert[]; activities: Activity[] }) => {
         setConcerts(j.concerts);
         setActivities(j.activities);
-        if (j.concerts[0]) setConcertId(j.concerts[0].id);
       })
       .catch((err: unknown) => {
         if (err instanceof Error && err.message === "bad pin") {
@@ -189,22 +191,41 @@ export function StaffStation() {
         </button>
       </div>
 
-      <label className="label text-ink-2 block mb-2">Concert</label>
-      <select
-        className="w-full h-14 bg-surface-2 px-4 t-body mb-4"
-        value={concertId}
-        onChange={(e) => {
-          setConcertId(e.target.value);
-          setActivityId("");
-        }}
-      >
-        {concerts.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.artist} · {c.name}
-          </option>
-        ))}
-      </select>
+      {!concertId ? (
+        <>
+          <p className="label text-ink-2 mb-3">Select an event</p>
+          {concerts.length === 0 ? <p className="t-sub text-ink-2 py-6">No events yet.</p> : (
+            <div data-testid="event-picker">
+            <List>
+              {concerts.map((c) => (
+                <Row key={c.id} title={c.name} subtitle={c.artist} chevron onClick={() => { setConcertId(c.id); setActivityId(""); }} />
+              ))}
+            </List>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="label text-ink-2">Managing</p>
+          <p className="display d-md truncate">{concerts.find((c) => c.id === concertId)?.name}</p>
+        </div>
+        <button className="label underline underline-offset-4 h-11 px-2 shrink-0" onClick={() => { stopNfc(); setConcertId(""); setTab("scan"); }}>
+          All events
+        </button>
+      </div>
 
+      <div className="flex gap-1 mb-4 bg-surface-2 p-1">
+        {(["scan", "alerts"] as const).map((value) => (
+          <button key={value} type="button" onClick={() => { if (value === "alerts") stopNfc(); setTab(value); }}
+            className={`flex-1 h-10 label ${tab === value ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>
+            {value === "scan" ? "Scan" : "Alerts"}
+          </button>
+        ))}
+      </div>
+      {tab === "alerts" && <EventNotifications key={concertId} eventId={concertId} headers={headers} />}
+      {tab === "scan" && <>
       <label className="label text-ink-2 block mb-2">Activity</label>
       <div className="grid grid-cols-2 gap-2 mb-6">
         {concertActivities.map((a) => {
@@ -281,6 +302,9 @@ export function StaffStation() {
         </List>
       )}
 
+      </>}
+        </>
+      )}
       {/* Big confirmation overlay */}
       {result && (
         <div

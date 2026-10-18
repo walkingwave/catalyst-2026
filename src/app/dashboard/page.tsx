@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { requireFan, fanScans, timeAgo, formatDate } from "@/lib/fan";
+import { requireFan, fanScans, fanMessages, timeAgo, formatDate } from "@/lib/fan";
 import { attendedArtists } from "@/lib/current";
 import { Page, Panel, Points, List, Row, SectionHeader, Banner, Empty, Ticket, TicketField } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { IconChevron } from "@/components/icons";
 import { DropCard } from "./DropCard";
+import { InboxRefresh } from "./InboxRefresh";
 
 export default async function Dashboard({
   searchParams,
@@ -20,7 +21,7 @@ export default async function Dashboard({
     attendedArtists(supabase, user.id),
     fanScans(supabase),
     supabase.from("drops").select("*, artist:artists(name)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
-    supabase.from("messages").select("id, body, channel, created_at, artist:artists(name)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
+    fanMessages(supabase, user.id),
     supabase.from("concerts").select("id, artist, venue, date, artist_id"),
   ]);
   const concertBy = new Map((concerts ?? []).map((c) => [c.id, c]));
@@ -50,6 +51,7 @@ export default async function Dashboard({
 
   return (
     <Page>
+      <InboxRefresh />
       <Header
         right={
           <form action="/auth/signout" method="post">
@@ -114,7 +116,7 @@ export default async function Dashboard({
               ) : (
                 <Panel key={i.m.id} className="p-4">
                   <p className="label text-ink-2">
-                    {(Array.isArray(i.m.artist) ? i.m.artist[0] : i.m.artist)?.name ?? "Artist"} · {timeAgo(i.m.created_at)}
+                    {(Array.isArray(i.m.artist) ? i.m.artist[0] : i.m.artist)?.name ?? (Array.isArray(i.m.concert) ? i.m.concert[0] : i.m.concert)?.name ?? "Event"} · {timeAgo(i.m.created_at)}
                   </p>
                   <p className="t-body mt-2">{i.m.body}</p>
                 </Panel>

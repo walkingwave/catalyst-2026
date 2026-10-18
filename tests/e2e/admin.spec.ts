@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { PIN, adminHeaders, deleteEvent, deleteArtist, testUid } from "./helpers";
+import type { EventNotification } from "@/lib/event-notifications";
 
 async function unlock(page: import("@playwright/test").Page) {
   await page.goto("/admin");
@@ -7,6 +8,104 @@ async function unlock(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: /unlock/i }).click();
   await expect(page.getByRole("heading", { name: /^admin$/i })).toBeVisible();
 }
+
+test.describe("Event notification controls", () => {
+  test.use({ timezoneId: "America/Toronto" });
+  const eventA = "00000000-0000-0000-0000-000000000001";
+  const eventB = "00000000-0000-0000-0000-000000000002";
+
+  async function setup(page: import("@playwright/test").Page, path: string, sms = true) {
+    const notifications: EventNotification[] = [];
+    const sent: Record<string, unknown>[] = [];
+    const events = [eventA, eventB].map((id, i) => ({
+      id, name: `Event ${i === 0 ? "A" : "B"}`, artist: "Test Artist", venue: "Test Venue", date: "2026-10-18",
+      activities: [], bands: { total: 3, claimed: 3 },
+    }));
+    await page.addInitScript(() => localStorage.setItem("cc_staff_pin", "test-pin"));
+    await page.route("**/api/admin/events", (route) => route.fulfill({ json: { ok: true, events, artists: [] } }));
+    await page.route("**/api/staff/catalog", (route) => route.fulfill({ json: { ok: true, concerts: events, activities: [] } }));
+    await page.route("**/api/admin/notifications**", async (route) => {
+      expect(route.request().headers()["x-staff-pin"]).toBe("test-pin");
+      const url = new URL(route.request().url());
+      if (route.request().method() === "POST") {
+        const body = route.request().postDataJSON();
+        sent.push(body);
+        notifications.unshift({
+          ...body, status: body.scheduled_at ? "scheduled" : "completed",
+          created_at: new Date().toISOString(), recipients: 2, inbox_count: body.scheduled_at ? 0 : 2,
+          sms_sent: 0, failed: 0, skipped: 0, unknown: 0, remaining: 0,
+        });
+        return route.fulfill({ status: 201, json: { ok: true, notification: notifications[0] } });
+      }
+      if (route.request().method() === "DELETE") {
+        const notification = notifications.find((n) => n.id === url.searchParams.get("id"))!;
+        expect(notification.concert_id).toBe(url.searchParams.get("concert_id"));
+        notification.status = "cancelled";
+        return route.fulfill({ json: { ok: true } });
+      }
+      const id = url.searchParams.get("concert_id");
+      return route.fulfill({ json: {
+        ok: true, event: events.find((event) => event.id === id), notifications: notifications.filter((n) => n.concert_id === id),
+        audience: { fans: 2, phones: 1 }, sms_enabled: sms, scheduler_active: true,
+      } });
+    });
+    await page.goto(path);
+    await page.getByTestId("event-picker").getByRole("button", { name: /^event a/i }).click();
+    await page.getByRole("button", { name: /^alerts$/i }).click();
+    await expect(page.getByTestId("event-alerts").getByText("Event A", { exact: true })).toBeVisible();
+    return { sent };
+  }
+
+  for (const path of ["/admin", "/staff"]) {
+    test(`${path}: send now, schedule, cancel, and switch events without leaking the draft`, async ({ page }, testInfo) => {
+      const { sent } = await setup(page, path);
+      const panel = page.getByTestId("event-alerts");
+      await expect(panel.getByText("2 fans · 1 with phone numbers")).toBeVisible();
+      await panel.getByRole("button", { name: "SMS", exact: true }).click();
+      await panel.getByPlaceholder("Event announcement").fill("Doors open soon");
+      await panel.getByRole("button", { name: "Schedule", exact: true }).click();
+      const date = await page.evaluate(() => {
+        const d = new Date(Date.now() + 86400000);
+        d.setSeconds(0, 0);
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        return { local, utc: d.toISOString() };
+      });
+      await panel.getByLabel("Send date and time").fill(date.local);
+      await panel.getByRole("button", { name: "Schedule alert", exact: true }).click();
+      await expect(panel.getByRole("status")).toContainText("Scheduled for");
+      await page.screenshot({ path: testInfo.outputPath("event-alerts.png"), fullPage: true });
+      expect(sent[0]).toMatchObject({ concert_id: eventA, body: "Doors open soon", channel: "sms", scheduled_at: date.utc });
+      expect(sent[0].id).toMatch(/^[0-9a-f-]{36}$/);
+      await panel.getByRole("button", { name: "Cancel alert" }).click();
+      await expect(panel.getByText("Cancelled", { exact: true })).toBeVisible();
+      await panel.getByPlaceholder("Event announcement").fill("Do not send this to Event B");
+      await page.getByRole("button", { name: /all events/i }).click();
+      await page.getByTestId("event-picker").getByRole("button", { name: /^event b/i }).click();
+      await page.getByRole("button", { name: /^alerts$/i }).click();
+      await expect(panel.getByText("Event B", { exact: true })).toBeVisible();
+      await expect(panel.getByPlaceholder("Event announcement")).toHaveValue("");
+      await expect(panel.getByRole("button", { name: "Inbox", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await panel.getByPlaceholder("Event announcement").fill("Event B announcement");
+      await panel.getByRole("button", { name: "Send to 2 fans now" }).click();
+      await expect(panel.getByText("Completed", { exact: true })).toBeVisible();
+      expect(sent[1]).toMatchObject({ concert_id: eventB, body: "Event B announcement", channel: "inbox", scheduled_at: null });
+      await expect(panel.getByText("2 inbox copies")).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+
+  test("unavailable SMS and past schedules are handled without sending a request", async ({ page }) => {
+    const { sent } = await setup(page, "/admin", false);
+    const panel = page.getByTestId("event-alerts");
+    await expect(panel.getByRole("button", { name: "SMS", exact: true })).toBeDisabled();
+    await panel.getByPlaceholder("Event announcement").fill("Reminder");
+    await panel.getByRole("button", { name: "Schedule", exact: true }).click();
+    await panel.getByLabel("Send date and time").fill("2020-01-01T12:00");
+    await panel.getByRole("button", { name: "Schedule alert", exact: true }).click();
+    await expect(panel.getByRole("alert")).toHaveText("Choose a future date and time.");
+    expect(sent).toHaveLength(0);
+  });
+});
 
 test.describe("Admin console", () => {
   test("create event via UI with new team and activities, then it is selected", async ({ page, request }) => {
@@ -16,7 +115,6 @@ test.describe("Admin console", () => {
     let artistId: string | null = null;
     try {
       await unlock(page);
-      await page.getByRole("button", { name: /^events$/i }).click();
       // Form must be closed by default when events exist.
       await expect(page.getByRole("button", { name: /new event/i })).toBeVisible();
       await page.getByRole("button", { name: /new event/i }).click();
@@ -25,9 +123,9 @@ test.describe("Admin console", () => {
       await page.getByPlaceholder("Venue").fill("E2E Arena");
       await page.getByPlaceholder("Address").fill("1 E2E Way");
       await page.getByPlaceholder("Doors").fill("6:30 PM");
-      await page.locator("select").nth(1).selectOption("new");
+      await page.locator("select").nth(0).selectOption("new");
       await page.getByPlaceholder("Name").nth(1).fill(team);
-      await page.locator("select").nth(2).selectOption("team");
+      await page.locator("select").nth(1).selectOption("team");
       // edit points of first activity, add one, remove one
       const pts = page.getByPlaceholder("pts");
       await pts.first().fill("60");
@@ -41,7 +139,8 @@ test.describe("Admin console", () => {
       await expect(page.getByText(/event created/i)).toBeVisible();
       await expect(page.getByTestId("event-editor")).toBeVisible();
       await page.getByTestId("event-editor").getByRole("button", { name: /^events$/i }).click();
-      await expect(page.getByRole("combobox").first()).toContainText(team);
+      await page.getByRole("button", { name: /all events/i }).click();
+      await expect(page.getByTestId("event-picker").getByRole("button", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })).toContainText(team);
 
       const list = await (await request.get("/api/admin/events", { headers: adminHeaders })).json();
       const ev = list.events.find((e: { name: string }) => e.name === name);
@@ -64,7 +163,7 @@ test.describe("Admin console", () => {
     const uid = testUid();
     try {
       await unlock(page);
-      await page.getByRole("combobox").first().selectOption(ev.id);
+      await page.getByTestId("event-picker").getByRole("button", { name: new RegExp(ev.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.getByText(/2 activities · 0 bands/i)).toBeVisible();
       await page.getByRole("button", { name: /fan zone/i }).click();
       await page.getByRole("button", { name: /open station/i }).click();
@@ -95,7 +194,7 @@ test.describe("Admin console", () => {
     const uid = testUid();
     try {
       await unlock(page);
-      await page.getByRole("combobox").first().selectOption(a.id);
+      await page.getByTestId("event-picker").getByRole("button", { name: new RegExp(a.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await page.getByRole("button", { name: /open station/i }).click();
       const station = page.getByTestId("station");
       await station.getByRole("button", { name: /^write$/i }).click();
@@ -138,7 +237,7 @@ test.describe("Admin station mode", () => {
     const uid = testUid();
     try {
       await unlock(page);
-      await page.getByRole("combobox").first().selectOption(ev.id);
+      await page.getByTestId("event-picker").getByRole("button", { name: new RegExp(ev.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await page.getByRole("button", { name: /^merch \+100/i }).click();
       await page.getByRole("button", { name: /open station/i }).click();
       const station = page.getByTestId("station");
@@ -190,8 +289,10 @@ test.describe("Admin content management", () => {
     const ev = (await r.json()).event;
     try {
       await unlock(page);
-      await page.getByRole("button", { name: /^events$/i }).click();
-      await page.getByRole("button", { name: new RegExp(ev.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+      await page.getByTestId("event-picker")
+        .getByRole("button", { name: new RegExp(ev.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })
+        .getByRole("button", { name: /^edit$/i })
+        .click();
       const editor = page.getByTestId("event-editor");
       await expect(editor).toBeVisible();
 
@@ -240,10 +341,15 @@ test.describe("Admin content management", () => {
 
   test("rewards: add, edit, delete for an artist; artist profile edits", async ({ page, request }) => {
     const artist = (await (await request.post("/api/admin/artists", { headers: adminHeaders, data: { name: `E2E Rewards Artist ${Date.now()}` } })).json()).artist;
+    const ev = (await (await request.post("/api/admin/events", {
+      headers: adminHeaders,
+      data: { name: `E2E Rewards ${Date.now()}`, venue: "V", date: "2026-10-23", artist_id: artist.id, activities: [{ name: "Entry", points: 50 }] },
+    })).json()).event;
     try {
       await unlock(page);
+      await page.getByTestId("event-picker").getByRole("button", { name: new RegExp(ev.name) }).click();
       await page.getByRole("button", { name: /^rewards$/i }).click();
-      await page.locator("select").nth(1).selectOption(artist.id);
+      await expect(page.getByText(artist.name, { exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: /0 rewards/i })).toBeVisible();
       await page.getByRole("button", { name: /\+ add/i }).click();
       const ed = page.getByTestId("reward-editor");
@@ -274,6 +380,7 @@ test.describe("Admin content management", () => {
       await bio.blur();
       await expect.poll(async () => (await (await request.get("/api/admin/events", { headers: adminHeaders })).json()).artists.find((a: { id: string }) => a.id === artist.id).bio).toBe("E2E bio");
     } finally {
+      await deleteEvent(request, ev.id);
       await deleteArtist(request, artist.id);
     }
   });

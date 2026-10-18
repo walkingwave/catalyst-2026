@@ -59,7 +59,8 @@ export type Drop = {
 
 export type Message = {
   id: string;
-  artist_id: string;
+  artist_id: string | null;
+  concert_id?: string | null;
   user_id: string;
   channel: "inbox" | "sms";
   body: string;

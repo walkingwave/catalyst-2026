@@ -6,6 +6,7 @@ import { IconCheck, IconChevron, IconLock, IconNfc, IconX } from "@/components/i
 import { normalizeUid } from "@/lib/uid";
 import { EventEditor, type EventRow } from "./EventEditor";
 import { RewardsTab } from "./RewardsTab";
+import { EventNotifications } from "@/components/EventNotifications";
 import type { Artist } from "@/lib/types";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, writeUrl, type NfcSession } from "@/lib/nfc";
 import type { Activity, ScanResult } from "@/lib/types";
@@ -15,7 +16,7 @@ const EVENT_KEY = "cc_admin_event";
 const RESULT_MS = 2200;
 
 type ArtistRow = Artist;
-type Tab = "events" | "tap" | "rewards" | "bands" | "phones";
+type Tab = "tap" | "alerts" | "bands" | "rewards" | "people";
 
 export function AdminConsole() {
   const [pin, setPin] = useState<string | null>(() => {
@@ -56,7 +57,7 @@ export function AdminConsole() {
     const j = (await r.json()) as { events: EventRow[]; artists: ArtistRow[] };
     setEvents(j.events);
     setArtists(j.artists);
-    setEventId((cur) => (cur && j.events.some((e) => e.id === cur) ? cur : j.events[0]?.id ?? ""));
+    setEventId((cur) => (cur && j.events.some((e) => e.id === cur) ? cur : ""));
   }, [pin, headers]);
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export function AdminConsole() {
   useEffect(() => {
     try {
       if (eventId) localStorage.setItem(EVENT_KEY, eventId);
+      else localStorage.removeItem(EVENT_KEY);
     } catch {}
   }, [eventId]);
 
@@ -105,10 +107,10 @@ export function AdminConsole() {
   const editEvent = events.find((e) => e.id === editEventId) ?? null;
   const tabs: { id: Tab; label: string }[] = [
     { id: "tap", label: "Station" },
-    { id: "events", label: "Events" },
-    { id: "rewards", label: "Rewards" },
+    { id: "alerts", label: "Alerts" },
     { id: "bands", label: "Bands" },
-    { id: "phones", label: "Phones" },
+    { id: "rewards", label: "Rewards" },
+    { id: "people", label: "People" },
   ];
 
   return (
@@ -128,57 +130,59 @@ export function AdminConsole() {
         </button>
       </div>
 
-      {/* Event switcher: always visible so taps can jump between events fast. */}
-      <label className="label text-ink-2 block mt-4 mb-2">Current event</label>
-      <select
-        className="w-full h-14 bg-surface-2 px-4 t-body"
-        value={eventId}
-        onChange={(e) => setEventId(e.target.value)}
-      >
-        {events.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.artist} · {e.venue} · {e.date}
-          </option>
-        ))}
-      </select>
-      {event && (
-        <p className="t-foot text-ink-2 mt-2">
-          {event.activities.length} {event.activities.length === 1 ? "activity" : "activities"} · {event.bands.total} {event.bands.total === 1 ? "band" : "bands"} ({event.bands.claimed} claimed)
-        </p>
-      )}
+      {!event ? (
+        <>
+          <EventsTab
+            events={events}
+            artists={artists}
+            headers={headers}
+            onCreated={async (id) => {
+              await load();
+              setEventId(id);
+              setEditEventId(id);
+              flash("Event created");
+            }}
+            onPick={setEditEventId}
+            onSelect={(id) => {
+              setEventId(id);
+              setTab("tap");
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3 mt-4">
+            <div className="min-w-0">
+              <p className="label text-ink-2">Managing</p>
+              <p className="display d-md truncate">{event.name}</p>
+              <p className="t-foot text-ink-2 mt-1">
+                {event.artist} · {event.activities.length} {event.activities.length === 1 ? "activity" : "activities"} · {event.bands.total} {event.bands.total === 1 ? "band" : "bands"} ({event.bands.claimed} claimed)
+              </p>
+            </div>
+            <button className="label underline underline-offset-4 h-11 px-2 shrink-0" onClick={() => { setEventId(""); setTab("tap"); }}>
+              All events
+            </button>
+          </div>
 
-      <div className="flex gap-1 mt-4 bg-surface-2 p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 h-10 label ${tab === t.id ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+          <div className="hscroll flex gap-1 mt-4 bg-surface-2 p-1 overflow-x-auto">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`shrink-0 h-10 px-3 label ${tab === t.id ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {tab === "tap" && event && <TapTab key={event.id} event={event} headers={headers} nfcSupported={nfcSupported} onChanged={load} />}
-      {tab === "rewards" && <RewardsTab artists={artists} headers={headers} flash={flash} onArtistsChanged={load} />}
+      {tab === "alerts" && event && <EventNotifications key={event.id} eventId={event.id} headers={headers} />}
       {tab === "bands" && event && <BandsTab event={event} events={events} headers={headers} flash={flash} onChanged={load} />}
-      {tab === "events" && (
-        <EventsTab
-          events={events}
-          artists={artists}
-          headers={headers}
-          onCreated={async (id) => {
-            await load();
-            setEventId(id);
-            setEditEventId(id);
-            flash("Event created");
-          }}
-          onPick={(id) => {
-            setEventId(id);
-            setEditEventId(id);
-          }}
-        />
-      )}
+      {tab === "rewards" && event && <RewardsTab key={event.id} artists={artists} headers={headers} flash={flash} onArtistsChanged={load} fixedArtistId={event.artist_id ?? ""} />}
+      {tab === "people" && event && <PeopleTab key={event.id} eventId={event.id} headers={headers} />}
       {editEvent && (
         <EventEditor
           key={editEvent.id}
@@ -190,8 +194,6 @@ export function AdminConsole() {
           flash={flash}
         />
       )}
-      {tab === "phones" && <PhonesTab headers={headers} flash={flash} />}
-      {!event && tab !== "events" && tab !== "phones" && tab !== "rewards" && <Panel className="mt-4"><Empty>No events yet.</Empty></Panel>}
 
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 bg-invert-bg text-invert-fg px-4 py-3 label z-50 pointer-events-none">{toast}</div>}
     </main>
@@ -840,12 +842,14 @@ function EventsTab({
   headers,
   onCreated,
   onPick,
+  onSelect,
 }: {
   events: EventRow[];
   artists: ArtistRow[];
   headers: () => HeadersInit;
   onCreated: (id: string) => void;
   onPick: (id: string) => void;
+  onSelect: (id: string) => void;
 }) {
   const [openPref, setOpen] = useState<boolean | null>(null);
   const open = openPref ?? events.length === 0; // auto-open only when there are truly no events
@@ -976,85 +980,72 @@ function EventsTab({
       {events.length === 0 ? (
         <Panel><Empty>No events yet.</Empty></Panel>
       ) : (
-        <List>
-          {events.map((e) => (
-            <Row
-              key={e.id}
-              onClick={() => onPick(e.id)}
-              title={`${e.artist} · ${e.venue}`}
-              subtitle={`${e.date} · ${e.activities.length} activities · ${e.bands.total} bands`}
-              value={e.activities.reduce((n, a) => n + a.points, 0)}
-              chevron
-            />
-          ))}
-        </List>
+        <div data-testid="event-picker">
+          <List>
+            {events.map((e) => (
+              <Row
+                key={e.id}
+                onClick={() => onSelect(e.id)}
+                title={e.name}
+                subtitle={`${e.artist} · ${e.venue} · ${e.date}`}
+                value={
+                  <span role="button" tabIndex={0}
+                    onClick={(ev) => { ev.stopPropagation(); onPick(e.id); }}
+                    onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.stopPropagation(); ev.preventDefault(); onPick(e.id); } }}
+                    className="label underline underline-offset-4 normal-case">
+                    Edit
+                  </span>
+                }
+                chevron
+              />
+            ))}
+          </List>
+        </div>
       )}
     </>
   );
 }
 
-/* ---------------- Phones: demo numbers that sign in with a fixed code (no SMS) ---------------- */
+/* ---------------- People: every account with a claimed band at the event ---------------- */
 
-type DemoPhones = { ok: boolean; configured: boolean; message?: string; otps?: { phone: string; code: string }[]; valid_until?: string | null; phone_enabled?: boolean };
+type DemoPhones = { otps?: { phone: string; code: string }[] };
 
-function PhonesTab({ headers, flash }: { headers: () => HeadersInit; flash: (m: string) => void }) {
+type Person = { id: string; name: string; phone: string | null; bands: string[] };
+
+function PeopleTab({ eventId, headers }: { eventId: string; headers: () => HeadersInit }) {
   const [data, setData] = useState<DemoPhones | null>(null);
-  const [phone, setPhone] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [people, setPeople] = useState<Person[] | null>(null);
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/admin/demo-phones", { headers: headers() });
-    setData(await r.json());
-  }, [headers]);
+    const [demo, roster] = await Promise.all([
+      fetch("/api/admin/demo-phones", { headers: headers() }).then((r) => r.json()).catch(() => ({})),
+      fetch(`/api/admin/people?concert_id=${eventId}`, { headers: headers() }).then((r) => r.json()).catch(() => ({ people: [] })),
+    ]);
+    setData(demo);
+    setPeople(roster.people ?? []);
+  }, [eventId, headers]);
+  const demoSet = new Set((data?.otps ?? []).map((t) => t.phone));
   useEffect(() => {
     queueMicrotask(() => void load());
   }, [load]);
 
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    const r = await fetch("/api/admin/demo-phones", { method: "POST", headers: headers(), body: JSON.stringify({ phone }) });
-    const j = await r.json();
-    setBusy(false);
-    if (!r.ok || !j.ok) return flash(j.message ?? "Could not add");
-    flash(`${j.phone} signs in with code ${j.code}`);
-    setPhone("");
-    void load();
-  }
-  async function remove(p: string) {
-    await fetch(`/api/admin/demo-phones?phone=${encodeURIComponent(p)}`, { method: "DELETE", headers: headers() });
-    void load();
-  }
-
   return (
     <>
-      <SectionHeader>Demo phones</SectionHeader>
-      <p className="t-sub text-ink-2">These numbers sign in with code <span className="font-mono">123456</span>, no text sent.</p>
-      {data && !data.configured && (
-        <Panel className="p-4 mt-3">
-          <p className="t-sub">
-            Needs <span className="font-mono">SUPABASE_ACCESS_TOKEN</span> in the server env. Create one at supabase.com/dashboard/account/tokens. Until then, edit the list in Supabase → Authentication → Phone → Test OTPs.
-          </p>
-        </Panel>
-      )}
-      {data && data.configured && !data.ok && <p className="t-foot text-danger mt-3">{data.message}</p>}
-      {data?.configured && data.ok && (
-        <>
-          <form onSubmit={add} className="flex gap-2 mt-4">
-            <Input type="tel" inputMode="tel" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <button type="submit" disabled={busy || !phone} className="h-14 px-5 bg-invert-bg text-invert-fg display d-sm disabled:opacity-40 press">
-              {busy ? "…" : "Add"}
-            </button>
-          </form>
-          <p className="t-foot text-ink-2 mt-2">
-            {data.otps?.length ?? 0} numbers · valid until {data.valid_until ? new Date(data.valid_until).toLocaleDateString() : "—"}
-          </p>
-          <List className="mt-3">
-            {(data.otps ?? []).map((t) => (
-              <Row key={t.phone} title={<span className="font-mono">+{t.phone}</span>} subtitle={`code ${t.code}`} value={<button onClick={() => remove(t.phone)} className="label underline underline-offset-4 normal-case">Remove</button>} />
-            ))}
-          </List>
-        </>
+      <SectionHeader>{people ? `${people.length} ${people.length === 1 ? "person" : "people"}` : "People"}</SectionHeader>
+      {!people ? <p className="t-sub text-ink-2">Loading people…</p> : people.length === 0 ? <Empty>No one has claimed a band at this event yet.</Empty> : (
+        <div data-testid="people-list"><List>
+          {people.map((p) => {
+            const demo = !!p.phone && demoSet.has(p.phone.replace(/^\+/, ""));
+            return (
+              <Row
+                key={p.id}
+                title={p.name || "Unnamed fan"}
+                subtitle={<><span className="font-mono">{p.phone ?? "No phone"}</span> · {p.bands.length} {p.bands.length === 1 ? "band" : "bands"}</>}
+                value={<Badge tone={demo ? "warning" : "ink"}>{demo ? "Demo" : "Real"}</Badge>}
+              />
+            );
+          })}
+        </List></div>
       )}
     </>
   );

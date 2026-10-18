@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 /**
  * Outbound SMS. Provider picked by env:
  *   TEXTBELT_KEY   -> textbelt.com (cheap, any US/CA number, custom text; "textbelt" = 1 free/day)
@@ -6,8 +8,24 @@
  */
 export type SmsResult = { ok: boolean; provider: "textbelt" | "twilio" | "none"; error?: string; quota?: number };
 
+const OPT_OUT_FOOTER = "\n\nReply STOP to unsubscribe.";
+
+/** Failed, disabled and pending sends must not suppress the first successful send's notice. */
+export async function smsWithOptOut(db: SupabaseClient, userId: string, body: string): Promise<string> {
+  const { count } = await db
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("channel", "sms")
+    .eq("sms_status", "sent");
+  return count ? body : body + OPT_OUT_FOOTER;
+}
+
 export function smsEnabled(): boolean {
-  return process.env.SMS_NOTIFICATIONS === "true" && (!!process.env.TEXTBELT_KEY || !!process.env.TWILIO_ACCOUNT_SID);
+  return process.env.SMS_NOTIFICATIONS === "true" && (
+    !!process.env.TEXTBELT_KEY ||
+    !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM)
+  );
 }
 
 export async function sendSms(to: string, body: string, opts: { force?: boolean } = {}): Promise<SmsResult> {
@@ -19,13 +37,15 @@ export async function sendSms(to: string, body: string, opts: { force?: boolean 
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ phone: to, message: body, key: process.env.TEXTBELT_KEY, sender: "BandDrop" }),
+        signal: AbortSignal.timeout(opts.force ? 4000 : 8000),
       });
       const j = (await r.json()) as { success: boolean; error?: string; quotaRemaining?: number };
       if (!j.success) console.error("[sms] textbelt:", j.error);
       return { ok: j.success, provider: "textbelt", error: j.error, quota: j.quotaRemaining };
     } catch (err) {
-      console.error("[sms] textbelt failed", err);
-      return { ok: false, provider: "textbelt", error: String(err) };
+      const error = err instanceof Error && err.name === "TimeoutError" ? "SMS request timed out; delivery unknown" : "SMS provider request failed";
+      console.error("[sms]", error);
+      return { ok: false, provider: "textbelt", error };
     }
   }
 
@@ -35,7 +55,7 @@ export async function sendSms(to: string, body: string, opts: { force?: boolean 
   if (sid && token && from) {
     try {
       const { default: twilio } = await import("twilio");
-      await twilio(sid, token).messages.create({ to, from, body });
+      await twilio(sid, token, { timeout: opts.force ? 4000 : 8000, autoRetry: false }).messages.create({ to, from, body });
       return { ok: true, provider: "twilio" };
     } catch (err) {
       console.error("[sms] twilio failed", err);

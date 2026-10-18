@@ -23,7 +23,7 @@ test.describe("Staff station", () => {
       await page.goto("/staff");
       await page.getByPlaceholder("••••").fill(PIN);
       await page.getByRole("button", { name: /unlock/i }).click();
-      await page.getByRole("combobox").selectOption(ev.id);
+      await page.getByRole("button", { name: new RegExp(ev.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await page.getByRole("button", { name: /merch booth/i }).click();
       await expect(page.getByText(/no nfc in this browser/i)).toBeVisible();
       await page.getByPlaceholder("Band UID").fill(uid);

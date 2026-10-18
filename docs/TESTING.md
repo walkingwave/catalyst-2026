@@ -17,6 +17,19 @@ Viewport is iPhone 14 in Chromium (Web NFC paths show their fallbacks, like a re
 
 ## Coverage
 
+Event notifications: `tests/unit/event-notifications.test.ts` checks schedule/timezone
+validation, PIN/cron guards, idempotent requests and worker outcomes with SMS mocked.
+The "Event notification controls" tests in `tests/e2e/admin.spec.ts` exercise both
+admin and staff with mocked APIs (no messages are sent), including schedule/cancel,
+event switching, timezone conversion and mobile overflow.
+
+`tests/event-notifications.sql` bootstraps minimal fixtures and applies migration
+0009 in an **empty disposable PostgreSQL database**. Run it with
+`psql -v ON_ERROR_STOP=1 -f tests/event-notifications.sql` using a local test database
+connection. Never point this fixture script at live Supabase. It checks audience
+deduplication and event isolation, late claims, no early sends, cancellation,
+batch reservations, uncertain-delivery recovery and service-only grants.
+
 | file | what |
 |---|---|
 | `tests/unit/*.test.ts` | `normalizePhone`, `normalizeUid`/`isValidUid`, `checkStaffPin` (timing-safe, fails closed) |
