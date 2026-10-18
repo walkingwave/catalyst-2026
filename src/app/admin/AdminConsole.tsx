@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge } from "@/components/ui";
+import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge, ConsoleSkeleton } from "@/components/ui";
 import { IconCheck, IconChevron, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
 import { EventEditor, type EventRow } from "./EventEditor";
 import { RewardsTab } from "./RewardsTab";
+import { PeopleTab } from "./PeopleTab";
 import { EventNotifications } from "@/components/EventNotifications";
 import type { Artist } from "@/lib/types";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, writeUrl, type NfcSession } from "@/lib/nfc";
@@ -40,24 +41,30 @@ export function AdminConsole() {
   const [tab, setTab] = useState<Tab>("tap");
   const [editEventId, setEditEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Until the first event list arrives, show the skeleton instead of an empty picker that then jumps.
+  const [loaded, setLoaded] = useState(false);
   const nfcSupported = nfcOk();
 
   const headers = useCallback(() => ({ "x-staff-pin": pin ?? "", "content-type": "application/json" }), [pin]);
 
   const load = useCallback(async () => {
     if (!pin) return;
-    const r = await fetch("/api/admin/events", { headers: headers() });
-    if (r.status === 401) {
-      setPin(null);
-      try {
-        localStorage.removeItem(PIN_KEY);
-      } catch {}
-      return;
+    try {
+      const r = await fetch("/api/admin/events", { headers: headers() });
+      if (r.status === 401) {
+        setPin(null);
+        try {
+          localStorage.removeItem(PIN_KEY);
+        } catch {}
+        return;
+      }
+      const j = (await r.json()) as { events: EventRow[]; artists: ArtistRow[] };
+      setEvents(j.events);
+      setArtists(j.artists);
+      setEventId((cur) => (cur && j.events.some((e) => e.id === cur) ? cur : ""));
+    } finally {
+      setLoaded(true);
     }
-    const j = (await r.json()) as { events: EventRow[]; artists: ArtistRow[] };
-    setEvents(j.events);
-    setArtists(j.artists);
-    setEventId((cur) => (cur && j.events.some((e) => e.id === cur) ? cur : ""));
   }, [pin, headers]);
 
   useEffect(() => {
@@ -102,6 +109,8 @@ export function AdminConsole() {
       </main>
     );
   }
+
+  if (!loaded) return <ConsoleSkeleton label="Loading admin" />;
 
   const event = events.find((e) => e.id === eventId) ?? null;
   const editEvent = events.find((e) => e.id === editEventId) ?? null;
@@ -182,7 +191,7 @@ export function AdminConsole() {
       {tab === "alerts" && event && <EventNotifications key={event.id} eventId={event.id} headers={headers} />}
       {tab === "bands" && event && <BandsTab event={event} events={events} headers={headers} flash={flash} onChanged={load} />}
       {tab === "rewards" && event && <RewardsTab key={event.id} artists={artists} headers={headers} flash={flash} onArtistsChanged={load} fixedArtistId={event.artist_id ?? ""} />}
-      {tab === "people" && event && <PeopleTab key={event.id} eventId={event.id} headers={headers} />}
+      {tab === "people" && event && <PeopleTab key={event.id} eventId={event.id} headers={headers} flash={flash} />}
       {editEvent && (
         <EventEditor
           key={editEvent.id}
@@ -269,7 +278,7 @@ function BandInfoCard({ info, invert = false }: { info: BandInfo; invert?: boole
 /* ---------------- Tap: simulate scans at the current event ---------------- */
 
 function TapTab({ event, headers, nfcSupported, onChanged }: { event: EventRow; headers: () => HeadersInit; nfcSupported: boolean; onChanged: () => void }) {
-  const scanActs = event.activities.filter((a) => a.kind !== "social");
+  const scanActs = event.activities.filter((a) => (a.kind ?? "scan") === "scan");
   const [activityId, setActivityId] = useState(scanActs[0]?.id ?? "");
   const [liveBusy, setLiveBusy] = useState(false);
   const liveActivity = scanActs.find((a) => a.id === event.live_activity_id) ?? null;
@@ -859,7 +868,6 @@ function EventsTab({
   const [address, setAddress] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [doors, setDoors] = useState("");
-  const [artistId, setArtistId] = useState<string>(artists[0]?.id ?? "new");
   const [newArtist, setNewArtist] = useState("");
   const [newKind, setNewKind] = useState<"artist" | "team">("artist");
   const [acts, setActs] = useState<ActDraft[]>([
@@ -870,6 +878,7 @@ function EventsTab({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const total = acts.reduce((n, a) => n + (Number(a.points) || 0), 0);
+  const isNewArtist = !!newArtist.trim() && !artists.some((a) => a.name.toLowerCase() === newArtist.trim().toLowerCase());
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -885,8 +894,8 @@ function EventsTab({
         address,
         date,
         doors_at: doors,
-        artist_id: artistId === "new" ? undefined : artistId,
-        new_artist: artistId === "new" ? { name: newArtist, kind: newKind } : undefined,
+        // The server reuses an existing artist with this name or creates a new one.
+        new_artist: newArtist.trim() ? { name: newArtist, kind: newKind } : undefined,
         activities: acts.map((a) => ({ name: a.name, points: Number(a.points) || 0, location: a.location })),
       }),
     });
@@ -931,24 +940,18 @@ function EventsTab({
               </Field>
             </div>
             <Field label="Artist or team">
-              <select className="w-full h-14 bg-surface-2 px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
-                {artists.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.kind})
-                  </option>
-                ))}
-                <option value="new">+ New artist / team</option>
-              </select>
-            </Field>
-            {artistId === "new" && (
               <div className="grid grid-cols-[1fr_auto] gap-2">
-                <Input value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Name" required />
-                <select className="h-14 bg-surface-2 px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
-                  <option value="artist">Artist</option>
-                  <option value="team">Team</option>
-                </select>
+                <Input list="new-event-artists" value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Artist or team name" required />
+                {isNewArtist && (
+                  <select aria-label="Artist or team" className="h-14 bg-surface-2 px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
+                    <option value="artist">Artist</option>
+                    <option value="team">Team</option>
+                  </select>
+                )}
               </div>
-            )}
+              <datalist id="new-event-artists">{artists.map((a) => <option key={a.id} value={a.name} />)}</datalist>
+            </Field>
+            {isNewArtist && <p className="t-foot text-ink-2 -mt-2">New {newKind}: creates &ldquo;{newArtist.trim()}&rdquo; with its own rewards and console code.</p>}
 
             <div>
               <div className="flex items-end justify-between mb-2">
@@ -1001,51 +1004,6 @@ function EventsTab({
             ))}
           </List>
         </div>
-      )}
-    </>
-  );
-}
-
-/* ---------------- People: every account with a claimed band at the event ---------------- */
-
-type DemoPhones = { otps?: { phone: string; code: string }[] };
-
-type Person = { id: string; name: string; phone: string | null; bands: string[] };
-
-function PeopleTab({ eventId, headers }: { eventId: string; headers: () => HeadersInit }) {
-  const [data, setData] = useState<DemoPhones | null>(null);
-  const [people, setPeople] = useState<Person[] | null>(null);
-
-  const load = useCallback(async () => {
-    const [demo, roster] = await Promise.all([
-      fetch("/api/admin/demo-phones", { headers: headers() }).then((r) => r.json()).catch(() => ({})),
-      fetch(`/api/admin/people?concert_id=${eventId}`, { headers: headers() }).then((r) => r.json()).catch(() => ({ people: [] })),
-    ]);
-    setData(demo);
-    setPeople(roster.people ?? []);
-  }, [eventId, headers]);
-  const demoSet = new Set((data?.otps ?? []).map((t) => t.phone));
-  useEffect(() => {
-    queueMicrotask(() => void load());
-  }, [load]);
-
-  return (
-    <>
-      <SectionHeader>{people ? `${people.length} ${people.length === 1 ? "person" : "people"}` : "People"}</SectionHeader>
-      {!people ? <p className="t-sub text-ink-2">Loading people…</p> : people.length === 0 ? <Empty>No one has claimed a band at this event yet.</Empty> : (
-        <div data-testid="people-list"><List>
-          {people.map((p) => {
-            const demo = !!p.phone && demoSet.has(p.phone.replace(/^\+/, ""));
-            return (
-              <Row
-                key={p.id}
-                title={p.name || "Unnamed fan"}
-                subtitle={<><span className="font-mono">{p.phone ?? "No phone"}</span> · {p.bands.length} {p.bands.length === 1 ? "band" : "bands"}</>}
-                value={<Badge tone={demo ? "warning" : "ink"}>{demo ? "Demo" : "Real"}</Badge>}
-              />
-            );
-          })}
-        </List></div>
       )}
     </>
   );

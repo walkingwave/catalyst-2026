@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { ConsoleSkeleton } from "@/components/ui";
 
 const ArtistConsole = dynamic(() => import("./ArtistConsole").then((m) => m.ArtistConsole), {
   ssr: false,
-  loading: () => <p className="t-sub text-ink-2 p-6">Loading console…</p>,
+  loading: () => <ConsoleSkeleton label="Loading artist console" />,
 });
 
 export function ArtistLoader() {

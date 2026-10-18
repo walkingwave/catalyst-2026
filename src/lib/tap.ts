@@ -40,11 +40,11 @@ export async function recordSelfTap(uid: string): Promise<TapOutcome> {
 
   const { data: concert } = await db
     .from("concerts")
-    .select("live_activity_id, activity:activities!concerts_live_activity_id_fkey(id, name, points, concert_id)")
+    .select("live_activity_id, activity:activities!concerts_live_activity_id_fkey(id, name, points, concert_id, kind)")
     .eq("id", band.concert_id)
     .maybeSingle();
   const act = concert && (Array.isArray(concert.activity) ? concert.activity[0] : concert.activity);
-  if (!act || act.concert_id !== band.concert_id) return { kind: "none" };
+  if (!act || act.concert_id !== band.concert_id || (act.kind ?? "scan") !== "scan") return { kind: "none" };
 
   const { error } = await db.from("scans").insert({ band_uid: uid, activity_id: act.id });
   if (error) {

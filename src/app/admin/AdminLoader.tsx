@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { ConsoleSkeleton } from "@/components/ui";
 
 // Web NFC + localStorage are browser-only.
 const AdminConsole = dynamic(() => import("./AdminConsole").then((m) => m.AdminConsole), {
   ssr: false,
-  loading: () => <p className="t-sub text-ink-2 p-6">Loading admin…</p>,
+  loading: () => <ConsoleSkeleton label="Loading admin" />,
 });
 
 export function AdminLoader() {

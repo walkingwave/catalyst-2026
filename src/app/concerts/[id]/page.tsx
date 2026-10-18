@@ -1,11 +1,11 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireFan, fanScans, formatDate } from "@/lib/fan";
-import { Page, List, Row, SectionHeader, Points } from "@/components/ui";
+import { Page, List, Row, SectionHeader } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { VenueMap } from "@/components/VenueMap";
-import { SocialSubmit } from "@/components/SocialSubmit";
+import { ActivityRows } from "@/components/ActivityRows";
 import { PollCard } from "@/components/PollCard";
 import { fanPolls } from "@/lib/fan";
 import type { Activity, Concert } from "@/lib/types";
@@ -14,25 +14,28 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { supabase, user } = await requireFan(`/concerts/${id}`);
 
-  const [{ data: concert }, { data: activities }, scans, { data: posts }] = await Promise.all([
+  const [{ data: concert }, { data: activities }, scans, { data: posts }, { data: answers }] = await Promise.all([
     supabase.from("concerts").select("*").eq("id", id).maybeSingle(),
     supabase.from("activities").select("*").eq("concert_id", id).order("points"),
     fanScans(supabase),
     supabase.from("social_posts").select("activity_id, status").eq("user_id", user.id),
+    supabase.from("activity_completions").select("activity_id, response").eq("user_id", user.id),
   ]);
   if (!concert) notFound();
   const c = concert as Concert;
   const polls = c.artist_id ? await fanPolls(supabase, c.artist_id, 1) : [];
-  const acts = (activities ?? []) as Activity[];
+  // Pre-event tasks first so fans with only an invite see what they can do now.
+  const acts = ((activities ?? []) as Activity[]).sort((a, b) => Number(!!b.pre_event) - Number(!!a.pre_event));
+  const answerBy = new Map((answers ?? []).map((x) => [x.activity_id, x.response]));
   const mine = scans.filter((s) => s.activity?.concert_id === id);
   const doneNames = new Set(mine.map((s) => s.activity?.name));
   const doneIds = new Set(acts.filter((a) => doneNames.has(a.name)).map((a) => a.id));
   const postBy = new Map((posts ?? []).map((p) => [p.activity_id, p.status]));
   for (const [aid, st] of postBy) if (st === "approved") doneIds.add(aid);
-  const scanActs = acts.filter((a) => a.kind !== "social");
-  const socialActs = acts.filter((a) => a.kind === "social");
-  const socialEarned = acts.filter((a) => a.kind === "social" && postBy.get(a.id) === "approved").reduce((n, a) => n + a.points, 0);
-  const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0) + socialEarned;
+  for (const aid of answerBy.keys()) doneIds.add(aid);
+  const scanActs = acts.filter((a) => (a.kind ?? "scan") === "scan");
+  const remoteEarned = acts.filter((a) => (a.kind === "social" && postBy.get(a.id) === "approved") || answerBy.has(a.id)).reduce((n, a) => n + a.points, 0);
+  const earned = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0) + remoteEarned;
   const possible = acts.reduce((n, a) => n + a.points, 0);
 
   return (
@@ -41,8 +44,8 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
       <div className="relative aspect-[4/5] mt-2 -mx-4 overflow-hidden">
         {c.image_url && <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" priority />}
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white">
-          <p className="label text-white/70">{formatDate(c.date)} · {c.venue}</p>
-          <h1 className="display d-hero mt-1">{c.artist}</h1>
+          <p className="label text-white/70">{c.artist} · {formatDate(c.date)} · {c.venue}</p>
+          <h1 className="display d-hero mt-1">{c.name}</h1>
         </div>
       </div>
       <p className="t-body text-ink-2 mt-4">{c.description}</p>
@@ -56,7 +59,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
 
       <SectionHeader>Details</SectionHeader>
       <List>
-        <Row title="Show" value={<span className="t-sub normal-case font-sans font-medium">{c.name}</span>} />
+        <Row title="Artist" value={<span className="t-sub normal-case font-sans font-medium">{c.artist}</span>} />
         <Row title="Venue" value={<span className="t-sub normal-case font-sans font-medium">{c.venue}</span>} />
         {c.doors_at && <Row title="Doors" value={<span className="t-sub normal-case font-sans font-medium">{c.doors_at}</span>} />}
         {c.address && <Row title="Address" value={<span className="t-sub normal-case font-sans font-medium">{c.address}</span>} />}
@@ -74,40 +77,9 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {socialActs.length > 0 && (
-        <>
-          <SectionHeader>Social</SectionHeader>
-          <div className="rules">
-            {socialActs.map((a) => {
-              const st = postBy.get(a.id);
-              return (
-                <div key={a.id}>
-                  <Row
-                    title={a.name}
-                    subtitle={a.location ?? undefined}
-                    value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
-                    valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
-                  />
-                  {!st && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
+      {/* Every activity lives here: tap-ins, plus social posts and song requests with their answer box inline. */}
       <SectionHeader>Activities</SectionHeader>
-      <List>
-        {scanActs.map((a) => (
-          <Row
-            key={a.id}
-            title={a.name}
-            subtitle={a.location ?? undefined}
-            value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
-            valueTone={doneIds.has(a.id) ? "success" : "default"}
-          />
-        ))}
-      </List>
+      <ActivityRows acts={acts} concert={c} doneIds={doneIds} postBy={postBy} answerBy={answerBy} />
       <Nav />
     </Page>
   );

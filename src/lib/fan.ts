@@ -18,19 +18,21 @@ export async function requireFan(nextPath: string) {
   return { supabase, user, profile: profile ?? { id: user.id, name: "", phone: user.phone ?? null } };
 }
 
-/** Keep the existing inbox readable while the event-notification migration rolls out. */
-export async function fanMessages(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const result = await supabase.from("messages")
+/** Inbox for the current event: that artist's messages plus alerts for its shows. No scope = everything. */
+export async function fanMessages(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  scope?: { artistId: string; concertIds: string[] },
+) {
+  let query = supabase.from("messages")
     .select("id, body, channel, image_url, created_at, artist:artists(name), concert:concerts(name)")
-    .eq("user_id", userId).or("channel.eq.inbox,concert_id.is.null")
-    .order("created_at", { ascending: false }).limit(5);
-  if (result.error && ["PGRST200", "42703"].includes(result.error.code)) {
-    const legacy = await supabase.from("messages")
-      .select("id, body, channel, image_url, created_at, artist:artists(name)")
-      .eq("user_id", userId).order("created_at", { ascending: false }).limit(5);
-    return { ...legacy, data: legacy.data?.map((message) => ({ ...message, concert: null })) ?? null };
+    .eq("user_id", userId).or("channel.eq.inbox,concert_id.is.null");
+  if (scope) {
+    query = query.or(scope.concertIds.length
+      ? `artist_id.eq.${scope.artistId},concert_id.in.(${scope.concertIds.join(",")})`
+      : `artist_id.eq.${scope.artistId}`);
   }
-  return result;
+  return query.order("created_at", { ascending: false }).limit(5);
 }
 
 export type ScanRow = {

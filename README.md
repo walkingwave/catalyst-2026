@@ -83,10 +83,10 @@ Still needed once: **Settings -> API Keys -> Legacy -> service_role** into `SUPA
 
 **No SMS provider at all?** Everything still works:
 
-- Sign-in: Supabase *test OTP* numbers log in with code `123456`, no text sent. `/admin` → **Phones** adds any number on the spot (needs `SUPABASE_ACCESS_TOKEN`, a personal access token from supabase.com/dashboard/account/tokens; no signup, you're already logged in). Without the token, edit the list in Authentication → Phone → Test OTPs.
+- Sign-in: Supabase *test OTP* numbers log in with code `123456`, no text sent. `/admin` → event → **People** → **+ Demo user** adds one on the spot (needs `SUPABASE_ACCESS_TOKEN`, a personal access token from supabase.com/dashboard/account/tokens; no signup, you're already logged in). Without the token, edit the list in Authentication → Phone → Test OTPs.
 - Notifications: every scan on a claimed band writes "+100 pts at Merch Booth. You're #3 tonight." to the fan's in-app inbox. Artist messages do the same. SMS is an optional extra on top.
 
-Demo sign-in without SMS: the Phone provider has test numbers registered (valid until 2026-11-30). Enter `555 010 0099` (new fan) or `555 010 0001`..`0006` (seeded fans) on the login screen, code `123456`. No SMS is sent. For real numbers, enable the Send SMS hook below.
+Demo sign-in without SMS: the Phone provider has test numbers registered (valid until 2026-11-30). Enter `555 010 0099` (Taylor B.) or `555 010 0001`..`0006` (seeded fans) on the login screen, code `123456`. No SMS is sent. For real numbers, enable the Send SMS hook below.
 
 Fresh project instead: run `supabase/migrations/*.sql` in order in the SQL editor, then `npm run seed`.
 
@@ -113,72 +113,37 @@ Messages are saved before attempting SMS. `sent` means the provider accepted the
 
 The app adds its STOP footer until a successful SMS is recorded for that fan. Concurrent first sends may both include it, and provider-added opt-out wording is outside the app's control.
 
-**Artist scheduling:** Message and Drop send immediately; scan notifications are triggered by activity. Event-wide scheduling is available in the admin/staff Notifications tab (see below). Notifications mean SMS and the dashboard inbox, not browser push notifications.
+**Timing:** Message, Drop and event alerts all send immediately; scan notifications are triggered by activity. There is no scheduling and no notification cron. Notifications mean SMS and the dashboard inbox, not browser push notifications.
 
-## Event notifications (admin and staff)
+## Event alerts (admin and staff)
 
-Select an event in `/admin` or a concert in `/staff`, then open **Notifications**.
-The shared panel shows the current audience, supports **Inbox only** or **SMS + inbox**,
-and lets staff **Send now** or **Schedule** for a local date/time. Each fan gets one
-copy, even if they own multiple active bands at that event. Unclaimed and archived
-bands are excluded. Scheduled audiences are resolved when sending begins, so
-new claims before that time are included. The selected timezone is displayed;
-timestamps are stored in UTC.
+Pick an event in `/admin` or `/staff`, then open **Alerts**. Choose **Inbox** or
+**SMS** and press **Send**. The request sends to every fan with an active claimed
+band at that event, one copy per fan, and returns when delivery finishes. Inbox
+alerts appear on the fan dashboard; SMS alerts are texted only.
 
-**Scheduled & sent** shows progress, inbox/SMS counts and failures. A queued
-notification can be cancelled until delivery starts. SMS acceptance does not
-guarantee handset delivery. Events without an artist are supported; inbox
-messages are attributed to the event, separately from artist messages.
+**Sent** shows inbox/SMS counts and failures. SMS acceptance does not guarantee
+handset delivery. Retrying the same message reuses its request ID, so a lost
+response never sends it twice. If a send is interrupted, reopening Alerts for
+that event resumes it; fans who already received it are skipped. Interrupted SMS
+reservations become uncertain and are not re-texted automatically.
 
-### One-time database setup
+Requires `supabase/migrations/0009_event_notifications.sql` (already applied to
+the live project). No worker, cron or `CRON_SECRET` is needed for alerts.
 
-Apply `supabase/migrations/0009_event_notifications.sql` in the Supabase SQL editor
-before deploying this feature. It adds the queue, service-role-only worker functions,
-and optional event attribution on inbox messages. Earlier migrations must already
-be applied. The service-role API key cannot run schema migrations.
+## People (admin)
 
-### Running locally
+Inside an event, **People** lists every account with a claimed band there, with
+phone number and a Real/Demo badge. Tap a person to edit their name or phone.
+**+ Demo user** creates an account with a made-up number (the **Random** button
+generates one in the fictional 555-01xx range), assigns it a band at the event,
+and registers the number as a Supabase test OTP so it signs in at `/login` with
+code `123456`. Demo users can be deleted; real accounts cannot.
 
-With migration 0009 applied, run these in separate terminals:
-
-```bash
-npm run dev
-npm run notifications:worker
-```
-
-The worker reads `.env.local` and checks the persistent database queue every 15
-seconds. It will send any due notifications in that database, so use a separate
-Supabase project for isolated testing. Stop it with Ctrl+C. Closing the browser
-does not stop it, but stopping the worker pauses scheduled delivery.
-
-### Running on Vercel
-
-Set `CRON_SECRET` to a random secret in the deployment, alongside the existing
-Supabase and SMS variables. Deploy `/api/cron/notifications`, then arrange a
-once-per-minute authenticated GET or POST to that endpoint. It fails closed if
-the secret is absent or incorrect.
-
-For Supabase Cron (works without adding a per-minute Vercel Hobby cron):
-
-1. In Supabase Vault, save `banddrop_site_url` as the deployed origin (no trailing
-   slash) and `banddrop_cron_secret` as the same `CRON_SECRET`.
-2. Run `supabase/notification_scheduler.sql` in the SQL editor.
-3. Check the Cron execution history. The Notifications panel's offline notice
-   disappears after a successful worker check-in.
-
-Alternatively, configure an external scheduler or a Vercel plan that supports
-minute-level cron to call `/api/cron/notifications` with
-`Authorization: Bearer <CRON_SECRET>`. The existing daily archive cron is separate.
-Never put the secret into source control. Use the deployed URL, not an expiring
-development tunnel, for ongoing scheduling.
-
-Timing is best-effort: jobs start on the next worker tick, usually within a minute,
-and large audiences take multiple batches. **Send now** also starts a worker task
-immediately; the recurring worker continues any remaining batches. Overlapping
-workers use database locks and recipient reservations to avoid duplicate sends.
-An interrupted reservation becomes uncertain after five minutes and is not
-automatically re-texted. Review uncertain outcomes before creating a new send.
-An offline worker is shown in the UI; queued jobs persist and resume when it returns.
+Creating, renumbering or deleting demo users edits the project's auth config, so
+`SUPABASE_ACCESS_TOKEN` must belong to a Supabase account with Owner or
+Administrator access to the project. A read-only/developer token can list people
+but not create demo logins.
 
 ## Run
 
@@ -246,7 +211,7 @@ Claimed bands redirect the owner to their dashboard with the same banner. `conce
 - **Events**: list, create, and a full editor per event: details (save on blur), photos (artist hero, venue photo, custom venue map upload), activities (add / edit / delete, points, location, social vs tap-in), pin placement by tapping the map, live station toggle, delete event.
 - **Rewards**: per artist/team: add / edit / delete rewards, stock or discount codes (paste one per line). **Profile** edits the artist's name, kind, bio, photo and console access code.
 - **Bands**: look up any UID (owner, event, scans, tag URL), move between events, unclaim, archive/restore, clear scans, reset.
-- **Phones**: demo numbers that sign in with code `123456` (needs `SUPABASE_ACCESS_TOKEN`).
+- **People**: everyone with a band at the event; edit them or add demo users that sign in with code `123456` (needs an Owner/Admin `SUPABASE_ACCESS_TOKEN`).
 
 Images go to the public `media` bucket in Supabase Storage via `POST /api/admin/upload`. A custom venue map replaces the drawn floor plan on the fan's show page; pins keep their percent coordinates.
 
@@ -318,3 +283,20 @@ Fans see open polls at the top of Home (for their current event) and on the show
 
 Tables: `polls`, `poll_options`, `poll_votes` (one row per fan per poll), view `poll_results`, RPC `cast_vote` (security definer: rejects closed polls, enforces the timer). Migration `0010_live_polls.sql`.
 
+
+## Pre-event activities and invites
+
+In the event editor (**/admin → Edit → Activities → + Add**) an activity is **Live concert** (staff scan the
+wristband at the venue), **Digital** (fan pastes a social post link, the artist approves it in Review) or **Poll** (fan
+names a song request, points land on submit). Digital and Poll activities can be marked **Pre-event**: fans can do them before the show,
+they're highlighted with a Pre-event badge at the top of the show's Activities, and they lock at doors (the event
+date plus its Doors time, Toronto time). There are no social activities by default; they exist only when an admin
+adds one.
+
+**Invites** (**/admin → event → People → Invites**): paste ticket buyers, one per line, to create single-use links
+(`/join/<code>`). Opening one signs the fan in with their phone and enrolls them in the event before they have a
+wristband. Claiming a band at the venue with the same phone keeps everything on one account. Unused links can be
+copied or revoked. Song requests appear grouped with counts in the artist console's **Review** tab, and invited
+fans count as the artist's fans. Migration `0012_pre_event_invites.sql`.
+
+The fan inbox shows only the current event's drops, messages and alerts, matching how activity is scoped.

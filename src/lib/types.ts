@@ -33,8 +33,9 @@ export type Activity = {
   map_y?: number | null;
   location?: string | null;
   icon?: string | null;
-  kind?: "scan" | "social";
+  kind?: "scan" | "social" | "song_request";
   social_network?: string | null;
+  pre_event?: boolean;
 };
 
 export type SocialPost = {

@@ -1,5 +1,6 @@
 import { test as setup } from "@playwright/test";
 import { adminHeaders, loginAs } from "./helpers";
+import { purgeE2eContent } from "./cleanup";
 
 const FILE = "tests/e2e/.auth/fan.json";
 
@@ -10,9 +11,10 @@ setup("purge leftovers from aborted runs", async ({ request }) => {
   const ph = { "x-artist-code": "OLP2026" };
   const { polls = [] } = await (await request.get("/api/artist/polls", { headers: ph })).json();
   for (const p of polls as { id: string; question: string }[]) if (/^E2E /.test(p.question)) await request.delete(`/api/artist/polls?id=${p.id}`, { headers: ph });
+  await purgeE2eContent();
 });
 
-setup("sign in as Demo Fan", async ({ page }) => {
+setup("sign in as the test fan", async ({ page }) => {
   await loginAs(page);
   await page.context().storageState({ path: FILE });
 });

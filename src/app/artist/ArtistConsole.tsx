@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Badge, Empty } from "@/components/ui";
+import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Badge, Empty, ConsoleSkeleton, Skeleton, SkeletonRows } from "@/components/ui";
 import { IconCheck, IconX, IconLock, IconChevron } from "@/components/icons";
 import type { Artist } from "@/lib/types";
 import { PollsTab } from "./PollsTab";
@@ -35,6 +35,7 @@ type Overview = {
     user: { id: string; name: string; instagram: string | null } | null;
     activity: { name: string; points: number; social_network: string | null } | null;
   }[];
+  song_requests?: { activity_id: string; activity: string; concert_id: string; songs: { song: string; count: number }[] }[];
   messages: { id: string; channel: string; body: string; sms_status: string | null; created_at: string; user: { name: string } | null }[];
   drops: { id: string; title: string; code: string | null; claimed_at: string | null; created_at: string; user: { name: string } | null }[];
   templates: Template[];
@@ -148,7 +149,7 @@ export function ArtistConsole() {
     );
   }
 
-  if (!data) return <p className="t-sub text-ink-2 p-6">Loading…</p>;
+  if (!data) return <ConsoleSkeleton label="Loading artist console" />;
 
   const recipients = [...selected];
   const fanBy = new Map(data.top_fans.map((f) => [f.user_id, f]));
@@ -240,6 +241,8 @@ export function ArtistConsole() {
       {tab === "review" && (
         <ReviewTab
           posts={data.pending_posts}
+          requests={data.song_requests ?? []}
+          concerts={data.concerts}
           onReview={async (id, status) => {
             const r = await fetch("/api/artist/social", { method: "POST", headers: headers(), body: JSON.stringify({ id, status }) });
             const j = (await r.json().catch(() => ({}))) as { ok?: boolean; message?: string };
@@ -640,13 +643,33 @@ function DropTab({
 
 function ReviewTab({
   posts,
+  requests,
+  concerts,
   onReview,
 }: {
   posts: Overview["pending_posts"];
+  requests: NonNullable<Overview["song_requests"]>;
+  concerts: Overview["concerts"];
   onReview: (id: string, status: "approved" | "rejected") => Promise<void>;
 }) {
+  const showName = (id: string) => concerts.find((c) => c.id === id)?.name ?? "Show";
   return (
     <>
+      {requests.length > 0 && (
+        <>
+          <SectionHeader>Song requests</SectionHeader>
+          <div className="space-y-3" data-testid="song-requests">
+            {requests.map((g) => (
+              <Panel key={g.activity_id} className="p-4">
+                <p className="label text-ink-2">{showName(g.concert_id)} · {g.activity}</p>
+                <List className="mt-2">
+                  {g.songs.map((s) => <Row key={s.song} title={s.song} value={`×${s.count}`} />)}
+                </List>
+              </Panel>
+            ))}
+          </div>
+        </>
+      )}
       <SectionHeader>Review</SectionHeader>
       {posts.length === 0 ? (
         <Empty>Nothing to review.</Empty>
@@ -782,7 +805,7 @@ function FanSheet({
         {fan && <span className="display d-sm t-num">{fan.points.balance} pts</span>}
       </div>
       {!fan ? (
-        <p className="t-sub text-ink-2 p-6">Loading…</p>
+        <div className="px-4 space-y-3" aria-busy="true"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-4 w-1/2" /><SkeletonRows count={4} /></div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 pb-10">
           <h2 className="display d-xl">{fan.name || "Fan"}</h2>

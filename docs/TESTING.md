@@ -11,17 +11,18 @@ npx playwright show-report   # after an e2e run
 
 The e2e suite runs against `http://localhost:3000` (starts `npm run dev` if nothing is listening) and the live Supabase project. It creates its own artists, events, bands, rewards and posts with `E2E` prefixes and deletes them in `finally` blocks; the setup project also purges leftovers from aborted runs.
 
-Fans sign in with Supabase test OTP numbers (code `123456`). Supabase allows one OTP per number per 60 seconds, so each UI login uses a different number and most fan tests reuse the saved Demo Fan session (`tests/e2e/.auth/fan.json`, written by `auth.setup.ts`). Signing out revokes every session for that user, so the sign-out test uses its own number.
+Fans sign in with Supabase test OTP numbers (code `123456`). Supabase allows one OTP per number per 60 seconds, so each UI login uses a different number and most fan tests reuse the saved test fan session (Taylor B.) (`tests/e2e/.auth/fan.json`, written by `auth.setup.ts`). Signing out revokes every session for that user, so the sign-out test uses its own number.
 
 Viewport is iPhone 14 in Chromium (Web NFC paths show their fallbacks, like a real iPhone would).
 
 ## Coverage
 
-Event notifications: `tests/unit/event-notifications.test.ts` checks schedule/timezone
-validation, PIN/cron guards, idempotent requests and worker outcomes with SMS mocked.
-The "Event notification controls" tests in `tests/e2e/admin.spec.ts` exercise both
-admin and staff with mocked APIs (no messages are sent), including schedule/cancel,
-event switching, timezone conversion and mobile overflow.
+Event alerts: `tests/unit/event-notifications.test.ts` checks validation (alerts always
+send immediately), PIN guards, idempotent requests and delivery outcomes with SMS mocked.
+The "Event alert controls" tests in `tests/e2e/admin.spec.ts` exercise both admin and
+staff with mocked APIs (no messages are sent), including immediate send, event
+switching and mobile overflow. "Admin people" covers listing, creating a demo user
+with a random number, editing and deleting, also with mocked APIs.
 
 `tests/event-notifications.sql` bootstraps minimal fixtures and applies migration
 0009 in an **empty disposable PostgreSQL database**. Run it with
@@ -63,3 +64,8 @@ batch reservations, uncertain-delivery recovery and service-only grants.
 - OTP cooldown (60s per number) is a real-world limit: a fan who mistypes the code and goes back to "change number" can't resend for a minute. Consider a visible countdown on the code screen.
 - Marketplace "9,950 more points needed" is informative but long on small screens; consider "Need 9,950 more".
 - Web NFC is Android Chrome only; iPhone staff/admin see the fallback copy. The live-station flow covers iPhone demos.
+
+Some E2E tests send real drops, messages and poll notices to demo fans through the
+artist API. Every test string starts with `E2E `, and `tests/e2e/cleanup.ts` deletes
+those rows before the run (setup) and after it (`teardown` project), so they never
+appear in demo inboxes or the artist Log. An aborted run is cleaned up by the next run.

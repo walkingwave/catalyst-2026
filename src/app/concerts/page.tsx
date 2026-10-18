@@ -10,16 +10,18 @@ import type { Concert } from "@/lib/types";
 export default async function ConcertsPage() {
   const { supabase, user } = await requireFan("/concerts");
 
-  const [{ data: bands }, scans] = await Promise.all([
+  const [{ data: bandRows }, { data: invites }, scans] = await Promise.all([
     supabase
       .from("bands")
       .select("uid, concert:concerts(id, name, artist, venue, date, image_url)")
       .eq("user_id", user.id),
+    supabase.from("event_invites").select("concert:concerts(id, name, artist, venue, date, image_url)").eq("redeemed_by", user.id),
     fanScans(supabase),
   ]);
+  const bands = [...(bandRows ?? []), ...(invites ?? [])];
 
   const byId = new Map<string, Concert>();
-  for (const b of bands ?? []) {
+  for (const b of bands) {
     const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as Concert | null;
     if (c) byId.set(c.id, c);
   }
@@ -52,9 +54,9 @@ export default async function ConcertsPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0 px-4 py-3">
-                      <p className="display d-md truncate">{c.artist}</p>
+                      <p className="display d-md truncate">{c.name}</p>
                       <p className="t-foot text-ink-2 truncate mt-1">
-                        {c.venue} · {formatDate(c.date)}
+                        {c.artist} · {c.venue} · {formatDate(c.date)}
                       </p>
                       <p className="t-foot text-ink-2 mt-2">
                         {mine.length} {mine.length === 1 ? "activity" : "activities"} ·{" "}

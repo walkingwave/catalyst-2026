@@ -9,6 +9,8 @@ import { Nav } from "@/components/Nav";
 import { IconChevron } from "@/components/icons";
 import { DropCard } from "./DropCard";
 import { InboxRefresh } from "./InboxRefresh";
+import { ActivityRows } from "@/components/ActivityRows";
+import type { Activity } from "@/lib/types";
 
 export default async function Dashboard({
   searchParams,
@@ -18,17 +20,36 @@ export default async function Dashboard({
   const { supabase, user, profile } = await requireFan("/dashboard");
   const { claimed, tap, pts: tapPts, dup } = await searchParams;
 
-  const [{ list, current }, scans, { data: drops }, { data: messages }, { data: concerts }] = await Promise.all([
+  const [{ list, current }, scans, { data: concerts }] = await Promise.all([
     attendedArtists(supabase, user.id),
     fanScans(supabase),
-    supabase.from("drops").select("*, artist:artists(name)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
-    fanMessages(supabase, user.id),
     supabase.from("concerts").select("id, artist, venue, date, artist_id"),
   ]);
   const concertBy = new Map((concerts ?? []).map((c) => [c.id, c]));
+  // Inbox follows the current event, like activity: only this artist's drops, messages and show alerts.
+  const scope = current ? { artistId: current.artist.id, concertIds: (concerts ?? []).filter((c) => c.artist_id === current.artist.id).map((c) => c.id) } : undefined;
+  let dropQuery = supabase.from("drops").select("*, artist:artists(name)").eq("user_id", user.id);
+  if (scope) dropQuery = dropQuery.eq("artist_id", scope.artistId);
+  const [{ data: drops }, { data: messages }] = await Promise.all([
+    dropQuery.order("created_at", { ascending: false }).limit(5),
+    fanMessages(supabase, user.id, scope),
+  ]);
 
   const polls = current ? await fanPolls(supabase, current.artist.id) : [];
   const latestShow = current?.shows[0] ?? null;
+  // Social posts and song requests for the current show, rendered exactly like the show page.
+  const [{ data: showConcert }, { data: remoteActs }, { data: posts }, { data: answers }] = latestShow
+    ? await Promise.all([
+        supabase.from("concerts").select("date, doors_at").eq("id", latestShow.id).maybeSingle(),
+        supabase.from("activities").select("*").eq("concert_id", latestShow.id).in("kind", ["social", "song_request"]).order("points"),
+        supabase.from("social_posts").select("activity_id, status").eq("user_id", user.id),
+        supabase.from("activity_completions").select("activity_id, response").eq("user_id", user.id),
+      ])
+    : [{ data: null }, { data: [] }, { data: [] }, { data: [] }];
+  const tasks = ((remoteActs ?? []) as Activity[]).sort((a, b) => Number(!!b.pre_event) - Number(!!a.pre_event));
+  const postBy = new Map((posts ?? []).map((p) => [p.activity_id, p.status as string]));
+  const answerBy = new Map((answers ?? []).map((x) => [x.activity_id, x.response as string]));
+  const taskDone = new Set([...[...postBy].filter(([, st]) => st === "approved").map(([id]) => id), ...answerBy.keys()]);
   let showRank: { rank: number; total: number } | null = null;
   let eventTotal = 0;
   if (current) {
@@ -150,8 +171,8 @@ export default async function Dashboard({
               {latestShow.image_url && <Image src={latestShow.image_url} alt="" fill className="object-cover photo" priority />}
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white flex items-end justify-between">
                 <div>
-                  <p className="label text-white/70">{latestShow.venue} · {formatDate(latestShow.date)}</p>
-                  <p className="display d-lg mt-1">{current?.artist.name}</p>
+                  <p className="label text-white/70">{current?.artist.name} · {latestShow.venue} · {formatDate(latestShow.date)}</p>
+                  <p className="display d-lg mt-1">{latestShow.name}</p>
                 </div>
                 <IconChevron size={22} className="mb-1" />
               </div>
@@ -187,8 +208,11 @@ export default async function Dashboard({
       )}
 
       <SectionHeader>Activity</SectionHeader>
+      {showConcert && tasks.length > 0 && (
+        <div className="mb-4"><ActivityRows acts={tasks} concert={showConcert} doneIds={taskDone} postBy={postBy} answerBy={answerBy} /></div>
+      )}
       {recent.length === 0 ? (
-        <Empty>No activity yet.</Empty>
+        tasks.length === 0 && <Empty>No activity yet.</Empty>
       ) : (
         <List>
           {recent.map((s) => {

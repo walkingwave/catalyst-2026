@@ -13,19 +13,22 @@ export type Attended = {
 };
 
 /**
- * Everything the fan has tapped into, grouped by artist/team, with that artist's point pool.
+ * Everything the fan has tapped into or been invited to, grouped by artist/team, with that artist's point pool.
  * `current` is the selected one: cookie if valid, else the artist of the most recent show.
  */
 export async function attendedArtists(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const [{ data: bands }, { data: pools }, { data: artists }, { data: ranks }] = await Promise.all([
+  const [{ data: bandRows }, { data: invites }, { data: pools }, { data: artists }, { data: ranks }] = await Promise.all([
     supabase.from("bands").select("concert:concerts(id, name, venue, date, image_url, artist_id)").eq("user_id", userId),
+    // Redeemed ticket invites enroll a fan before they have a wristband.
+    supabase.from("event_invites").select("concert:concerts(id, name, venue, date, image_url, artist_id)").eq("redeemed_by", userId),
     supabase.from("user_artist_points").select("artist_id, balance, earned").eq("user_id", userId),
     supabase.from("artists").select("id, slug, name, kind, image_url, bio"),
     supabase.from("leaderboard_artist").select("artist_id, user_id, rank").eq("user_id", userId),
   ]);
+  const bands = [...(bandRows ?? []), ...(invites ?? [])];
   const artistBy = new Map(((artists ?? []) as Artist[]).map((a) => [a.id, a]));
   const byArtist = new Map<string, Attended>();
-  for (const b of bands ?? []) {
+  for (const b of bands) {
     const c = (Array.isArray(b.concert) ? b.concert[0] : b.concert) as { id: string; name: string; venue: string; date: string; image_url: string | null; artist_id: string | null } | null;
     if (!c?.artist_id) continue;
     const artist = artistBy.get(c.artist_id);

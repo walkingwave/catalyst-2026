@@ -48,7 +48,7 @@ test.describe("Band tap page", () => {
     const uid = testUid();
     try {
       await registerBand(request, uid, ev.id);
-      // claim as Demo Fan using the saved session (no OTP needed)
+      // claim as the test fan using the saved session (no OTP needed)
       const ctx = await browser.newContext({ storageState: FAN_STATE });
       expect((await ctx.request.post("/api/claim", { data: { uid } })).ok()).toBeTruthy();
       await ctx.close();

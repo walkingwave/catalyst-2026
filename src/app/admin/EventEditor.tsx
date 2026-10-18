@@ -37,7 +37,7 @@ export function EventEditor({
     address: event.address ?? "",
     date: event.date,
     doors_at: event.doors_at ?? "",
-    artist_id: event.artist_id ?? "",
+    artist_name: artists.find((a) => a.id === event.artist_id)?.name ?? "",
   });
 
   async function save(fields: Record<string, unknown>) {
@@ -82,18 +82,22 @@ export function EventEditor({
               <Field label="Doors"><Input value={form.doors_at} onChange={(e) => setForm({ ...form, doors_at: e.target.value })} onBlur={blur("doors_at")} /></Field>
             </div>
             <Field label="Artist or team">
-              <select
-                className="w-full h-14 bg-surface-2 px-4 t-body"
-                value={form.artist_id}
-                onChange={(e) => {
-                  setForm({ ...form, artist_id: e.target.value });
-                  void save({ artist_id: e.target.value || null });
+              <Input
+                list="artist-names"
+                placeholder="Artist or team name"
+                value={form.artist_name}
+                onChange={(e) => setForm({ ...form, artist_name: e.target.value })}
+                onBlur={() => {
+                  const typed = form.artist_name.trim();
+                  const current = artists.find((a) => a.id === event.artist_id)?.name ?? "";
+                  if (typed !== current) void save({ artist_name: typed });
                 }}
-              >
-                <option value="">None</option>
-                {artists.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.kind})</option>)}
-              </select>
+              />
+              <datalist id="artist-names">{artists.map((a) => <option key={a.id} value={a.name} />)}</datalist>
             </Field>
+            {form.artist_name.trim() && !artists.some((a) => a.name.toLowerCase() === form.artist_name.trim().toLowerCase()) && (
+              <p className="t-foot text-ink-2">New artist: saving creates &ldquo;{form.artist_name.trim()}&rdquo; with its own rewards and console code.</p>
+            )}
             <p className="t-foot text-ink-2">Changes save when you leave a field.</p>
 
             <SectionHeader>Danger</SectionHeader>
@@ -132,16 +136,18 @@ export function EventEditor({
 
 function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRow; headers: H; onChanged: () => Promise<void> | void; flash: (m: string) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ name: string; points: string; location: string; kind: "scan" | "social"; social_network: string }>({ name: "", points: "50", location: "", kind: "scan", social_network: "instagram" });
+  type Kind = "scan" | "social" | "song_request";
+  const blank = { name: "", points: "50", location: "", kind: "scan" as Kind, social_network: "instagram", pre_event: false };
+  const [draft, setDraft] = useState<typeof blank>(blank);
   const [placing, setPlacing] = useState<string | null>(null);
-  const scanActs = event.activities.filter((a) => a.kind !== "social");
+  const scanActs = event.activities.filter((a) => (a.kind ?? "scan") === "scan");
 
   function startEdit(a: Activity) {
     setEditing(a.id);
-    setDraft({ name: a.name, points: String(a.points), location: a.location ?? "", kind: a.kind ?? "scan", social_network: a.social_network ?? "instagram" });
+    setDraft({ name: a.name, points: String(a.points), location: a.location ?? "", kind: a.kind ?? "scan", social_network: a.social_network ?? "instagram", pre_event: !!a.pre_event });
   }
   async function submit() {
-    const body = { name: draft.name, points: Number(draft.points) || 0, location: draft.location || null, kind: draft.kind, social_network: draft.kind === "social" ? draft.social_network : null };
+    const body = { name: draft.name, points: Number(draft.points) || 0, location: draft.location || null, kind: draft.kind, social_network: draft.kind === "social" ? draft.social_network : null, pre_event: draft.kind !== "scan" && draft.pre_event };
     const r = editing === "new"
       ? await call("/api/admin/activities", headers, { method: "POST", ...json({ concert_id: event.id, ...body }) })
       : await call("/api/admin/activities", headers, { method: "PATCH", ...json({ id: editing, ...body }) });
@@ -176,7 +182,7 @@ function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRo
 
       <div className="flex items-center justify-between pt-2">
         <p className="display d-sm">{event.activities.length} activities · {total} pts</p>
-        <button onClick={() => { setEditing("new"); setDraft({ name: "", points: "50", location: "", kind: "scan", social_network: "instagram" }); }} className="h-9 px-3 bg-invert-bg text-invert-fg label">+ Add</button>
+        <button onClick={() => { setEditing("new"); setDraft(blank); }} className="h-9 px-3 bg-invert-bg text-invert-fg label">+ Add</button>
       </div>
 
       {editing && (
@@ -187,9 +193,16 @@ function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRo
           </div>
           <Input placeholder="Location (e.g. Main lobby)" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
           <div className="flex gap-1 bg-surface p-1">
-            <button type="button" onClick={() => setDraft({ ...draft, kind: "scan" })} className={`flex-1 h-9 label ${draft.kind === "scan" ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>Tap-in</button>
-            <button type="button" onClick={() => setDraft({ ...draft, kind: "social" })} className={`flex-1 h-9 label ${draft.kind === "social" ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>Social post</button>
+            {([["scan", "Live concert"], ["social", "Digital"], ["song_request", "Poll"]] as const).map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setDraft({ ...draft, kind: k, pre_event: k === "scan" ? false : draft.pre_event })} className={`flex-1 h-9 label ${draft.kind === k ? "bg-invert-bg text-invert-fg" : "text-ink-2"}`}>{label}</button>
+            ))}
           </div>
+          {draft.kind !== "scan" && (
+            <label className="flex items-center gap-3 min-h-11 t-sub">
+              <input type="checkbox" className="w-5 h-5 accent-current" checked={draft.pre_event} onChange={(e) => setDraft({ ...draft, pre_event: e.target.checked })} />
+              Pre-event: fans can do this before the show; it locks when doors open
+            </label>
+          )}
           {draft.kind === "social" && (
             <select className="w-full h-12 bg-surface px-3 t-sub" value={draft.social_network} onChange={(e) => setDraft({ ...draft, social_network: e.target.value })}>
               <option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="x">X</option>
@@ -209,11 +222,14 @@ function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRo
           {event.activities.map((a) => (
             <div key={a.id} className="flex items-center min-h-[56px] gap-2">
               <button onClick={() => startEdit(a)} className="flex-1 min-w-0 text-left py-2 press">
-                <p className="t-body truncate">{a.name} <span className="t-foot text-ink-2">{a.kind === "social" ? "· social" : ""}</span></p>
-                <p className="t-foot text-ink-2 truncate">{a.location ?? "No location"}{a.map_x != null ? "" : a.kind === "social" ? "" : " · not on map"}</p>
+                <p className="t-body truncate">
+                  {a.pre_event && <span className="label text-warning border border-warning px-1.5 mr-2 align-middle">Pre-event</span>}
+                  {a.name} <span className="t-foot text-ink-2">{a.kind === "social" ? "· digital" : a.kind === "song_request" ? "· poll" : "· live concert"}</span>
+                </p>
+                <p className="t-foot text-ink-2 truncate">{a.location ?? "No location"}{a.map_x != null || (a.kind ?? "scan") !== "scan" ? "" : " · not on map"}</p>
               </button>
               <span className="display d-sm t-num">+{a.points}</span>
-              {a.kind !== "social" && (
+              {(a.kind ?? "scan") === "scan" && (
                 <button onClick={() => setPlacing(a.id)} className={`h-9 px-2 label ${placing === a.id ? "bg-invert-bg text-invert-fg" : "bg-surface-2"}`}>Place</button>
               )}
               <button onClick={() => remove(a.id)} aria-label={`Delete ${a.name}`} className="w-9 h-9 flex items-center justify-center text-ink-2"><IconX size={16} /></button>

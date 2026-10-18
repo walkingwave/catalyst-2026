@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const db = createAdminClient();
   const [{ data: concerts }, { data: activities }] = await Promise.all([
     db.from("concerts").select("id, name, artist, venue, date").order("date", { ascending: false }),
-    db.from("activities").select("id, concert_id, name, points").order("points"),
+    db.from("activities").select("id, concert_id, name, points").eq("kind", "scan").order("points"),
   ]);
   return NextResponse.json({ ok: true, concerts: concerts ?? [], activities: activities ?? [] });
 }
