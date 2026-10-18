@@ -53,6 +53,7 @@ export type Drop = {
   title: string;
   message: string;
   code: string | null;
+  image_url?: string | null;
   claimed_at: string | null;
   created_at: string;
 };

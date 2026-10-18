@@ -8,6 +8,7 @@ type Notification = {
   body: string;
   smsBody?: string;
   sms: boolean;
+  imageUrl?: string | null;
 };
 
 export type NotificationResult = {
@@ -29,6 +30,7 @@ export async function notifyFan(db: SupabaseClient, notification: Notification):
     user_id: userId,
     channel: sms ? "sms" : "inbox",
     body,
+    image_url: notification.imageUrl ?? null,
     sms_status: initialStatus,
   }).select("id").single();
 

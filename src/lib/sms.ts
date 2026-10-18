@@ -9,6 +9,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type SmsResult = { ok: boolean; provider: "textbelt" | "twilio" | "none"; error?: string; quota?: number };
 
 const OPT_OUT_FOOTER = "\n\nReply STOP to unsubscribe.";
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://banddrop.vercel.app").replace(/\/$/, "");
+
+/** Every fan text ends with a link back into BandDrop. */
+export function withSiteLink(body: string, path = "/dashboard"): string {
+  return `${body}\n${SITE}${path}`;
+}
 
 /** Failed, disabled and pending sends must not suppress the first successful send's notice. */
 export async function smsWithOptOut(db: SupabaseClient, userId: string, body: string): Promise<string> {
@@ -18,7 +24,8 @@ export async function smsWithOptOut(db: SupabaseClient, userId: string, body: st
     .eq("user_id", userId)
     .eq("channel", "sms")
     .eq("sms_status", "sent");
-  return count ? body : body + OPT_OUT_FOOTER;
+  const linked = withSiteLink(body);
+  return count ? linked : linked + OPT_OUT_FOOTER;
 }
 
 export function smsEnabled(): boolean {

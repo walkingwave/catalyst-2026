@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Panel } from "@/components/ui";
 import { IconGift } from "@/components/icons";
@@ -24,6 +25,11 @@ export function DropCard({ drop }: { drop: Drop & { artist_name: string } }) {
         <IconGift size={18} />
         <p className="label text-invert-fg/70">Drop from {drop.artist_name}</p>
       </div>
+      {drop.image_url && (
+        <div className="relative w-full aspect-[16/9] mt-3 overflow-hidden">
+          <Image src={drop.image_url} alt="" fill className="object-cover" unoptimized />
+        </div>
+      )}
       <p className="display d-md mt-3">{drop.title}</p>
       {drop.message && <p className="t-sub text-invert-fg/80 mt-2">{drop.message}</p>}
       {claimed ? (

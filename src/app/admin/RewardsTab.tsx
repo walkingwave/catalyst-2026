@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Input, Field, List, Empty, Panel } from "@/components/ui";
 import { IconX, IconChevron } from "@/components/icons";
-import { ImageField } from "./ImageField";
+import { ImageField } from "@/components/ImageField";
 import { call, json, type H } from "./api";
 import type { Artist } from "@/lib/types";
 

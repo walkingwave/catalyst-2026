@@ -21,12 +21,12 @@ export async function requireFan(nextPath: string) {
 /** Keep the existing inbox readable while the event-notification migration rolls out. */
 export async function fanMessages(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const result = await supabase.from("messages")
-    .select("id, body, channel, created_at, artist:artists(name), concert:concerts(name)")
+    .select("id, body, channel, image_url, created_at, artist:artists(name), concert:concerts(name)")
     .eq("user_id", userId).or("channel.eq.inbox,concert_id.is.null")
     .order("created_at", { ascending: false }).limit(5);
   if (result.error && ["PGRST200", "42703"].includes(result.error.code)) {
     const legacy = await supabase.from("messages")
-      .select("id, body, channel, created_at, artist:artists(name)")
+      .select("id, body, channel, image_url, created_at, artist:artists(name)")
       .eq("user_id", userId).order("created_at", { ascending: false }).limit(5);
     return { ...legacy, data: legacy.data?.map((message) => ({ ...message, concert: null })) ?? null };
   }

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
-import { uploadImage, type H } from "./api";
+import { uploadImage, type H } from "@/app/admin/api";
 import { IconX } from "@/components/icons";
 
 /** Image picker: shows the current image, uploads a replacement, or clears it. */
@@ -12,6 +12,7 @@ export function ImageField({
   folder,
   headers,
   aspect = "aspect-[16/9]",
+  endpoint = "/api/admin/upload",
   onChange,
 }: {
   label: string;
@@ -19,6 +20,8 @@ export function ImageField({
   folder: string;
   headers: H;
   aspect?: string;
+  /** Upload route; admin by default, artist console passes its own. */
+  endpoint?: string;
   onChange: (url: string | null) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -56,7 +59,7 @@ export function ImageField({
           setBusy(true);
           setErr(null);
           try {
-            onChange(await uploadImage(f, folder, headers));
+            onChange(await uploadImage(f, folder, headers, endpoint));
           } catch (x) {
             setErr(x instanceof Error ? x.message : "Upload failed");
           }
