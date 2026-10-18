@@ -405,6 +405,11 @@ function Recipients({
   onPickFans: () => void;
 }) {
   const [topN, setTopN] = useState("10");
+  // Nobody picked yet: default to the top 10 so a send is one tap away.
+  useEffect(() => {
+    if (recipients.length === 0 && fans.length > 0) onSelect(new Set(fans.slice(0, 10).map((f) => f.user_id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -417,7 +422,7 @@ function Recipients({
         </div>
       </div>
       {recipients.length === 0 ? (
-        <p className="t-foot text-ink-2">Nobody yet. Set a top N or pick fans.</p>
+        <p className="t-foot text-ink-2">{fans.length === 0 ? "No fans have tapped in for this artist yet." : "Nobody picked. Set a top N or pick fans."}</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {recipients.slice(0, 12).map((id) => (
