@@ -868,7 +868,6 @@ function EventsTab({
   const [address, setAddress] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [doors, setDoors] = useState("");
-  const [artistId, setArtistId] = useState<string>(artists[0]?.id ?? "new");
   const [newArtist, setNewArtist] = useState("");
   const [newKind, setNewKind] = useState<"artist" | "team">("artist");
   const [acts, setActs] = useState<ActDraft[]>([
@@ -879,6 +878,7 @@ function EventsTab({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const total = acts.reduce((n, a) => n + (Number(a.points) || 0), 0);
+  const isNewArtist = !!newArtist.trim() && !artists.some((a) => a.name.toLowerCase() === newArtist.trim().toLowerCase());
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -894,8 +894,8 @@ function EventsTab({
         address,
         date,
         doors_at: doors,
-        artist_id: artistId === "new" ? undefined : artistId,
-        new_artist: artistId === "new" ? { name: newArtist, kind: newKind } : undefined,
+        // The server reuses an existing artist with this name or creates a new one.
+        new_artist: newArtist.trim() ? { name: newArtist, kind: newKind } : undefined,
         activities: acts.map((a) => ({ name: a.name, points: Number(a.points) || 0, location: a.location })),
       }),
     });
@@ -940,24 +940,18 @@ function EventsTab({
               </Field>
             </div>
             <Field label="Artist or team">
-              <select className="w-full h-14 bg-surface-2 px-4 t-body" value={artistId} onChange={(e) => setArtistId(e.target.value)}>
-                {artists.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.kind})
-                  </option>
-                ))}
-                <option value="new">+ New artist / team</option>
-              </select>
-            </Field>
-            {artistId === "new" && (
               <div className="grid grid-cols-[1fr_auto] gap-2">
-                <Input value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Name" required />
-                <select className="h-14 bg-surface-2 px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
-                  <option value="artist">Artist</option>
-                  <option value="team">Team</option>
-                </select>
+                <Input list="new-event-artists" value={newArtist} onChange={(e) => setNewArtist(e.target.value)} placeholder="Artist or team name" required />
+                {isNewArtist && (
+                  <select aria-label="Artist or team" className="h-14 bg-surface-2 px-3 t-sub" value={newKind} onChange={(e) => setNewKind(e.target.value as "artist" | "team")}>
+                    <option value="artist">Artist</option>
+                    <option value="team">Team</option>
+                  </select>
+                )}
               </div>
-            )}
+              <datalist id="new-event-artists">{artists.map((a) => <option key={a.id} value={a.name} />)}</datalist>
+            </Field>
+            {isNewArtist && <p className="t-foot text-ink-2 -mt-2">New {newKind}: creates &ldquo;{newArtist.trim()}&rdquo; with its own rewards and console code.</p>}
 
             <div>
               <div className="flex items-end justify-between mb-2">

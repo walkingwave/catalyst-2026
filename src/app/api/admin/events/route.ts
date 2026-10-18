@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findOrCreateArtist } from "@/lib/artists";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkStaffPin, staffPinFromRequest } from "@/lib/staff";
 
@@ -69,16 +70,10 @@ export async function POST(req: Request) {
   let artistId = b.artist_id ?? null;
   let artistName = "";
   if (!artistId && b.new_artist?.name?.trim()) {
-    const an = b.new_artist.name.trim();
-    const slug = an.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    const { data: a, error } = await db
-      .from("artists")
-      .upsert({ slug, name: an, kind: b.new_artist.kind ?? "artist", access_code: `${slug.toUpperCase().replace(/-/g, "")}${new Date().getFullYear()}` }, { onConflict: "slug" })
-      .select("id, name")
-      .single();
-    if (error || !a) return NextResponse.json({ ok: false, message: error?.message ?? "Artist failed" }, { status: 500 });
-    artistId = a.id;
-    artistName = a.name;
+    const found = await findOrCreateArtist(db, b.new_artist.name, b.new_artist.kind ?? "artist");
+    if (!found.artist) return NextResponse.json({ ok: false, message: found.error }, { status: 400 });
+    artistId = found.artist.id;
+    artistName = found.artist.name;
   } else if (artistId) {
     const { data: a } = await db.from("artists").select("name").eq("id", artistId).maybeSingle();
     artistName = a?.name ?? "";
@@ -127,6 +122,7 @@ export async function PATCH(req: Request) {
     date?: string;
     doors_at?: string | null;
     artist_id?: string | null;
+    artist_name?: string | null;
     image_url?: string | null;
     venue_image_url?: string | null;
     map_image_url?: string | null;
@@ -144,6 +140,16 @@ export async function PATCH(req: Request) {
   if (b.image_url !== undefined) fields.image_url = b.image_url || null;
   if (b.venue_image_url !== undefined) fields.venue_image_url = b.venue_image_url || null;
   if (b.map_image_url !== undefined) fields.map_image_url = b.map_image_url || null;
+  if (b.artist_name !== undefined) {
+    // Typed in the event editor: blank clears it, otherwise match or create the artist.
+    if (!b.artist_name?.trim()) fields.artist_id = null;
+    else {
+      const found = await findOrCreateArtist(db, b.artist_name);
+      if (!found.artist) return NextResponse.json({ ok: false, message: found.error }, { status: 400 });
+      fields.artist_id = found.artist.id;
+      fields.artist = found.artist.name;
+    }
+  }
   if (b.artist_id !== undefined) {
     fields.artist_id = b.artist_id || null;
     if (b.artist_id) {

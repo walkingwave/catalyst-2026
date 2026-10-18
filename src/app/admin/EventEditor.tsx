@@ -37,7 +37,7 @@ export function EventEditor({
     address: event.address ?? "",
     date: event.date,
     doors_at: event.doors_at ?? "",
-    artist_id: event.artist_id ?? "",
+    artist_name: artists.find((a) => a.id === event.artist_id)?.name ?? "",
   });
 
   async function save(fields: Record<string, unknown>) {
@@ -82,18 +82,22 @@ export function EventEditor({
               <Field label="Doors"><Input value={form.doors_at} onChange={(e) => setForm({ ...form, doors_at: e.target.value })} onBlur={blur("doors_at")} /></Field>
             </div>
             <Field label="Artist or team">
-              <select
-                className="w-full h-14 bg-surface-2 px-4 t-body"
-                value={form.artist_id}
-                onChange={(e) => {
-                  setForm({ ...form, artist_id: e.target.value });
-                  void save({ artist_id: e.target.value || null });
+              <Input
+                list="artist-names"
+                placeholder="Artist or team name"
+                value={form.artist_name}
+                onChange={(e) => setForm({ ...form, artist_name: e.target.value })}
+                onBlur={() => {
+                  const typed = form.artist_name.trim();
+                  const current = artists.find((a) => a.id === event.artist_id)?.name ?? "";
+                  if (typed !== current) void save({ artist_name: typed });
                 }}
-              >
-                <option value="">None</option>
-                {artists.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.kind})</option>)}
-              </select>
+              />
+              <datalist id="artist-names">{artists.map((a) => <option key={a.id} value={a.name} />)}</datalist>
             </Field>
+            {form.artist_name.trim() && !artists.some((a) => a.name.toLowerCase() === form.artist_name.trim().toLowerCase()) && (
+              <p className="t-foot text-ink-2">New artist: saving creates &ldquo;{form.artist_name.trim()}&rdquo; with its own rewards and console code.</p>
+            )}
             <p className="t-foot text-ink-2">Changes save when you leave a field.</p>
 
             <SectionHeader>Danger</SectionHeader>

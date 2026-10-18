@@ -167,9 +167,9 @@ test.describe("Admin console", () => {
       await page.getByPlaceholder("Venue").fill("E2E Arena");
       await page.getByPlaceholder("Address").fill("1 E2E Way");
       await page.getByPlaceholder("Doors").fill("6:30 PM");
-      await page.locator("select").nth(0).selectOption("new");
-      await page.getByPlaceholder("Name").nth(1).fill(team);
-      await page.locator("select").nth(1).selectOption("team");
+      await page.getByPlaceholder("Artist or team name").fill(team);
+      await expect(page.getByText(/new artist: creates/i)).toBeVisible();
+      await page.getByLabel("Artist or team", { exact: true }).last().selectOption("team");
       // edit points of first activity, add one, remove one
       const pts = page.getByPlaceholder("pts");
       await pts.first().fill("60");
@@ -331,6 +331,7 @@ test.describe("Admin content management", () => {
       data: { name: `E2E Edit ${Date.now()}`, venue: "V", date: "2026-10-22", activities: [{ name: "Entry", points: 50 }] },
     });
     const ev = (await r.json()).event;
+    let createdArtistId: string | null = null;
     try {
       await unlock(page);
       await page.getByTestId("event-picker")
@@ -339,6 +340,20 @@ test.describe("Admin content management", () => {
         .click();
       const editor = page.getByTestId("event-editor");
       await expect(editor).toBeVisible();
+
+      // artist is a text box: an existing name links that artist, a new name creates one
+      const artistBox = editor.getByPlaceholder("Artist or team name");
+      await artistBox.fill("our lady peace");
+      await artistBox.blur();
+      await expect.poll(async () => (await (await request.get("/api/admin/events", { headers: adminHeaders })).json()).events.find((e: { id: string }) => e.id === ev.id).artist).toBe("Our Lady Peace");
+      const fresh = `E2E Typed Artist ${Date.now()}`;
+      await artistBox.fill(fresh);
+      await expect(editor.getByText(/new artist: saving creates/i)).toBeVisible();
+      await artistBox.blur();
+      await expect.poll(async () => (await (await request.get("/api/admin/events", { headers: adminHeaders })).json()).events.find((e: { id: string }) => e.id === ev.id).artist).toBe(fresh);
+      const created = (await (await request.get("/api/admin/events", { headers: adminHeaders })).json()).artists.find((a: { name: string }) => a.name === fresh);
+      expect(created?.id).toBeTruthy();
+      createdArtistId = created.id;
 
       // details save on blur
       const venue = editor.locator("input").nth(1);
@@ -380,6 +395,7 @@ test.describe("Admin content management", () => {
       await expect(editor.getByText(/1 activities · 60 pts/i)).toBeVisible();
     } finally {
       await deleteEvent(request, ev.id);
+      if (createdArtistId) await deleteArtist(request, createdArtistId);
     }
   });
 
