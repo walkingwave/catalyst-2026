@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendSms, smsEnabled, smsWithOptOut } from "@/lib/sms";
+import { isDemoPhone } from "@/lib/phone";
 
 type Notification = {
   artistId: string;
@@ -24,7 +25,8 @@ export type NotificationResult = {
 export async function notifyFan(db: SupabaseClient, notification: Notification): Promise<NotificationResult> {
   const { artistId, userId, phone, body, sms } = notification;
   const enabled = smsEnabled();
-  const initialStatus = !sms ? null : !enabled ? "disabled" : !phone ? "no_phone" : "pending";
+  const demo = isDemoPhone(phone);
+  const initialStatus = !sms ? null : !enabled ? "disabled" : !phone ? "no_phone" : demo ? "demo" : "pending";
   const { data: message, error } = await db.from("messages").insert({
     artist_id: artistId,
     user_id: userId,
@@ -38,7 +40,7 @@ export async function notifyFan(db: SupabaseClient, notification: Notification):
     console.error("[notifications] inbox insert failed", error?.code);
     return { inbox: false, sms: sms ? "failed" : "not_requested", statusSaved: false };
   }
-  if (!sms || !enabled || !phone) {
+  if (!sms || !enabled || !phone || demo) {
     return { inbox: true, sms: sms ? "skipped" : "not_requested", statusSaved: true };
   }
 

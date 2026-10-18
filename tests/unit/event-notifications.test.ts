@@ -45,7 +45,7 @@ describe("worker delivery", () => {
     const db = { rpc, from: () => ({ upsert }) } as unknown as SupabaseClient;
     return { db, rpc, upsert };
   }
-  const row = { delivery_id: "delivery", user_id: "fan", phone: "+15550100001", body: "Hello", channel: "sms", event_name: "Event A" };
+  const row = { delivery_id: "delivery", user_id: "fan", phone: "+14165550123", body: "Hello", channel: "sms", event_name: "Event A" };
 
   it("sends only database-reserved recipients and records provider acceptance", async () => {
     const { db, rpc } = database([row]);

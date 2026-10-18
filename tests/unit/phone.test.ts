@@ -9,3 +9,21 @@ describe("normalizePhone", () => {
   it("rejects short", () => expect(normalizePhone("12345")).toBeNull());
   it("rejects empty", () => expect(normalizePhone("   ")).toBeNull());
 });
+
+import { isDemoPhone } from "@/lib/phone";
+
+describe("isDemoPhone", () => {
+  it("treats Supabase test OTP numbers as demo", () => {
+    expect(isDemoPhone("+15550100099")).toBe(true);
+    expect(isDemoPhone("5550100001")).toBe(true);
+  });
+  it("keeps real numbers", () => {
+    expect(isDemoPhone("+14165551234")).toBe(false);
+    expect(isDemoPhone(null)).toBe(false);
+  });
+  it("honours DEMO_PHONES", () => {
+    process.env.DEMO_PHONES = "+1 416 000 0000";
+    expect(isDemoPhone("+14160000000")).toBe(true);
+    delete process.env.DEMO_PHONES;
+  });
+});

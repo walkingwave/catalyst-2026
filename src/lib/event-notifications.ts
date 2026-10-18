@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendSms, smsEnabled, smsWithOptOut } from "@/lib/sms";
+import { isDemoPhone } from "@/lib/phone";
 
 export type EventNotification = {
   id: string;
@@ -37,9 +38,9 @@ async function deliver(db: SupabaseClient, delivery: Delivery) {
   let status = "sent";
   let error: string | null = null;
   if (delivery.channel === "sms") {
-    if (!smsEnabled() || !delivery.phone) {
+    if (!smsEnabled() || !delivery.phone || isDemoPhone(delivery.phone)) {
       status = "skipped";
-      error = !delivery.phone ? "No phone number" : "SMS is disabled";
+      error = !delivery.phone ? "No phone number" : !smsEnabled() ? "SMS is disabled" : "Demo number";
     } else {
       try {
         const body = await smsWithOptOut(db, delivery.user_id, `${delivery.event_name}: ${delivery.body}`);

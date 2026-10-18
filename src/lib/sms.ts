@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isDemoPhone } from "@/lib/phone";
 
 /**
  * Outbound SMS. Provider picked by env:
@@ -37,6 +38,7 @@ export function smsEnabled(): boolean {
 
 export async function sendSms(to: string, body: string, opts: { force?: boolean } = {}): Promise<SmsResult> {
   if (!opts.force && process.env.SMS_NOTIFICATIONS !== "true") return { ok: false, provider: "none", error: "SMS_NOTIFICATIONS is off" };
+  if (isDemoPhone(to)) return { ok: false, provider: "none", error: "demo number" };
 
   if (process.env.TEXTBELT_KEY) {
     try {
