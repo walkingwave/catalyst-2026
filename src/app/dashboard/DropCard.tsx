@@ -27,7 +27,7 @@ export function DropCard({ drop }: { drop: Drop & { artist_name: string } }) {
       </div>
       {drop.image_url && (
         <div className="relative w-full aspect-[16/9] mt-3 overflow-hidden">
-          <Image src={drop.image_url} alt="" fill className="object-cover" unoptimized />
+          <Image src={drop.image_url} alt="" fill sizes="(max-width: 448px) 100vw, 448px" className="object-cover" unoptimized />
         </div>
       )}
       <p className="display d-md mt-3">{drop.title}</p>

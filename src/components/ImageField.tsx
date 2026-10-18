@@ -44,7 +44,7 @@ export function ImageField({
         disabled={busy}
         className={`relative w-full ${aspect} bg-surface-2 overflow-hidden flex items-center justify-center press`}
       >
-        {value ? <Image src={value} alt="" fill className="object-cover" unoptimized /> : <span className="label text-ink-2">{busy ? "Uploading…" : "Tap to upload"}</span>}
+        {value ? <Image src={value} alt="" fill sizes="(max-width: 448px) 100vw, 448px" className="object-cover" unoptimized /> : <span className="label text-ink-2">{busy ? "Uploading…" : "Tap to upload"}</span>}
         {value && !busy && <span className="absolute bottom-2 right-2 label bg-invert-bg text-invert-fg px-2 py-1">Replace</span>}
       </button>
       <input

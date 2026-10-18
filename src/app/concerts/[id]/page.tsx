@@ -42,7 +42,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
     <Page>
       <Header />
       <div className="relative aspect-[4/5] mt-2 -mx-4 overflow-hidden">
-        {c.image_url && <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" priority />}
+        {c.image_url && <Image src={c.image_url} alt={c.artist} fill sizes="(max-width: 448px) 100vw, 448px" loading="eager" fetchPriority="high" className="object-cover photo" />}
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white">
           <p className="label text-white/70">{c.artist} · {formatDate(c.date)} · {c.venue}</p>
           <h1 className="display d-hero mt-1">{c.name}</h1>
@@ -70,7 +70,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
 
       {c.venue_image_url && (
         <div className="relative aspect-[16/9] mt-3 -mx-4 overflow-hidden">
-          <Image src={c.venue_image_url} alt={c.venue} fill className="object-cover photo" />
+          <Image src={c.venue_image_url} alt={c.venue} fill sizes="(max-width: 448px) 100vw, 448px" className="object-cover photo" />
           <p className="absolute left-3 bottom-3 label text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
             {c.venue}{c.address ? ` · ${c.address}` : ""}
           </p>

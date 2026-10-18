@@ -152,7 +152,7 @@ export default async function Dashboard({
                   </p>
                   {i.m.image_url && (
                     <div className="relative w-full aspect-[16/9] mt-3 overflow-hidden">
-                      <Image src={i.m.image_url} alt="" fill className="object-cover" unoptimized />
+                      <Image src={i.m.image_url} alt="" fill sizes="(max-width: 448px) 100vw, 448px" className="object-cover" unoptimized />
                     </div>
                   )}
                   <p className="t-body mt-2">{i.m.body}</p>
@@ -168,7 +168,7 @@ export default async function Dashboard({
           <SectionHeader>Latest show</SectionHeader>
           <Link href={`/concerts/${latestShow.id}`} className="block press -mx-4">
             <div className="relative aspect-[16/10]">
-              {latestShow.image_url && <Image src={latestShow.image_url} alt="" fill className="object-cover photo" priority />}
+              {latestShow.image_url && <Image src={latestShow.image_url} alt="" fill sizes="(max-width: 448px) 100vw, 448px" loading="eager" fetchPriority="high" className="object-cover photo" />}
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white flex items-end justify-between">
                 <div>
                   <p className="label text-white/70">{current?.artist.name} · {latestShow.venue} · {formatDate(latestShow.date)}</p>
@@ -185,11 +185,11 @@ export default async function Dashboard({
         <>
           <SectionHeader action={<Link href="/events">All</Link>}>Events</SectionHeader>
           <div className="hscroll flex gap-3 overflow-x-auto -mx-4 px-4 snap-x">
-            {list.map((row) => (
+            {list.map((row, i) => (
               <Link key={row.artist.id} href={`/select/${row.artist.id}?next=/dashboard`} className="press shrink-0 w-[62%] snap-start">
                 <div className={`relative aspect-[4/5] overflow-hidden ${row.artist.id === current?.artist.id ? "ring-2 ring-ink" : ""} bg-invert-bg`}>
                   {row.shows[0]?.image_url ? (
-                    <Image src={row.shows[0].image_url} alt="" fill className="object-cover photo" />
+                    <Image src={row.shows[0].image_url} alt="" fill sizes="(max-width: 448px) 62vw, 280px" loading={i === 0 ? "eager" : "lazy"} className="object-cover photo" />
                   ) : (
                     <p className="absolute inset-0 flex items-center justify-center display text-[120px] text-invert-fg/15 select-none">
                       {row.artist.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("")}

@@ -21,7 +21,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
         <Empty>No events yet. Tap your band at a show.</Empty>
       ) : (
         <div className="space-y-3">
-          {list.map((row) => {
+          {list.map((row, i) => {
             const active = row.artist.id === current?.artist.id;
             const latest = row.shows[0];
             return (
@@ -33,7 +33,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
                 <div className="flex items-stretch">
                   <div className={`relative w-24 shrink-0 ${active ? "bg-invert-fg/10" : "bg-invert-bg"}`}>
                     {latest?.image_url ? (
-                      <Image src={latest.image_url} alt="" fill className="object-cover photo" />
+                      <Image src={latest.image_url} alt="" fill sizes="96px" loading={i === 0 ? "eager" : "lazy"} className="object-cover photo" />
                     ) : (
                       <p className="absolute inset-0 flex items-center justify-center display d-lg text-invert-fg/30 select-none">
                         {row.artist.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("")}

@@ -37,7 +37,7 @@ export default async function ConcertsPage() {
         </Panel>
       ) : (
         <div className="space-y-3">
-          {concerts.map((c) => {
+          {concerts.map((c, i) => {
             const mine = scans.filter((s) => s.activity?.concert_id === c.id);
             const total = mine.reduce((n, s) => n + (s.activity?.points ?? 0), 0);
             return (
@@ -46,7 +46,7 @@ export default async function ConcertsPage() {
                   <div className="flex items-stretch">
                     <div className="relative w-28 shrink-0 bg-invert-bg">
                       {c.image_url ? (
-                        <Image src={c.image_url} alt={c.artist} fill className="object-cover photo" />
+                        <Image src={c.image_url} alt={c.artist} fill sizes="112px" loading={i === 0 ? "eager" : "lazy"} className="object-cover photo" />
                       ) : (
                         <p className="absolute inset-0 flex items-center justify-center display d-xl text-invert-fg/20 select-none">
                           {c.artist.split(/\s+/).slice(0, 2).map((w) => w[0]).join("")}

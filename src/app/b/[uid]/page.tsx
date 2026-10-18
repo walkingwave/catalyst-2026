@@ -87,7 +87,7 @@ export default async function BandPage({ params }: { params: Promise<{ uid: stri
       {concert && (
         <div className="relative aspect-[16/10] mt-2 -mx-4 overflow-hidden">
           {concert.image_url && (
-            <Image src={concert.image_url} alt={concert.artist} fill className="object-cover photo" priority />
+            <Image src={concert.image_url} alt={concert.artist} fill sizes="(max-width: 448px) 100vw, 448px" loading="eager" fetchPriority="high" className="object-cover photo" />
           )}
           <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 to-transparent text-white">
             <p className="label text-white/70">{concert.venue}</p>
