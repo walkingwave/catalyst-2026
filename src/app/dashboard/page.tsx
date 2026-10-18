@@ -9,6 +9,8 @@ import { Nav } from "@/components/Nav";
 import { IconChevron } from "@/components/icons";
 import { DropCard } from "./DropCard";
 import { InboxRefresh } from "./InboxRefresh";
+import { ActivityRows } from "@/components/ActivityRows";
+import type { Activity } from "@/lib/types";
 
 export default async function Dashboard({
   searchParams,
@@ -35,6 +37,19 @@ export default async function Dashboard({
 
   const polls = current ? await fanPolls(supabase, current.artist.id) : [];
   const latestShow = current?.shows[0] ?? null;
+  // Social posts and song requests for the current show, rendered exactly like the show page.
+  const [{ data: showConcert }, { data: remoteActs }, { data: posts }, { data: answers }] = latestShow
+    ? await Promise.all([
+        supabase.from("concerts").select("date, doors_at").eq("id", latestShow.id).maybeSingle(),
+        supabase.from("activities").select("*").eq("concert_id", latestShow.id).in("kind", ["social", "song_request"]).order("points"),
+        supabase.from("social_posts").select("activity_id, status").eq("user_id", user.id),
+        supabase.from("activity_completions").select("activity_id, response").eq("user_id", user.id),
+      ])
+    : [{ data: null }, { data: [] }, { data: [] }, { data: [] }];
+  const tasks = ((remoteActs ?? []) as Activity[]).sort((a, b) => Number(!!b.pre_event) - Number(!!a.pre_event));
+  const postBy = new Map((posts ?? []).map((p) => [p.activity_id, p.status as string]));
+  const answerBy = new Map((answers ?? []).map((x) => [x.activity_id, x.response as string]));
+  const taskDone = new Set([...[...postBy].filter(([, st]) => st === "approved").map(([id]) => id), ...answerBy.keys()]);
   let showRank: { rank: number; total: number } | null = null;
   let eventTotal = 0;
   if (current) {
@@ -193,8 +208,11 @@ export default async function Dashboard({
       )}
 
       <SectionHeader>Activity</SectionHeader>
+      {showConcert && tasks.length > 0 && (
+        <div className="mb-4"><ActivityRows acts={tasks} concert={showConcert} doneIds={taskDone} postBy={postBy} answerBy={answerBy} /></div>
+      )}
       {recent.length === 0 ? (
-        <Empty>No activity yet.</Empty>
+        tasks.length === 0 && <Empty>No activity yet.</Empty>
       ) : (
         <List>
           {recent.map((s) => {

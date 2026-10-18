@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Badge, Button, Empty, Field, Panel, SectionHeader } from "@/components/ui";
+import { Badge, Button, Empty, Field, Panel, SectionHeader, Skeleton } from "@/components/ui";
 import type { EventNotification } from "@/lib/event-notifications";
 
 type Overview = {
@@ -68,7 +68,7 @@ export function EventNotifications({ eventId, headers }: { eventId: string; head
     <section data-testid="event-alerts">
       <SectionHeader>Alerts</SectionHeader>
       {error && <p role="alert" className="t-foot text-danger mb-3">{error}</p>}
-      {!data ? <p className="t-sub text-ink-2">{error ? "Alerts unavailable." : "Loading alerts…"}</p> : (
+      {!data ? (error ? <p className="t-sub text-ink-2">Alerts unavailable.</p> : <div aria-busy="true" className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>) : (
         <>
           <Panel className="p-4">
             <p className="label text-ink-2">To everyone at</p>

@@ -11,7 +11,7 @@ npx playwright show-report   # after an e2e run
 
 The e2e suite runs against `http://localhost:3000` (starts `npm run dev` if nothing is listening) and the live Supabase project. It creates its own artists, events, bands, rewards and posts with `E2E` prefixes and deletes them in `finally` blocks; the setup project also purges leftovers from aborted runs.
 
-Fans sign in with Supabase test OTP numbers (code `123456`). Supabase allows one OTP per number per 60 seconds, so each UI login uses a different number and most fan tests reuse the saved Demo Fan session (`tests/e2e/.auth/fan.json`, written by `auth.setup.ts`). Signing out revokes every session for that user, so the sign-out test uses its own number.
+Fans sign in with Supabase test OTP numbers (code `123456`). Supabase allows one OTP per number per 60 seconds, so each UI login uses a different number and most fan tests reuse the saved test fan session (Taylor B.) (`tests/e2e/.auth/fan.json`, written by `auth.setup.ts`). Signing out revokes every session for that user, so the sign-out test uses its own number.
 
 Viewport is iPhone 14 in Chromium (Web NFC paths show their fallbacks, like a real iPhone would).
 

@@ -96,7 +96,7 @@ test.describe("Admin people", () => {
   test("lists everyone, creates a demo user with a random number, edits and deletes", async ({ page }) => {
     const people = [
       { id: "00000000-0000-0000-0000-0000000000a1", name: "Real Fan", phone: "+14165550123", bands: ["04AAAA"], demo: false },
-      { id: "00000000-0000-0000-0000-0000000000a2", name: "Demo Fan", phone: "+15550100001", bands: ["04BBBB"], demo: true },
+      { id: "00000000-0000-0000-0000-0000000000a2", name: "Riley P.", phone: "+15550100001", bands: ["04BBBB"], demo: true },
     ];
     const calls: { method: string; body?: Record<string, string>; url: string }[] = [];
     await page.addInitScript(() => localStorage.setItem("cc_staff_pin", "test-pin"));
@@ -428,4 +428,23 @@ test.describe("Admin content management", () => {
       await deleteArtist(request, artist.id);
     }
   });
+});
+
+test.describe("Loading states", () => {
+  for (const path of ["/admin", "/staff"]) {
+    test(`${path} shows a skeleton, never an empty or different layout, before the event list`, async ({ page }) => {
+      await page.addInitScript((pin) => {
+        localStorage.setItem("cc_staff_pin", pin);
+        const w = window as unknown as { seen: string[] };
+        w.seen = [];
+        new MutationObserver(() => {
+          const t = document.body?.innerText ?? "";
+          for (const s of ["No events yet", "Create event", "Loading admin", "Loading station"]) if (t.includes(s)) w.seen.push(s);
+        }).observe(document, { subtree: true, childList: true, characterData: true });
+      }, PIN);
+      await page.goto(path);
+      await expect(page.getByTestId("event-picker")).toBeVisible();
+      expect([...new Set(await page.evaluate(() => (window as unknown as { seen: string[] }).seen))]).toEqual([]);
+    });
+  }
 });

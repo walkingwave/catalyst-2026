@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, List, Row, Field, Headline } from "@/components/ui";
+import { Button, Input, List, Row, Field, Headline, ConsoleSkeleton } from "@/components/ui";
 import { IconCheck, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
 import { nfcSupported as nfcOk, nfcErrorMessage, startNfc, type NfcSession } from "@/lib/nfc";
@@ -29,6 +29,8 @@ export function StaffStation() {
   const [concertId, setConcertId] = useState("");
   const [activityId, setActivityId] = useState("");
   const [tab, setTab] = useState<"scan" | "alerts">("scan");
+  // Skeleton until the catalog arrives, so the event picker never flashes "No events yet".
+  const [loaded, setLoaded] = useState(false);
   const headers = useCallback(() => ({ "x-staff-pin": pin ?? "", "content-type": "application/json" }), [pin]);
 
   const [nfcSupported] = useState<boolean>(() => nfcOk());
@@ -67,7 +69,8 @@ export function StaffStation() {
           return;
         }
         console.error("[staff] catalog failed", err);
-      });
+      })
+      .finally(() => setLoaded(true));
   }, [pin]);
 
   async function submitPin(e: React.FormEvent) {
@@ -168,6 +171,8 @@ export function StaffStation() {
       </main>
     );
   }
+
+  if (!loaded) return <ConsoleSkeleton label="Loading station" />;
 
   const concertActivities = activities.filter((a) => a.concert_id === concertId);
   const activity = activities.find((a) => a.id === activityId);

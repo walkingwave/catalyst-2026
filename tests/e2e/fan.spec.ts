@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { createEvent, createArtist, deleteEvent, deleteArtist, registerBand, scan, testUid, createReward, goLive, adminHeaders, FAN_NAME } from "./helpers";
 
-/* Runs with Demo Fan's session (storageState from auth.setup). */
+/* Runs with the test fan (Taylor B.) session (storageState from auth.setup). */
 
 test.describe("Fan pages", () => {
   test("dashboard shows points, fandoms, latest show, activity, nav", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByText(/^demo$/i)).toBeVisible();
+    await expect(page.getByText(/^taylor$/i)).toBeVisible();
     await expect(page.getByText(/current event/i).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: /^activity$/i })).toBeVisible();
     for (const t of ["Home", "Events", "Ranks", "Rewards", "Me"]) {

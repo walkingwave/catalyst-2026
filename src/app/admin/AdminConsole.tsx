@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge } from "@/components/ui";
+import { Button, Input, Field, Headline, List, Row, Panel, SectionHeader, Empty, Badge, ConsoleSkeleton } from "@/components/ui";
 import { IconCheck, IconChevron, IconLock, IconNfc, IconX } from "@/components/icons";
 import { normalizeUid } from "@/lib/uid";
 import { EventEditor, type EventRow } from "./EventEditor";
@@ -41,24 +41,30 @@ export function AdminConsole() {
   const [tab, setTab] = useState<Tab>("tap");
   const [editEventId, setEditEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Until the first event list arrives, show the skeleton instead of an empty picker that then jumps.
+  const [loaded, setLoaded] = useState(false);
   const nfcSupported = nfcOk();
 
   const headers = useCallback(() => ({ "x-staff-pin": pin ?? "", "content-type": "application/json" }), [pin]);
 
   const load = useCallback(async () => {
     if (!pin) return;
-    const r = await fetch("/api/admin/events", { headers: headers() });
-    if (r.status === 401) {
-      setPin(null);
-      try {
-        localStorage.removeItem(PIN_KEY);
-      } catch {}
-      return;
+    try {
+      const r = await fetch("/api/admin/events", { headers: headers() });
+      if (r.status === 401) {
+        setPin(null);
+        try {
+          localStorage.removeItem(PIN_KEY);
+        } catch {}
+        return;
+      }
+      const j = (await r.json()) as { events: EventRow[]; artists: ArtistRow[] };
+      setEvents(j.events);
+      setArtists(j.artists);
+      setEventId((cur) => (cur && j.events.some((e) => e.id === cur) ? cur : ""));
+    } finally {
+      setLoaded(true);
     }
-    const j = (await r.json()) as { events: EventRow[]; artists: ArtistRow[] };
-    setEvents(j.events);
-    setArtists(j.artists);
-    setEventId((cur) => (cur && j.events.some((e) => e.id === cur) ? cur : ""));
   }, [pin, headers]);
 
   useEffect(() => {
@@ -103,6 +109,8 @@ export function AdminConsole() {
       </main>
     );
   }
+
+  if (!loaded) return <ConsoleSkeleton label="Loading admin" />;
 
   const event = events.find((e) => e.id === eventId) ?? null;
   const editEvent = events.find((e) => e.id === editEventId) ?? null;

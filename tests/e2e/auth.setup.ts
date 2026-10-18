@@ -14,7 +14,7 @@ setup("purge leftovers from aborted runs", async ({ request }) => {
   await purgeE2eContent();
 });
 
-setup("sign in as Demo Fan", async ({ page }) => {
+setup("sign in as the test fan", async ({ page }) => {
   await loginAs(page);
   await page.context().storageState({ path: FILE });
 });

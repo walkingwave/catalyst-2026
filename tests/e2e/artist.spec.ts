@@ -83,7 +83,7 @@ test.describe("Artist console", () => {
     try {
       const code = (await (await request.post("/api/admin/artists", { headers: { "x-staff-pin": "1234", "content-type": "application/json" }, data: { name: artistName } })).json()).artist.access_code;
 
-      // fan: claim band + submit post, using the saved Demo Fan session
+      // fan: claim band + submit post, using the saved test fan session
       const ctx = await browser.newContext({ storageState: FAN_STATE });
       const fan = await ctx.newPage();
       await registerBand(request, uid, ev.id);

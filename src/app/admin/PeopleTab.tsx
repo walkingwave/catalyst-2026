@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Button, Empty, Field, Input, List, Row } from "@/components/ui";
+import { Badge, Button, Empty, Field, Input, List, Row, SkeletonRows } from "@/components/ui";
 import { IconChevron } from "@/components/icons";
 
 type H = () => HeadersInit;
@@ -45,7 +45,7 @@ export function PeopleTab({ eventId, headers, flash }: { eventId: string; header
       </div>
       {!demoAvailable && <p className="t-foot text-ink-2 mb-3">Creating demo users needs SUPABASE_ACCESS_TOKEN on the server.</p>}
       {error && <p role="alert" className="t-foot text-danger mb-3">{error}</p>}
-      {!people ? <p className="t-sub text-ink-2">Loading people…</p> : people.length === 0 ? <Empty>No one has claimed a band at this event yet.</Empty> : (
+      {!people ? <SkeletonRows count={4} /> : people.length === 0 ? <Empty>No one has claimed a band at this event yet.</Empty> : (
         <div data-testid="people-list">
           <List>
             {people.map((p) => (

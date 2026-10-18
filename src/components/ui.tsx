@@ -305,3 +305,60 @@ export function Banner({ children, tone = "success" }: { children: ReactNode; to
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="t-sub text-ink-2 py-6">{children}</p>;
 }
+
+/* Loading ------------------------------------------------------------- */
+
+/** Tonal placeholder block. Size it with className; shapes stay square like the rest of the UI. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden className={`bg-surface-2 animate-pulse ${className}`} />;
+}
+
+/** Placeholder list rows, the same height as `Row`. */
+export function SkeletonRows({ count = 4 }: { count?: number }) {
+  return (
+    <div className="rules" aria-hidden>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="flex items-center min-h-[52px] py-3 gap-3">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+          <Skeleton className="h-5 w-10" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Admin / staff / artist console shell while the console loads: title bar, section header, rows. */
+export function ConsoleSkeleton({ label }: { label: string }) {
+  return (
+    <main className="flex-1 max-w-md mx-auto w-full px-4 pt-3 pb-10" aria-busy="true" aria-label={label}>
+      <div className="flex items-center justify-between h-14">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-5 w-12" />
+      </div>
+      <div className="flex items-end justify-between pt-8 pb-3">
+        <Skeleton className="h-6 w-28" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+      <SkeletonRows count={5} />
+    </main>
+  );
+}
+
+/** Fan page shell while a route streams in: header bar, hero ticket, section, rows. */
+export function FanPageSkeleton() {
+  return (
+    <main className="flex-1 w-full max-w-md mx-auto px-4 pt-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))]" aria-busy="true" aria-label="Loading">
+      <div className="flex items-center justify-between h-14">
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="h-5 w-16" />
+      </div>
+      <Skeleton className="h-12 w-1/2 mt-2" />
+      <Skeleton className="h-56 w-full mt-4" />
+      <div className="pt-8 pb-3"><Skeleton className="h-6 w-28" /></div>
+      <SkeletonRows count={4} />
+    </main>
+  );
+}

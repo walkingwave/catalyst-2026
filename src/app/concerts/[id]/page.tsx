@@ -1,13 +1,11 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireFan, fanScans, formatDate } from "@/lib/fan";
-import { Page, List, Row, SectionHeader, Points } from "@/components/ui";
+import { Page, List, Row, SectionHeader } from "@/components/ui";
 import { Header } from "@/components/Header";
 import { Nav } from "@/components/Nav";
 import { VenueMap } from "@/components/VenueMap";
-import { SocialSubmit } from "@/components/SocialSubmit";
-import { SongRequestSubmit } from "@/components/SongRequestSubmit";
-import { activityOpen, preEventClosesAt } from "@/lib/pre-event";
+import { ActivityRows } from "@/components/ActivityRows";
 import { PollCard } from "@/components/PollCard";
 import { fanPolls } from "@/lib/fan";
 import type { Activity, Concert } from "@/lib/types";
@@ -29,7 +27,6 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
   // Pre-event tasks first so fans with only an invite see what they can do now.
   const acts = ((activities ?? []) as Activity[]).sort((a, b) => Number(!!b.pre_event) - Number(!!a.pre_event));
   const answerBy = new Map((answers ?? []).map((x) => [x.activity_id, x.response]));
-  const closesAt = preEventClosesAt(c);
   const mine = scans.filter((s) => s.activity?.concert_id === id);
   const doneNames = new Set(mine.map((s) => s.activity?.name));
   const doneIds = new Set(acts.filter((a) => doneNames.has(a.name)).map((a) => a.id));
@@ -82,53 +79,7 @@ export default async function ConcertPage({ params }: { params: Promise<{ id: st
 
       {/* Every activity lives here: tap-ins, plus social posts and song requests with their answer box inline. */}
       <SectionHeader>Activities</SectionHeader>
-      <div className="rules">
-        {acts.map((a) => {
-          const open = activityOpen(a, c);
-          const title = a.pre_event ? (
-            <><span className="label bg-warning text-black px-1.5 mr-2 align-middle">Pre-event</span>{a.name}</>
-          ) : a.name;
-          const lock = a.pre_event ? (open ? `Before doors · closes ${closesAt.toLocaleString("en-CA", { timeZone: "America/Toronto", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Closed at doors") : undefined;
-          const subtitle = [lock, a.location].filter(Boolean).join(" · ") || undefined;
-          if (a.kind === "social") {
-            const st = postBy.get(a.id);
-            return (
-              <div key={a.id}>
-                <Row
-                  title={title}
-                  subtitle={subtitle}
-                  value={st === "approved" ? "Done" : st === "pending" ? "Pending" : st === "rejected" ? "Rejected" : <>+<Points value={a.points} /></>}
-                  valueTone={st === "approved" ? "success" : st ? "muted" : "default"}
-                />
-                {!st && open && <SocialSubmit activityId={a.id} network={a.social_network ?? null} points={a.points} />}
-              </div>
-            );
-          }
-          if (a.kind === "song_request") {
-            const answer = answerBy.get(a.id);
-            return (
-              <div key={a.id}>
-                <Row
-                  title={title}
-                  subtitle={answer ? `Requested: ${answer}` : subtitle}
-                  value={answer ? "Done" : <>+<Points value={a.points} /></>}
-                  valueTone={answer ? "success" : "default"}
-                />
-                {!answer && open && <SongRequestSubmit activityId={a.id} points={a.points} />}
-              </div>
-            );
-          }
-          return (
-            <Row
-              key={a.id}
-              title={title}
-              subtitle={subtitle}
-              value={doneIds.has(a.id) ? "Done" : <>+<Points value={a.points} /></>}
-              valueTone={doneIds.has(a.id) ? "success" : "default"}
-            />
-          );
-        })}
-      </div>
+      <ActivityRows acts={acts} concert={c} doneIds={doneIds} postBy={postBy} answerBy={answerBy} />
       <Nav />
     </Page>
   );

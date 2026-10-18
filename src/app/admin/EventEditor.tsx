@@ -219,7 +219,7 @@ function ActivitiesEditor({ event, headers, onChanged, flash }: { event: EventRo
             <div key={a.id} className="flex items-center min-h-[56px] gap-2">
               <button onClick={() => startEdit(a)} className="flex-1 min-w-0 text-left py-2 press">
                 <p className="t-body truncate">
-                  {a.pre_event && <span className="label bg-warning text-black px-1.5 mr-2 align-middle">Pre-event</span>}
+                  {a.pre_event && <span className="label text-warning border border-warning px-1.5 mr-2 align-middle">Pre-event</span>}
                   {a.name} <span className="t-foot text-ink-2">{a.kind === "social" ? "· social" : a.kind === "song_request" ? "· song request" : ""}</span>
                 </p>
                 <p className="t-foot text-ink-2 truncate">{a.location ?? "No location"}{a.map_x != null || (a.kind ?? "scan") !== "scan" ? "" : " · not on map"}</p>

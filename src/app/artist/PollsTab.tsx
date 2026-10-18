@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Input, Field, Panel, Empty } from "@/components/ui";
+import { Button, Input, Field, Panel, Empty, SkeletonRows } from "@/components/ui";
 import { IconX, IconCheck } from "@/components/icons";
 import { fmtLeft, secondsLeft, type Poll } from "@/lib/polls";
 
@@ -117,7 +117,7 @@ export function PollsTab({ headers, concerts, flash }: { headers: () => HeadersI
       )}
 
       {polls === null ? (
-        <p className="t-sub text-ink-2 py-6">Loading…</p>
+        <SkeletonRows count={3} />
       ) : polls.length === 0 ? (
         <Empty>No polls yet.</Empty>
       ) : (

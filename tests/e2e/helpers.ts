@@ -2,8 +2,8 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export const PIN = process.env.STAFF_PIN ?? "1234";
 export const OTP = "123456";
-export const FAN_PHONE = "5550100099"; // Demo Fan, Supabase test OTP number
-export const FAN_NAME = "Demo Fan";
+export const FAN_PHONE = "5550100099"; // Taylor B., Supabase test OTP number
+export const FAN_NAME = "Taylor B.";
 export const FAN_STATE = "tests/e2e/.auth/fan.json"; // saved by auth.setup.ts
 /* Supabase allows one OTP per number per 60s. Each UI login below uses its own test number. */
 export const PHONES = { maya: "5550100001", jordan: "5550100002", priya: "5550100003", leo: "5550100004", sam: "5550100005", ava: "5550100006" };
